@@ -1,0 +1,345 @@
+.fragments-form-wrapper {
+  padding: 20px;
+  padding-right: 60px;
+}
+
+.input-group, .message-wrapper {
+  margin-bottom: 15px;
+  font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+  font-size: 14px;
+  line-height: 1.2;
+  word-wrap: break-word;
+}
+
+.message-wrapper.hidden {
+  display: none;
+}
+
+.message-wrapper {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-height: 80vh;
+  max-width: 600px;
+  width: 80%;
+  overflow-y: auto;
+  z-index: 1001;
+  background: white;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+  padding: 15px 20px;
+  border-radius: 16px;
+  border: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.message-close {
+  position: absolute;
+  right: 15px;
+  top: 15px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.message-close:hover {
+  color: #000;
+}
+
+.message-wrapper .feedback-message.error {
+  color: #800000;
+} 
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.help-text {
+  display: block;
+  margin-top: 5px;
+  color: #666;
+  font-size: 14px;
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.button-group .fragment-btn {
+  padding: 5px 14px;
+  line-height: 18px;
+  font-size: 14px;
+  border: 2px solid rgb(0 0 0);
+  color: rgb(0 0 0);
+  border-radius: 16px;
+  outline-offset: 0;
+  transition: outline-offset 0.2s;
+  text-decoration: none;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  background: none;
+}
+
+.feedback-message {
+  width: 100%;
+  padding-right: 30px;
+}
+
+.fragments-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.fragment-item {
+  border-bottom: 1px solid #eee;
+  padding: 0;
+}
+
+.fragment-item:last-child {
+  border-bottom: none;
+}
+
+.tree-item {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-item-content {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.tree-icon {
+  width: 15px;
+  height: 15px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.tree-toggle {
+  display: none;
+}
+
+.toggle-icon {
+  display: none;
+}
+
+.tree-toggle.expanded .toggle-icon {
+  transform: rotate(90deg);
+}
+
+.folder-name {
+  margin-left: 4px;
+  font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+  font-size: 14px;
+}
+
+.tree-list {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.tree-list.hidden {
+  display: none;
+}
+
+.fragment-btn-item {
+  margin: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border: none;
+  padding: 4px 14px;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+  background: none;
+  margin-left: 24px;
+}
+
+.fragment-btn-item:hover {
+  background-color: rgb(228 240 255);
+  color: rgb(22 122 243);
+}
+
+.folder-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.folder-btn:hover {
+  background-color: rgb(228 240 255);
+  color: rgb(22 122 243);
+}
+
+.folder-btn.expanded .folder-icon {
+  transform: none;
+}
+
+@media (width >= 900px) {
+  :host {
+    dialog.da-dialog-plugin {
+      width: calc(100% - 72px);
+      box-sizing: border-box;
+      height: calc(100% - 72px);
+      padding: 0;
+      border: 0;
+      border-radius: 16px;
+      filter: drop-shadow(0 0 8px rgb(0 0 0 / 30%));
+  } 
+  }
+
+}
+
+.fragment-list {
+  list-style: disc;
+  margin: 10px 0 0 20px;
+  padding: 0;
+  font-size: 14px;
+}
+
+.fragment-list li {
+  margin-bottom: 4px;
+}
+
+.fragment-list a {
+  color: #2020E0;
+  text-decoration: none;
+}
+
+.fragment-list a:hover {
+  text-decoration: underline;
+}
+
+.search-container {
+  margin: 0 40px 15px 20px;
+  width: calc(100% - 60px); /* Account for left and right margins */
+}
+
+.fragment-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.fragment-search:focus {
+  border-color: #2020E0;
+}
+
+.fragment-search::placeholder {
+  color: #666;
+}
+
+.message-indicator {
+  position: fixed;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.indicator-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: invert(32%) sepia(98%) saturate(7496%) hue-rotate(241deg) brightness(97%) contrast(98%);
+  transition: filter 0.2s;
+}
+
+.message-indicator.active .indicator-icon {
+  filter: none;
+}
+
+.message-indicator.hidden {
+  display: none;
+}
+
+.message-indicator:hover {
+  opacity: 1;
+}
+
+.message-indicator.active {
+  color: #000;
+}
+
+.fragments-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #666;
+  font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+  font-size: 14px;
+}
+
+/* Add focus styles for better keyboard navigation */
+.fragment-btn-item:focus,
+.folder-btn:focus,
+.fragment-btn:focus,
+.message-close:focus,
+.message-indicator:focus,
+.fragment-search:focus {
+  outline: 2px solid rgb(22 122 243);
+  outline-offset: 2px;
+}
+
+/* Add focus-visible for better visual feedback */
+.fragment-btn-item:focus:not(:focus-visible),
+.folder-btn:focus:not(:focus-visible),
+.fragment-btn:focus:not(:focus-visible),
+.message-close:focus:not(:focus-visible),
+.message-indicator:focus:not(:focus-visible) {
+  outline: none;
+}
