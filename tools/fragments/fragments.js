@@ -9,45 +9,44 @@ import { crawl } from 'https://da.live/nx/public/utils/tree.js';
 const FRAGMENTS_BASE = '/aemedge/fragments';
 
 /**
- * Shows a message in the feedback container with optional error styling
+ * Shows a message in the feedback container with optional error styling and auto-hide
  * @param {string} text - Message text to display
  * @param {boolean} [isError=false] - Whether to style as error message
- * @param {boolean} [isFragment=false] - Whether this is a fragment insertion message
+ * @param {boolean} [autoHide=false] - Whether to auto-hide the message
  */
-function showMessage(text, isError = false, isFragment = false) {
+function showMessage(text, isError = false, autoHide = false) {
   const message = document.querySelector('.feedback-message');
   const msgContainer = document.querySelector('.message-wrapper');
-  const indicator = document.querySelector('.message-indicator');
 
-  if (isFragment) {
-    // Initialize or get existing fragment list
-    let fragmentList = message.querySelector('.fragment-list');
-    if (!fragmentList) {
-      message.innerHTML = 'Inserted fragments:<br>';
-      fragmentList = document.createElement('ul');
-      fragmentList.className = 'fragment-list';
-      message.appendChild(fragmentList);
-    }
+  message.innerHTML = text.replace(/\r?\n/g, '<br>');
+  message.classList.toggle('error', isError);
+  msgContainer.classList.remove('hidden');
 
-    // Add new fragment to list with clickable link
-    const listItem = document.createElement('li');
-    const fragmentUrl = text.replace('Inserted fragment link: ', '');
-    const link = document.createElement('a');
-    link.href = fragmentUrl;
-    link.textContent = fragmentUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    listItem.appendChild(link);
-    fragmentList.appendChild(listItem);
-
-    // Show indicator when messages exist
-    indicator.classList.remove('hidden');
-  } else {
-    // Regular message display
-    message.innerHTML = text.replace(/\r?\n/g, '<br>');
-    message.classList.toggle('error', isError);
-    msgContainer.classList.remove('hidden');
+  if (autoHide && !isError) {
+    setTimeout(() => {
+      msgContainer.classList.add('hidden');
+    }, 1000);
   }
+}
+
+function addToInfoList(text) {
+  const infoWrapper = document.querySelector('.info-list-wrapper');
+  const indicator = document.querySelector('.message-indicator');
+  const fragmentList = infoWrapper.querySelector('.info-list');
+
+  // Add new fragment to list with clickable link
+  const listItem = document.createElement('li');
+  const fragmentUrl = text.replace('Inserted fragment link: ', '');
+  const link = document.createElement('a');
+  link.href = fragmentUrl;
+  link.textContent = fragmentUrl;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  listItem.appendChild(link);
+  fragmentList.appendChild(listItem);
+
+  // Show indicator when messages exist
+  indicator.classList.remove('hidden');
 }
 
 /**
@@ -81,10 +80,10 @@ function createFileTree(files, basePath) {
  * Hides the message container and updates indicator
  */
 function hideMessageContainer() {
-  const msgContainer = document.querySelector('.message-wrapper');
+  const infoWrapper = document.querySelector('.info-list-wrapper');
   const indicator = document.querySelector('.message-indicator');
-  if (!msgContainer.classList.contains('hidden')) {
-    msgContainer.classList.add('hidden');
+  if (!infoWrapper.classList.contains('hidden')) {
+    infoWrapper.classList.add('hidden');
     indicator.classList.remove('active');
   }
 }
@@ -199,7 +198,7 @@ function handleFragmentSelect(actions, file, context) {
   const displayPath = file.path.replace(basePath, '').replace(/\.html$/, '');
   const fragmentUrl = `https://main--${context.repo}--${context.org}.aem.live${displayPath}`;
   actions.sendHTML(`<a href="${fragmentUrl}" class="fragment">${fragmentUrl}</a>`);
-  showMessage(`Inserted fragment link: ${fragmentUrl}`, false, true);
+  addToInfoList(`Inserted fragment link: ${fragmentUrl}`);
 }
 
 /**
@@ -239,11 +238,15 @@ function filterFragments(searchText, fragmentsList) {
     item.style.display = isMatching ? '' : 'none';
 
     // If it's a folder and it's in the matching paths, expand it
-    const toggle = item.querySelector('.tree-toggle');
+    const folderBtn = item.querySelector('.folder-btn');
     const list = item.querySelector('.tree-list');
-    if (toggle && list && isMatching) {
-      toggle.classList.add('expanded');
-      toggle.querySelector('.toggle-icon').textContent = '▼';
+    if (folderBtn && list && isMatching) {
+      folderBtn.classList.add('expanded');
+      folderBtn.setAttribute('aria-expanded', 'true');
+      const folderIcon = folderBtn.querySelector('.folder-icon');
+      if (folderIcon) {
+        folderIcon.src = '/.da/icons/folder-open-icon.png';
+      }
       list.classList.remove('hidden');
     }
   });
@@ -251,11 +254,15 @@ function filterFragments(searchText, fragmentsList) {
   // If search is cleared, collapse all folders
   if (!searchText) {
     items.forEach((item) => {
-      const toggle = item.querySelector('.tree-toggle');
+      const folderBtn = item.querySelector('.folder-btn');
       const list = item.querySelector('.tree-list');
-      if (toggle && list) {
-        toggle.classList.remove('expanded');
-        toggle.querySelector('.toggle-icon').textContent = '▶';
+      if (folderBtn && list) {
+        folderBtn.classList.remove('expanded');
+        folderBtn.setAttribute('aria-expanded', 'false');
+        const folderIcon = folderBtn.querySelector('.folder-icon');
+        if (folderIcon) {
+          folderIcon.src = '/.da/icons/folder-icon.png';
+        }
         list.classList.add('hidden');
       }
       item.style.display = '';
@@ -264,130 +271,40 @@ function filterFragments(searchText, fragmentsList) {
 }
 
 /**
- * Shows a loading message in the fragments list
- * @param {HTMLElement} fragmentsList - The fragments list container
- */
-function showLoadingInList(fragmentsList) {
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'fragments-loading';
-  loadingDiv.textContent = 'Loading fragments...';
-  fragmentsList.appendChild(loadingDiv);
-}
-
-/**
  * Initializes the fragments interface and sets up event handlers
- * @returns {Promise<void>}
  */
 (async function init() {
   const { context, token, actions } = await DA_SDK;
 
-  // Create and style the form container
-  const formContainer = document.createElement('div');
-  formContainer.className = 'fragments-form-wrapper';
-
-  const msgContainer = document.createElement('div');
-  msgContainer.className = 'message-wrapper hidden';
-
-  const message = document.createElement('div');
-  message.className = 'feedback-message';
-  message.textContent = '';
-  msgContainer.append(message);
-
-  // Create fragments list container
-  const fragmentsList = document.createElement('ul');
-  fragmentsList.className = 'fragments-list';
-
-  // Create form element
-  const form = document.createElement('form');
-  form.className = 'fragments-form';
+  const form = document.querySelector('.fragments-form');
+  const fragmentsList = document.querySelector('.fragments-list');
+  const searchInput = document.querySelector('.fragment-search');
+  const refreshBtn = document.querySelector('.fragment-btn[type="button"]');
+  const cancelBtn = document.querySelector('.fragment-btn[type="reset"]');
+  const indicator = document.querySelector('.message-indicator');
+  const infoWrapper = document.querySelector('.info-list-wrapper');
 
   // Prevent default form submission
   form.addEventListener('submit', (e) => e.preventDefault());
 
-  // Create button group container
-  const buttonGroup = document.createElement('div');
-  buttonGroup.className = 'button-group';
-
-  // Create refresh button
-  const refreshBtn = document.createElement('button');
-  refreshBtn.className = 'fragment-btn';
-  refreshBtn.textContent = 'Refresh';
-  refreshBtn.type = 'button';
-  refreshBtn.title = 'Refresh the Fragments List';
-  refreshBtn.setAttribute('role', 'button');
-  refreshBtn.setAttribute('aria-label', 'Refresh fragments list');
-
-  // Create cancel button (renamed from reset)
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'fragment-btn';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.type = 'reset';
-  cancelBtn.title = 'Cancel Fetching Fragments';
-  cancelBtn.setAttribute('role', 'button');
-  cancelBtn.setAttribute('aria-label', 'Cancel fetching fragments');
-
-  // Add all buttons to button group
-  buttonGroup.append(refreshBtn, cancelBtn);
-
-  // Create search container
-  const searchContainer = document.createElement('div');
-  searchContainer.className = 'search-container';
-
-  const searchInput = document.createElement('input');
-  searchInput.type = 'text';
-  searchInput.placeholder = 'Type to search fragments by name...';
-  searchInput.className = 'fragment-search';
-  searchInput.setAttribute('role', 'searchbox');
-  searchInput.setAttribute('aria-label', 'Search fragments');
-
+  // Add search handler
   searchInput.addEventListener('input', (e) => {
     filterFragments(e.target.value, fragmentsList);
   });
 
-  searchContainer.appendChild(searchInput);
-
-  // Create message indicator
-  const indicator = document.createElement('button');
-  indicator.className = 'message-indicator hidden';
-  indicator.setAttribute('role', 'button');
-  indicator.setAttribute('aria-label', 'View inserted fragments');
-  indicator.setAttribute('aria-expanded', 'false');
-  const indicatorIcon = document.createElement('img');
-  indicatorIcon.src = '/.da/icons/fragments-icon.png';
-  indicatorIcon.alt = 'View inserted fragments';
-  indicatorIcon.className = 'indicator-icon';
-  indicatorIcon.setAttribute('aria-hidden', 'true');
-  indicator.appendChild(indicatorIcon);
-  indicator.title = 'View inserted fragments';
-
-  // Add close button to message container
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'message-close';
-  closeBtn.innerHTML = '✕';
-  closeBtn.title = 'Close';
-  closeBtn.setAttribute('role', 'button');
-  closeBtn.setAttribute('aria-label', 'Close message container');
-
-  // Add close button to message container
-  msgContainer.insertBefore(closeBtn, msgContainer.firstChild);
-
-  // Add click handler to indicator
+  // Add indicator click handler
   indicator.addEventListener('click', () => {
-    const isHidden = msgContainer.classList.toggle('hidden');
+    const isHidden = infoWrapper.classList.toggle('hidden');
     indicator.classList.toggle('active');
     indicator.setAttribute('aria-expanded', !isHidden);
   });
 
-  // Assemble the form
-  form.append(searchContainer, fragmentsList, buttonGroup);
-  formContainer.append(form);
-  formContainer.appendChild(indicator);
-  document.body.append(formContainer, msgContainer);
-
   // Function to load fragments
   async function loadFragments() {
-    fragmentsList.innerHTML = '';
-    showLoadingInList(fragmentsList);
+    fragmentsList.textContent = 'Loading fragments...';
+
+    // Enable cancel button at start of loading
+    cancelBtn.disabled = false;
 
     try {
       const files = [];
@@ -406,7 +323,7 @@ function showLoadingInList(fragmentsList) {
         },
       };
 
-      const { results, getDuration, cancelCrawl } = crawl({
+      const { results, cancelCrawl } = crawl({
         path,
         callback,
         throttle: 10,
@@ -416,6 +333,9 @@ function showLoadingInList(fragmentsList) {
       cancelBtn.addEventListener('click', cancelCrawl);
 
       await results;
+
+      // Disable cancel button after crawl completes
+      cancelBtn.disabled = true;
 
       // Clear loading message
       fragmentsList.innerHTML = '';
@@ -428,12 +348,11 @@ function showLoadingInList(fragmentsList) {
             createTreeItem(name, node, (file) => handleFragmentSelect(actions, file, context)),
           );
         });
-
-      const duration = getDuration();
-      showMessage(`Fragments loaded in ${duration} ms`);
     } catch (error) {
       showMessage('Failed to load fragments', true);
       console.error(error);
+      // Also disable cancel button on error
+      cancelBtn.disabled = true;
     }
   }
 
