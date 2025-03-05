@@ -334,6 +334,18 @@ async function setNavType() {
   }
 }
 
+export function replaceTildesWithDel() {
+  const divs = document.querySelectorAll('div, div > p');
+  divs.forEach((div) => {
+    const text = div.innerHTML;
+    const tildeRegex = /^~~(.*?)~~$/;
+    const match = text.match(tildeRegex);
+    if (match) {
+      div.innerHTML = text.replace(tildeRegex, '<del>$1</del>');
+    }
+  });
+}
+
 /**
  * Decorates paragraphs containing a single link as buttons.
  * @param {Element} element container element
@@ -591,6 +603,7 @@ function decorateLinkedImages() {
 export function decorateMain(main) {
   // hopefully forward compatible button decoration
   centerHeadlines();
+  replaceTildesWithDel();
   decorateButtons(main);
   decorateIcons(main);
   buildAutoBlocks(main);
