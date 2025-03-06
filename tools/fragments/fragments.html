@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fragments Tool</title>
+  <link rel="stylesheet" href="fragments.css">
+</head>
+<body>
+  <div class="fragments-form-wrapper">
+    <form class="fragments-form">
+      <div class="search-container">
+        <input type="text" 
+               class="fragment-search" 
+               placeholder="Type to search fragments by name..." 
+               role="searchbox" 
+               aria-label="Search fragments">
+      </div>
+      
+      <ul class="fragments-list">
+        <div class="loading-state">Loading fragments...</div>
+      </ul>
+    </form>
+
+    <div class="actions-container">
+      <div class="message-wrapper hidden">
+        <div class="feedback-message"></div>
+      </div>
+      
+      <div class="button-group">
+        <button class="fragment-btn" 
+                type="button" 
+                title="Refresh the Fragments List" 
+                role="button" 
+                aria-label="Refresh fragments list">
+          Refresh
+        </button>
+        <button class="fragment-btn" 
+                type="reset" 
+                title="Cancel Fetching Fragments" 
+                role="button" 
+                aria-label="Cancel fetching fragments">
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <button class="message-indicator hidden" 
+            role="button" 
+            aria-label="View inserted fragments" 
+            aria-expanded="false" 
+            title="View inserted fragments">
+      <img src="/.da/icons/info-icon.png" 
+           alt="View inserted fragments" 
+           class="indicator-icon" 
+           aria-hidden="true">
+    </button>
+
+    <div class="info-list-wrapper hidden">
+      <h3>Added fragments:</h3>
+      <ul class="info-list"></ul>
+    </div>
+  </div>
+
+  <script type="module" src="fragments.js"></script>
+</body>
+</html> 
