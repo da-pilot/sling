@@ -10,19 +10,20 @@ import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 const DA_SOURCE = 'https://admin.da.live/source';
 const CRON_TAB_PATH = '.helix/crontab.json';
 const AEM_PREVIEW_REQUEST_URL = 'https://admin.hlx.page/preview';
-/**
- * Shows a message in the feedback container with optional error styling
- * @param {string} text - Message text to display
- * @param {boolean} [isError=false] - Whether to style as error message
- */
-function showMessage(text, isError = false) {
-  const message = document.querySelector('.feedback-message');
-  const msgContainer = document.querySelector('.message-wrapper');
 
-  message.innerHTML = text.replace(/\r?\n/g, '<br>');
-  message.classList.toggle('error', isError);
-  msgContainer.classList.remove('hidden');
-}
+// Combine message handling into a single utility
+const messageUtils = {
+  container: document.querySelector('.message-wrapper'),
+  show(text, isError = false) {
+    const message = this.container.querySelector('.message');
+    message.innerHTML = text.replace(/\r?\n/g, '<br>');
+    message.classList.toggle('error', isError);
+  },
+  setLoading(loading) {
+    this.container.classList.toggle('loading', loading);
+    this.container.classList.toggle('regular', !loading);
+  },
+};
 
 /**
  * Shows existing schedules for the current path in the feedback container
@@ -30,26 +31,46 @@ function showMessage(text, isError = false) {
  * @param {Object} json - Crontab data object
  * @param {Array} json.data - Array of schedule entries
  */
-function showExistingSchedules(path, json) {
-  const existingSchedules = json.data.filter((row) => row.command.includes(path));
-  if (existingSchedules.length === 0) {
-    showMessage('No scheduling data available', true);
+function displaySchedules(path, json) {
+  if (!json?.data?.length) {
+    messageUtils.show(`No scheduling data available for ${path}`, true);
     return;
   }
-  const scheduleList = existingSchedules.map((row) => `${row.command.split(' ')[0]}ing at ${row.when}`).join('\r\n');
-  showMessage(`Schedules for this page:\r\n${scheduleList}`, false);
+
+  const schedules = json.data.filter((row) => row.command.includes(path));
+  if (!schedules.length) {
+    messageUtils.show(`No scheduling data available for ${path}`, true);
+    return;
+  }
+
+  const scheduleList = schedules
+    .map((row) => `${row.command.split(' ')[0]}ing ${row.when}`)
+    .join('\r\n');
+  messageUtils.show(`Schedules for ${path}:\r\n${scheduleList}`);
 }
 
+/**
+ * Previews the crontab file
+ * @param {string} url - API endpoint URL
+ * @param {Object} opts - Request options
+ * @param {string} opts.method - HTTP method (POST)
+ * @returns {Promise<void>}
+ */
 async function previewCronTab(url, opts) {
   const newOpts = { ...opts, method: 'POST' };
   const previewReqUrl = url.replace(DA_SOURCE, AEM_PREVIEW_REQUEST_URL).replace(CRON_TAB_PATH, `main/${CRON_TAB_PATH}`);
-  console.log(previewReqUrl);
-  console.log(newOpts);
-  const resp = await fetch(previewReqUrl, newOpts);
-  if (!resp.ok) {
-    showMessage('Failed to preview crontab file , please check the validity of cron expression', true);
+  try {
+    const resp = await fetch(previewReqUrl, newOpts);
+    if (!resp.ok) {
+      messageUtils.show('Failed to activate schedule , please check console for more details', true);
+      return false;
+    }
+    return true;
+  } finally {
+    messageUtils.setLoading(false);
   }
 }
+
 /**
  * Sends updated scheduling data to the server
  * @param {string} url - API endpoint URL
@@ -68,9 +89,41 @@ async function setSchedules(url, opts) {
     return resp.json();
   } catch (error) {
     console.error(error.message);
-    showMessage('Failed to save schedule, please check console for more details', true);
+    messageUtils.show('Failed to save schedule, please check console for more details', true);
     return null;
   }
+}
+
+// Add the cleanupPastSchedules function near the top with other utility functions
+function cleanupPastSchedules(json) {
+  if (!json?.data?.length) return json;
+
+  const now = new Date();
+  const cleanedData = json.data.filter((schedule) => {
+    const match = schedule.when.match(/at (\d+:\d+\s*(?:AM|PM)) on the (\d+)(?:st|nd|rd|th) day of (\w+) in (\d+)/i);
+    if (!match) return true;
+
+    const [, timeStr, day, month, year] = match;
+    const monthIndex = new Date(`${month} 1, 2000`).getMonth();
+
+    const [hours, minutes] = timeStr.match(/(\d+):(\d+)/).slice(1);
+    let hour = parseInt(hours, 10);
+    const minute = parseInt(minutes, 10);
+    if (timeStr.toUpperCase().includes('PM') && hour < 12) hour += 12;
+    if (timeStr.toUpperCase().includes('AM') && hour === 12) hour = 0;
+
+    const scheduleDate = new Date(Date.UTC(
+      parseInt(year, 10),
+      monthIndex,
+      parseInt(day, 10),
+      hour,
+      minute,
+    ));
+
+    return scheduleDate > now;
+  });
+
+  return { ...json, data: cleanedData };
 }
 
 /**
@@ -87,12 +140,54 @@ async function getSchedules(url, opts) {
     if (!resp.ok) {
       throw new Error(`Failed to fetch schedules: ${resp.status}`);
     }
-    return resp.json();
+    const json = await resp.json();
+
+    // Clean up past schedules before returning
+    const cleanedJson = cleanupPastSchedules(json);
+
+    // If schedules were removed, update the crontab
+    if (cleanedJson.data.length < json.data.length) {
+      const body = new FormData();
+      body.append('data', new Blob([JSON.stringify(cleanedJson)], { type: 'application/json' }));
+
+      // Update crontab with cleaned data
+      await setSchedules(url, { ...opts, body, method: 'POST' });
+
+      // Preview the changes
+      await previewCronTab(url, opts);
+    }
+
+    return cleanedJson;
   } catch (error) {
     console.error(error.message);
-    showMessage('Failed to fetch, please check console for more details', true);
+    messageUtils.show('Failed to fetch, please check console for more details', true);
     return null;
   }
+}
+
+// Update the createCronExpression function
+function createCronExpression(localDate) {
+  const utcDate = new Date(localDate.toUTCString());
+  const day = utcDate.getUTCDate();
+  const suffix = ['th', 'st', 'nd', 'rd'][(day % 10 > 3 || day < 21) ? 0 : day % 10];
+
+  // Format time separately
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'UTC',
+  });
+
+  // Format month separately
+  const monthFormatter = new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    timeZone: 'UTC',
+  });
+
+  return `at ${timeFormatter.format(utcDate)} on the ${day}${suffix} day of ${
+    monthFormatter.format(utcDate)
+  } in ${utcDate.getUTCFullYear()}`;
 }
 
 /**
@@ -101,150 +196,231 @@ async function getSchedules(url, opts) {
  * @param {Object} opts - Request options
  * @param {string} command - Command type ('preview' or 'publish')
  * @param {string} pagePath - Path of page to schedule
- * @param {string} cronExpression - Schedule expression (e.g. "at 3:00 pm")
- * @returns {Promise<void>}
+ * @param {string} cronExpression - Schedule expression
+ * @returns {Promise<boolean>} True if successful, false otherwise
  */
 async function processCommand(url, opts, command, pagePath, cronExpression) {
-  // Validate input
-  const expression = cronExpression.trim();
-  if (!expression) return;
+  if (!cronExpression?.trim()) return false;
 
   const json = await getSchedules(url, opts);
   if (!json) {
-    showMessage(`Please make sure ${CRON_TAB_PATH} is present and is accessible`, true);
-    return;
+    messageUtils.show(`Please make sure ${CRON_TAB_PATH} is present and is accessible`, true);
+    return false;
   }
 
-  json.data = json.data.filter((row) => row.command !== `${command} ${pagePath}`);
-  const existingRow = json.data.find((row) => row.command === `${command} ${pagePath}`);
-  if (existingRow) {
-    showMessage(`Page at "${pagePath}" is already scheduled for "${command}ing ${expression} "`, true);
-    return;
-  }
+  const existingCommand = `${command} ${pagePath}`;
 
-  const newRow = {
-    when: expression,
-    command: `${command} ${pagePath}`,
-  };
-  json.data.push(newRow);
+  json.data = [
+    ...json.data.filter((row) => row.command !== existingCommand),
+    { when: cronExpression.trim(), command: existingCommand },
+  ];
 
-  // Prepare form data
-  const blob = new Blob([JSON.stringify(json)], { type: 'application/json' });
   const body = new FormData();
-  body.append('data', blob);
-  const newOpts = { ...opts, body, method: 'POST' };
-  const newJson = await setSchedules(url, newOpts);
-  if (!newJson) return;
-  await previewCronTab(url, opts);
-  showExistingSchedules(pagePath, await getSchedules(url, opts));
+  body.append('data', new Blob([JSON.stringify(json)], { type: 'application/json' }));
+
+  const newJson = await setSchedules(url, { ...opts, body, method: 'POST' });
+  if (!newJson) return false;
+
+  // Only clear message and show schedules if preview is successful
+  const previewSuccess = await previewCronTab(url, opts);
+  if (previewSuccess) {
+    messageUtils.show('');
+    displaySchedules(pagePath, await getSchedules(url, opts));
+    return true;
+  }
+  return false;
+}
+
+// Update showCurrentSchedule function's date parsing logic:
+function showCurrentSchedule(path, json) {
+  const schedules = json.data.filter((row) => row.command.includes(path));
+  const content = document.querySelector('.schedule-content');
+
+  if (schedules.length === 0) {
+    content.textContent = 'No active schedules found';
+  } else {
+    content.innerHTML = '';
+    schedules.forEach((schedule) => {
+      const row = document.createElement('div');
+      row.className = 'schedule-row';
+
+      const action = document.createElement('div');
+      action.className = 'schedule-action';
+      const actionText = schedule.command.split(' ')[0];
+      action.textContent = actionText.charAt(0).toUpperCase() + actionText.slice(1);
+
+      const time = document.createElement('div');
+      time.className = 'schedule-time';
+
+      // Convert UTC schedule time to local time for display
+      const whenParts = schedule.when.match(/at (.*?) on the/);
+      if (whenParts) {
+        const utcTimeStr = whenParts[1];
+        const utcDateStr = schedule.when.match(/the (\d+).*? day of (.*?) in (\d+)/);
+        if (utcDateStr) {
+          const [, day, month, year] = utcDateStr;
+          // Create a proper date string that JavaScript can parse
+          const monthIndex = new Date(`${month} 1, 2000`).getMonth(); // Get month index (0-11)
+          const utcDate = new Date(Date.UTC(
+            year,
+            monthIndex,
+            day,
+            ...utcTimeStr.match(/(\d+):(\d+)/).slice(1).map(Number),
+          ));
+
+          const timeFormatter = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+          const dateFormatter = new Intl.DateTimeFormat('en-US', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          });
+
+          const formattedTime = timeFormatter.format(utcDate);
+          const formattedDate = dateFormatter.format(utcDate);
+          time.textContent = `at ${formattedTime} on ${formattedDate}`;
+        } else {
+          time.textContent = schedule.when;
+        }
+      } else {
+        time.textContent = schedule.when;
+      }
+
+      row.append(action, time);
+      content.appendChild(row);
+    });
+  }
+}
+
+// Add validation function for future date/time
+function isDateTimeInFuture(dateStr, timeStr) {
+  const selectedDateTime = new Date(`${dateStr}T${timeStr}`);
+  const now = new Date();
+  return selectedDateTime > now;
 }
 
 /**
- * Initializes the scheduling interface and sets up event handlers
+ * Initializes the scheduler interface
  * @returns {Promise<void>}
  */
-(async function init() {
+async function init() {
   const { context, token } = await DA_SDK;
 
-  // Create and style the form container
-  const formContainer = document.createElement('div');
-  formContainer.className = 'scheduler-form-wrapper';
+  // Set page path
+  const pageInput = document.getElementById('page-path');
+  pageInput.value = context.path;
 
-  const msgContainer = document.createElement('div');
-  msgContainer.className = 'message-wrapper hidden';
+  // Handle custom button
+  const customButton = document.querySelector('.custom-button');
+  const cronExpressionContainer = document.querySelector('.cron-expression-container');
+  const customInput = document.querySelector('.custom-input');
+  const dateInput = document.querySelector('#date-input');
+  const timeInput = document.querySelector('#time-input');
 
-  const message = document.createElement('div');
-  message.className = 'feedback-message';
-  message.textContent = '';
-  msgContainer.append(message);
-  // Create the cron expression input group
-  const cronGroup = document.createElement('div');
-  cronGroup.className = 'input-group';
+  // Set current date and time as default values
+  const now = new Date();
+  const [dateValue] = now.toISOString().split('T');
+  dateInput.value = dateValue;
+  timeInput.value = now.toTimeString().slice(0, 5);
 
-  // Create text input for cron expression
-  const cronInput = document.createElement('input');
-  cronInput.type = 'text';
-  cronInput.id = 'cron-expression';
-  cronInput.placeholder = 'e.g.,at 3:00 pm on monday';
-  cronInput.required = true;
+  customButton.addEventListener('click', () => {
+    const isCustom = !cronExpressionContainer.classList.contains('custom-mode');
+    cronExpressionContainer.classList.toggle('custom-mode');
 
-  cronInput.addEventListener('invalid', () => {
-    cronInput.setCustomValidity('Enter a cron expression');
+    // Clear any existing empty states
+    [dateInput, timeInput, customInput].forEach((input) => {
+      input.classList.remove('input-empty');
+    });
+
+    if (isCustom) {
+      customInput.remove();
+      cronExpressionContainer.insertBefore(customInput, customButton);
+    } else {
+      customInput.remove();
+      const whenGroup = document.querySelector('.input-group:has(#date-input)');
+      whenGroup.appendChild(customInput);
+    }
   });
-  cronInput.addEventListener('input', () => {
-    cronInput.setCustomValidity('');
+
+  // Handle docs button
+  const docsButton = document.querySelector('.docs-button');
+  docsButton.addEventListener('click', () => {
+    window.open('https://www.aem.live/docs/scheduling', '_blank');
   });
-  cronInput.addEventListener('valid', () => {
-    cronInput.setCustomValidity('');
-  });
-  // Create label for cron input
-  const cronLabel = document.createElement('label');
-  cronLabel.htmlFor = 'cron-expression';
-  cronLabel.textContent = 'Schedule Expression:';
-
-  // Create help text with examples
-  const helpText = document.createElement('small');
-  helpText.className = 'help-text';
-  helpText.textContent = `
-  Enter expressions like:
-    "at 3:00 pm"
-    "every day at 2:30 pm"
-    "at 10:00 am on monday and wednesday"
-    "every 60 minutes starting on the 55th minute"
-    "at 3:00 pm on the 18th day of May in 2025" `;
-
-  // Create form element
-  const form = document.createElement('form');
-  form.className = 'scheduler-form';
-
-  // Prevent default form submission
-  form.addEventListener('submit', (e) => e.preventDefault());
-  // Assemble the input group
-  cronGroup.append(cronLabel, cronInput, helpText);
-
-  // Create button group container
-  const buttonGroup = document.createElement('div');
-  buttonGroup.className = 'button-group';
-
-  // Create preview button
-  const schedulePreviewBtn = document.createElement('button');
-  schedulePreviewBtn.className = 'schedule-btn';
-  schedulePreviewBtn.textContent = 'Preview';
-  schedulePreviewBtn.type = 'submit';
-
-  // Create publish button
-  const schedulePublishBtn = document.createElement('button');
-  schedulePublishBtn.className = 'schedule-btn';
-  schedulePublishBtn.textContent = 'Publish';
-  schedulePublishBtn.type = 'submit';
-
-  // Create reset button
-  const resetBtn = document.createElement('button');
-  resetBtn.className = 'schedule-btn';
-  resetBtn.textContent = 'Reset';
-  resetBtn.type = 'reset';
-  // Add all buttons to button group
-  buttonGroup.append(schedulePreviewBtn, schedulePublishBtn, resetBtn);
-
-  // Assemble the form
-  form.append(cronGroup, buttonGroup);
-  formContainer.append(form);
-  document.body.append(formContainer, msgContainer);
-
-  // Check for existing schedules
   const url = `${DA_SOURCE}/${context.org}/${context.repo}/${CRON_TAB_PATH}`;
   const opts = {
-    method: 'GET',
     headers: {
       Authorization: `Bearer: ${token}`,
     },
   };
+  // Handle schedule button
+  const scheduleButton = document.querySelector('.schedule-button');
+  scheduleButton.addEventListener('click', async (e) => {
+    e.preventDefault();
+
+    const action = document.querySelector('.action-select').value;
+    const isCustomMode = cronExpressionContainer.classList.contains('custom-mode');
+
+    // Clear previous empty states
+    [dateInput, timeInput, customInput].forEach((input) => {
+      input.classList.remove('input-empty');
+    });
+
+    // Check for empty inputs and future date/time based on mode
+    if (isCustomMode) {
+      if (!customInput.value) {
+        customInput.classList.add('input-empty');
+        return;
+      }
+    } else {
+      let hasError = false;
+      if (!dateInput.value) {
+        dateInput.classList.add('input-empty');
+        hasError = true;
+      }
+      if (!timeInput.value) {
+        timeInput.classList.add('input-empty');
+        hasError = true;
+      }
+      if (hasError) return;
+
+      // Validate if date/time is in the future
+      if (!isDateTimeInFuture(dateInput.value, timeInput.value)) {
+        dateInput.classList.add('input-empty');
+        timeInput.classList.add('input-empty');
+        messageUtils.show('Please select a future date and time', true);
+        return;
+      }
+    }
+
+    let cronExpression;
+    if (isCustomMode) {
+      cronExpression = customInput.value;
+    } else {
+      const localDate = new Date(`${dateInput.value}T${timeInput.value}`);
+      cronExpression = createCronExpression(localDate);
+    }
+
+    messageUtils.show('Scheduling page...');
+    const success = await processCommand(url, opts, action, context.path, cronExpression);
+    if (success) {
+      messageUtils.show('');
+      // Fetch and update current schedules after successful scheduling
+      const json = await getSchedules(url, opts);
+      if (json && json.data) {
+        showCurrentSchedule(context.path, json);
+      }
+    }
+  });
+
+  // Check existing schedules
   const json = await getSchedules(url, opts);
   if (json && json.data) {
-    showExistingSchedules(context.path, json);
+    showCurrentSchedule(context.path, json);
   }
+}
 
-  // Handle schedule button click
-  schedulePublishBtn.addEventListener('click', () => processCommand(url, opts, 'publish', context.path, cronInput.value));
-  schedulePreviewBtn.addEventListener('click', () => processCommand(url, opts, 'preview', context.path, cronInput.value));
-}());
+init();
