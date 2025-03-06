@@ -351,7 +351,6 @@ export function replaceTildesWithDel() {
  * @param {Element} element container element
  */
 export function decorateButtons(element) {
-  // Call replaceTildesWithDel first to ensure del tags are created before button decoration
   replaceTildesWithDel();
   element.querySelectorAll('a').forEach((a) => {
     a.title = a.title || a.textContent;
