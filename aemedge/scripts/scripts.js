@@ -334,11 +334,24 @@ async function setNavType() {
   }
 }
 
+export function replaceTildesWithDel() {
+  const divs = document.querySelectorAll('div, div > p');
+  divs.forEach((div) => {
+    const text = div.innerHTML;
+    const tildeRegex = /^~~(.*?)~~$/;
+    const match = text.match(tildeRegex);
+    if (match) {
+      div.innerHTML = text.replace(tildeRegex, '<del>$1</del>');
+    }
+  });
+}
+
 /**
  * Decorates paragraphs containing a single link as buttons.
  * @param {Element} element container element
  */
 export function decorateButtons(element) {
+  replaceTildesWithDel();
   element.querySelectorAll('a').forEach((a) => {
     a.title = a.title || a.textContent;
     if (a.href !== a.textContent && !a.href.includes('/fragments/') && !EXT_IMAGE_URL.test(a.href)) {
@@ -393,6 +406,12 @@ export function decorateButtons(element) {
             a.className = 'button primary';
             twoup.classList.add('button-container');
           }
+          // special IF added after removing tildes. Delete when we remove replaceTildesWithDel
+          if (up.childNodes.length === 3 && up.tagName === 'P' && twoup.childNodes.length === 1 && (twoup.tagName === 'P' || twoup.tagName === 'DIV')) {
+            a.className = 'button primary';
+            twoup.classList.add('button-container');
+          }
+          // end delete
           if (up.childNodes.length === 1 && up.tagName === 'EM' && threeup.childNodes.length === 1 && twoup.tagName === 'DEL' && (threeup.tagName === 'P' || threeup.tagName === 'DIV')) {
             a.className = 'button secondary';
             threeup.classList.add('button-container');
@@ -591,11 +610,11 @@ function decorateLinkedImages() {
 export function decorateMain(main) {
   // hopefully forward compatible button decoration
   centerHeadlines();
-  decorateButtons(main);
   decorateIcons(main);
   buildAutoBlocks(main);
   decorateSections(main);
   decorateBlocks(main);
+  decorateButtons(main);
   makeTwoColumns(main);
   decorateStyledSections(main);
   buildSpacer(main);
