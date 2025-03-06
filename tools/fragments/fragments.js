@@ -270,6 +270,34 @@ function filterFragments(searchText, fragmentsList) {
   }
 }
 
+// Function to get the depth of FRAGMENTS_BASE
+function getBasePathDepth() {
+  return FRAGMENTS_BASE.split('/').filter(Boolean).length; // filter(Boolean) removes empty strings
+}
+
+// Function to expand folder to specific depth
+function expandToDepth(item, currentDepth, targetDepth) {
+  const folderBtn = item.querySelector('.folder-btn');
+  const list = item.querySelector('.tree-list');
+
+  if (folderBtn && list && currentDepth <= targetDepth) {
+    // Expand this folder
+    folderBtn.classList.add('expanded');
+    folderBtn.setAttribute('aria-expanded', 'true');
+    const folderIcon = folderBtn.querySelector('.folder-icon');
+    if (folderIcon) {
+      folderIcon.src = '/.da/icons/folder-open-icon.png';
+    }
+    list.classList.remove('hidden');
+
+    // Recursively expand child folders
+    const childFolders = list.querySelectorAll(':scope > .tree-item');
+    childFolders.forEach((childItem) => {
+      expandToDepth(childItem, currentDepth + 1, targetDepth);
+    });
+  }
+}
+
 /**
  * Initializes the fragments interface and sets up event handlers
  */
@@ -301,7 +329,11 @@ function filterFragments(searchText, fragmentsList) {
 
   // Function to load fragments
   async function loadFragments() {
-    fragmentsList.textContent = 'Loading fragments...';
+    // No need to set initial loading state since it's in HTML
+    // Just ensure the list is empty before starting new load
+    if (!fragmentsList.querySelector('.loading-state')) {
+      fragmentsList.innerHTML = '<div class="loading-state">Loading fragments...</div>';
+    }
 
     // Enable cancel button at start of loading
     cancelBtn.disabled = false;
@@ -331,7 +363,6 @@ function filterFragments(searchText, fragmentsList) {
       });
 
       cancelBtn.addEventListener('click', cancelCrawl);
-
       await results;
 
       // Disable cancel button after crawl completes
@@ -341,12 +372,20 @@ function filterFragments(searchText, fragmentsList) {
       fragmentsList.innerHTML = '';
 
       const tree = createFileTree(files, basePath);
+      const targetDepth = getBasePathDepth(); // Get the depth to expand to
+
       Object.entries(tree)
         .sort(([a], [b]) => a.localeCompare(b))
         .forEach(([name, node]) => {
-          fragmentsList.appendChild(
-            createTreeItem(name, node, (file) => handleFragmentSelect(actions, file, context)),
+          const item = createTreeItem(
+            name,
+            node,
+            (file) => handleFragmentSelect(actions, file, context),
           );
+          fragmentsList.appendChild(item);
+
+          // Expand folders to the target depth
+          expandToDepth(item, 1, targetDepth);
         });
     } catch (error) {
       showMessage('Failed to load fragments', true);
