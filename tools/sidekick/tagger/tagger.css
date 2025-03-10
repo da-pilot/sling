@@ -160,6 +160,7 @@ span.psep {
 
 #palette {
     margin: 0 0 1rem;
+
     p {
         font-size: 13px;
         line-height: 1.5;
@@ -168,7 +169,7 @@ span.psep {
     ul {
         list-style-type: none;
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         grid-template-rows: masonry; /* stylelint-disable-line */
         margin: 0;
         padding: 0;
