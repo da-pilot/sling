@@ -7,7 +7,7 @@ function renderItem(item, catId) {
   const pathStr = item.name.split('/').slice(0, -1).join('<span class="psep"> / </span>');
   return `
   <span class="path">${pathStr}
-    <span data-title="${item.title}" class="tag cat-${catId % 4}">${item.title}</span>
+    <span data-title="${item.title}" class="tag cat-${catId}">${item.title}</span>
   </span>
 `;
 }
@@ -19,7 +19,7 @@ function renderItems(item, catId) {
   const results = document.getElementById('results');
   Object.keys(item).forEach((key) => {
     if (!['title', 'name', 'path', 'hide'].includes(key)) {
-      lvlhtml += renderItems(item[key], catId + 1);
+      lvlhtml += renderItems(item[key], catId);
     }
   });
   lvlhtml += '</div>';
