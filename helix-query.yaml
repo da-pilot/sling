@@ -5,9 +5,9 @@ indices:
     include:
       - '/whatson/**'
     exclude:
-      - '/drafts/**'
-      - '/fragments/**'
-      - '/tools/**'
+      - '**/drafts/**'
+      - '**/fragments/**'
+      - '**/tools/**'
     target: /whatson/query-index.json
     properties: &blogProps
       title:
@@ -60,9 +60,9 @@ indices:
       - '/**'
     exclude:
       - '/whatson/**'
-      - '/drafts/**'
-      - '/fragments/**'
-      - '/tools/**'
+      - '**/drafts/**'
+      - '**/fragments/**'
+      - '**/tools/**'
     target: /query-index.json
     properties:
       title:
