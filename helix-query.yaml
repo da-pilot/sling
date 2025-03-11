@@ -5,9 +5,9 @@ indices:
     include:
       - '/whatson/**'
     exclude:
-      - '/drafts/**'
-      - '/fragments/**'
-      - '/tools/**'
+      - '**/drafts/**'
+      - '**/fragments/**'
+      - '**/tools/**'
     target: /whatson/query-index.json
     properties: &blogProps
       title:
@@ -50,15 +50,19 @@ indices:
         select: none
         value: |
           parseTimestamp(headers['last-modified'], 'ddd, DD MMM YYYY hh:mm:ss GMT')
+      robots:
+        select: head > meta[name="robots"]
+        value: |
+          attribute(el, 'content')
 
   landingpages:
     include:
       - '/**'
     exclude:
       - '/whatson/**'
-      - '/drafts/**'
-      - '/fragments/**'
-      - '/tools/**'
+      - '**/drafts/**'
+      - '**/fragments/**'
+      - '**/tools/**'
     target: /query-index.json
     properties:
       title:
@@ -76,5 +80,9 @@ indices:
       lastModified:
         select: none
         value: |
-          parseTimestamp(headers['last-modified'], 'ddd, DD MMM YYYY hh:mm:ss GMT')     
+          parseTimestamp(headers['last-modified'], 'ddd, DD MMM YYYY hh:mm:ss GMT')
+      robots:
+        select: head > meta[name="robots"]
+        value: |
+          attribute(el, 'content')     
     
