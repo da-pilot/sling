@@ -13,13 +13,23 @@
       },
       {
         "id": "tagger",
-        "title": "Tags + Colors",
+        "title": "Tag browser",
         "environments": ["edit"],
         "daLibrary": true,
         "includePaths": ["DA"],
         "experience": "dialog",
         "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_16f3cfd2160c5fe8c99f1c7f3c330cb64d674775f.png",
         "path": "/tools/sidekick/tagger/tagger.html"
+      },
+      {
+        "id": "palette",
+        "title": "Color palette",
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "dialog",
+        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_16f3cfd2160c5fe8c99f1c7f3c330cb64d674775f.png",
+        "path": "/tools/sidekick/palette/palette.html"
       },
       {
         "id": "scheduler",
