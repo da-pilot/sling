@@ -1,3 +1,4 @@
+import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import { getTags } from '../../../aemedge/scripts/tags.js';
 
 let selectedOrder = [];
@@ -141,10 +142,13 @@ async function init() {
 
   const selEl = document.getElementById('selected');
   const copyButton = selEl.querySelector('button.copy');
-  copyButton.addEventListener('click', () => {
+  copyButton.addEventListener('click', async () => {
     const copyText = document.getElementById('copybuffer');
-    navigator.clipboard.writeText(copyText.value);
-    copyButton.disabled = true;
+    const { actions } = await DA_SDK;
+    if (actions?.sendHTML) {
+      actions.sendHTML(copyText.value);
+      copyButton.disabled = true;
+    }
   });
 
   const clearButton = selEl.querySelector('button.clear');
