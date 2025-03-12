@@ -24,6 +24,7 @@ class PaletteElement extends LitElement {
       border: 1px solid #ddd;
       border-radius: 4px;
       transition: all 0.2s ease;
+      font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
     }
 
     li:hover {

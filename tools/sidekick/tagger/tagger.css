@@ -1,17 +1,12 @@
 main {
-    font-family: system-ui, Arial;
+    font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
     padding: 20px;
-    font-size: 1.3rem;
     line-height: 1.2em;
-}
-
-main .intro {
-    font-size: 1.2rem;
 }
 
 main input {
     width: 100%;
-    font-size: 2rem;
+    font-size: 1rem;
     border: none;
     border-bottom: solid 1px grey;
     padding-top: 5px;
@@ -85,7 +80,6 @@ span.tag {
     color: white;
     padding: 2px 20px;
     border-radius: 10px;
-    font-size: 16px;
 }
 
 .tag {
