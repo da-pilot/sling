@@ -117,7 +117,6 @@ span.path {
     border-radius: 10px;
     border: 1px dashed black;
     padding: 4px 10px 2px;
-    font-size: 12px;
 }
 
 span.path.filtered {
