@@ -1,18 +1,12 @@
-
 main {
-    font-family: system-ui, Arial;
+    font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
     padding: 20px;
-    font-size: 1.3rem;
     line-height: 1.2em;
-}
-
-main .intro {
-    font-size: 1.2rem;
 }
 
 main input {
     width: 100%;
-    font-size: 2rem;
+    font-size: 1rem;
     border: none;
     border-bottom: solid 1px grey;
     padding-top: 5px;
@@ -86,7 +80,6 @@ span.tag {
     color: white;
     padding: 2px 20px;
     border-radius: 10px;
-    font-size: 16px;
 }
 
 .tag {
@@ -124,7 +117,6 @@ span.path {
     border-radius: 10px;
     border: 1px dashed black;
     padding: 4px 10px 2px;
-    font-size: 12px;
 }
 
 span.path.filtered {
@@ -156,68 +148,4 @@ span.psep {
 .offscreen {
     position: absolute;
     top: -1000px;
-}
-
-#palette {
-    margin: 0 0 1rem;
-    p {
-        font-size: 13px;
-        line-height: 1.5;
-    }
-
-    ul {
-        list-style-type: none;
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        grid-template-rows: masonry; /* stylelint-disable-line */
-        margin: 0;
-        padding: 0;
-        background: aliceblue;
-        font-size: 14px;
-
-        li {
-            position: relative;
-            padding: .5rem;
-        }
-
-        li:hover {
-            background-color: white;
-            cursor: pointer;
-        }
-
-        li.copied {
-            background-color: #cccc;
-
-            &::after {
-                position: absolute;
-                content: attr(data-name) ' copied';
-                top: 8px;
-                right: 6px;
-                display: block;
-                padding: 4px;
-                background-color: rgb(234 255 234);
-                font-size: 12px;
-                border: 1px solid rgb(95 176 95);
-                line-height: 12px;
-            }
-        }
-
-        .label p {
-            margin: 0;
-            padding: 0;
-        }
-
-        .label p.value {
-            margin: 0;
-        }
-
-        .swatch {
-            margin: 0;
-            padding: 0;
-            height: 25px;
-            width: 100%;
-            display: block;
-            border: 1px solid black;
-        }
-    }
 }
