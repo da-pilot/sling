@@ -738,10 +738,11 @@ function loadDelayed() {
 
 async function loadPage() {
   await loadEager(document);
-  await loadLazy(document);
-  configSideKick();
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager();
+  await loadLazy(document);
+  configSideKick();
+
   loadDelayed();
   makeLastButtonSticky();
 }
