@@ -113,6 +113,8 @@ body.appear {
 
 .block.highlight {
   outline: 2px dotted   #0072ec;
+  border-top-right-radius: 10px;
+  border-top-left-radius: 10px;
 }
 
 .section.highlight {
