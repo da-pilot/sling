@@ -3,22 +3,7 @@
     "editUrlLabel": "Document Authoring",
     "editUrlPattern": "https://da.live/edit#/{{org}}/{{site}}{{pathname}}",
     "plugins": [
-      {
-        "id": "library",
-        "title": "Library",
-        "environments": [
-          "edit"
-        ],
-        "url": "/tools/sidekick/library/library.html"
-      },
-      {
-        "id": "tagger",
-        "title": "Tagger",
-        "environments": [
-          "edit"
-        ],
-        "url": "/tools/sidekick/tagger/tagger.html"
-      },
+
       {
         "id": "scheduler",
         "title": "Scheduler", 
@@ -38,6 +23,12 @@
         "experience": "dialog",
         "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1754eba0e972f3aaa5a26e4cff5c8a1af99bbd324.png",
         "path": "/tools/fragments/fragments.html"
+      },      
+      {
+        "id": "showblocks",
+        "title": "Blocks",
+        "environments": ["dev", "preview", "live"],
+        "event": "showblocks"
       }
     ]
   }
