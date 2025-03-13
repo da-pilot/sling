@@ -12,6 +12,7 @@ import {
   decorateBlock,
   loadBlock,
   toClassName,
+  loadScript,
 } from './aem.js';
 
 import {
@@ -624,6 +625,23 @@ export function decorateMain(main) {
   decorateLinkedImages();
 }
 
+async function loadLaunchEager() {
+  const isTarget = getMetadata('target');
+  if (isTarget && isTarget.toLowerCase() === 'true') {
+    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
+    if (window.location.host.startsWith('localhost')) {
+      // await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
+      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
+    } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
+      // await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
+      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
+    } else if (window.location.host.endsWith('.page')) {
+      // await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
+      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
+    }
+  }
+}
+
 /**
    * Loads everything needed to get to LCP.
    * @param {Element} doc The container element
@@ -722,6 +740,8 @@ async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   configSideKick();
+  // load launch eagerly when target metadata is set to true
+  await loadLaunchEager();
   loadDelayed();
   makeLastButtonSticky();
 }
