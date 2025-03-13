@@ -721,3 +721,75 @@ export async function getZipcode() {
   }
   return zipcode;
 }
+
+export function configSideKick() {
+  const showBlocks = ({ detail: payload }) => {
+    console.log('a custom event happened', payload);
+    const blocks = document.querySelectorAll('div.block');
+    const excludedBlockList = ['header', 'zipcode', 'footer'];
+    blocks.forEach((block) => {
+      const name = block.getAttribute('data-block-name');
+      if (name && !excludedBlockList.includes(name)) {
+        block.classList.toggle('highlight');
+        const copyAction = document.createElement('a');
+        const blockName = document.createElement('span');
+        if (block.classList.contains('highlight')) {
+          blockName.classList.add('blockname');
+          // eslint-disable-next-line prefer-destructuring
+          blockName.innerText = name;
+          blockName.classList.toggle('show');
+          block.prepend(blockName);
+          copyAction.href = block.querySelector('a').href;
+          copyAction.classList.add('copy-action');
+          copyAction.target = '_blank';
+          copyAction.textContent = 'Copy HTML';
+          copyAction.classList.toggle('show');
+          copyAction.addEventListener('click', (event) => {
+            event.preventDefault();
+            const html = block.parentElement?.outerHTML?.replace(/\n/g, '');
+            navigator.clipboard.writeText(html);
+          });
+          block.prepend(copyAction);
+        } else {
+          blockName.remove();
+          block.querySelector('.copy-action')?.removeEventListener('click', (event) => {
+            event.preventDefault();
+            const html = block.parentElement?.outerHTML?.replace(/\n/g, '');
+            navigator.clipboard.writeText(html);
+          });
+          block.querySelector('.copy-action')?.remove();
+        }
+      }
+    });
+  };
+
+  const showSections = ({ detail: payload }) => {
+    console.log('a custom event happened', payload);
+    const sections = document.querySelectorAll('div.section');
+    sections.forEach((section) => section.classList.toggle('highlight'));
+  };
+
+  const sk = document.querySelector('aem-sidekick');
+  if (sk) {
+  // sidekick already loaded
+    sk.addEventListener('custom:showblocks', showBlocks);
+    sk.addEventListener('custom:showsections', showSections);
+    // sidekick now loaded
+    document.querySelector('aem-sidekick')
+      .addEventListener('custom:eventdetials', (e) => {
+        console.log(e.detail);
+      });
+  } else {
+  // wait for sidekick to be loaded
+    document.addEventListener('sidekick-ready', () => {
+      // sidekick now loaded
+      document.querySelector('aem-sidekick')
+        .addEventListener('custom:eventdetials', (e) => console.log(e.detail));
+      // sidekick now loaded
+      document.querySelector('aem-sidekick')
+        .addEventListener('custom:showblocks', showBlocks);
+      document.querySelector('aem-sidekick')
+        .addEventListener('custom:showsections', showSections);
+    }, { once: true });
+  }
+}
