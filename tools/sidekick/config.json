@@ -43,7 +43,7 @@
         "id": "showblocks",
         "title": "Blocks",
         "event": "showblocks", 
-        "environments": ["dev" , "preview"]
+        "environments": ["preview"]
       }
     ]
   }
