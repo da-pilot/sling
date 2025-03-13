@@ -170,6 +170,11 @@ a.copy-action.show {
   100% { opacity: 1; }
 }
 
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
 header {
   height: var(--nav-height);
 }
@@ -1317,4 +1322,3 @@ main .section.highlight {
   border-top-right-radius: 10px;
   border-top-left-radius: 10px;
 }
-
