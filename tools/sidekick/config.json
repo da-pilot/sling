@@ -38,6 +38,12 @@
         "experience": "dialog",
         "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1754eba0e972f3aaa5a26e4cff5c8a1af99bbd324.png",
         "path": "/tools/fragments/fragments.html"
+      },      
+      {
+        "id": "showblocks",
+        "title": "Blocks",
+        "event": "showblocks", 
+        "environments": ["dev" , "preview"]
       }
     ]
   }
