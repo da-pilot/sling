@@ -727,37 +727,55 @@ export function configSideKick() {
     console.log('a custom event happened', payload);
     const blocks = document.querySelectorAll('div.block');
     const excludedBlockList = ['header', 'zipcode', 'footer'];
+
+    // Helper function to format block name
+    const formatBlockName = (name) => name
+      .split('-')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
     blocks.forEach((block) => {
       const name = block.getAttribute('data-block-name');
+      // const searchableName = name; // Keep original name for export
       if (name && !excludedBlockList.includes(name)) {
         block.classList.toggle('highlight');
-        const copyAction = document.createElement('a');
-        const blockName = document.createElement('span');
+
+        const existingHeader = block.querySelector('.block-header');
+        if (existingHeader) {
+          existingHeader.remove();
+        }
+
         if (block.classList.contains('highlight')) {
-          blockName.classList.add('blockname');
-          // eslint-disable-next-line prefer-destructuring
-          blockName.innerText = name;
-          blockName.classList.toggle('show');
-          block.prepend(blockName);
-          copyAction.href = block.querySelector('a').href;
-          copyAction.classList.add('copy-action');
-          copyAction.target = '_blank';
-          copyAction.textContent = 'Copy HTML';
-          copyAction.classList.toggle('show');
-          copyAction.addEventListener('click', (event) => {
+          const header = document.createElement('div');
+          header.className = 'block-header';
+
+          const blockName = document.createElement('h2');
+          blockName.className = 'block-name';
+          blockName.textContent = formatBlockName(name);
+
+          const exportBtn = document.createElement('button');
+          exportBtn.className = 'export-button';
+
+          const exportIcon = document.createElement('img');
+          exportIcon.src = '/.da/icons/export-icon.png';
+          exportIcon.className = 'export-icon';
+          exportIcon.alt = '';
+
+          const exportText = document.createElement('span');
+          exportText.textContent = 'Export to Target';
+
+          exportBtn.appendChild(exportIcon);
+          exportBtn.appendChild(exportText);
+
+          exportBtn.addEventListener('click', (event) => {
             event.preventDefault();
             const html = block.parentElement?.outerHTML?.replace(/\n/g, '');
             navigator.clipboard.writeText(html);
           });
-          block.prepend(copyAction);
-        } else {
-          blockName.remove();
-          block.querySelector('.copy-action')?.removeEventListener('click', (event) => {
-            event.preventDefault();
-            const html = block.parentElement?.outerHTML?.replace(/\n/g, '');
-            navigator.clipboard.writeText(html);
-          });
-          block.querySelector('.copy-action')?.remove();
+
+          header.appendChild(blockName);
+          header.appendChild(exportBtn);
+          block.prepend(header);
         }
       }
     });
@@ -771,21 +789,16 @@ export function configSideKick() {
 
   const sk = document.querySelector('aem-sidekick');
   if (sk) {
-  // sidekick already loaded
     sk.addEventListener('custom:showblocks', showBlocks);
     sk.addEventListener('custom:showsections', showSections);
-    // sidekick now loaded
     document.querySelector('aem-sidekick')
       .addEventListener('custom:eventdetials', (e) => {
         console.log(e.detail);
       });
   } else {
-  // wait for sidekick to be loaded
     document.addEventListener('sidekick-ready', () => {
-      // sidekick now loaded
       document.querySelector('aem-sidekick')
         .addEventListener('custom:eventdetials', (e) => console.log(e.detail));
-      // sidekick now loaded
       document.querySelector('aem-sidekick')
         .addEventListener('custom:showblocks', showBlocks);
       document.querySelector('aem-sidekick')
