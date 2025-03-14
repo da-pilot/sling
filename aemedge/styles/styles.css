@@ -93,6 +93,23 @@
 
   /* Color Variants */
   --blue-to-orange: linear-gradient(to right, #1b00a6, #eb550f);
+
+  /* Spacing Variables */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+  --spacing-xxxl: 48px;
+
+  /* Border Radius */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --border-radius-xxl: 24px;
 }
 
 
@@ -119,43 +136,6 @@ body.appear {
 
 .section.highlight {
   outline: 2px dotted red;
-}
-
-span.blockname {
-  display: none;
- }
-
- span.blockname.show  {
- display: flex;
- position: absolute;
- font-size: 24px;
- font-weight: 600;
- color:greenyellow;
- background-color: grey;
- z-index: 2;
- left:35%;
-text-transform: capitalize;
-animation: fade-in 1s;
-}
-
-a.copy-action.show {
-  color: white;
-  left: 35%;
-  top: 20%;
-  z-index: 2;
-  position: absolute;
-  background-color: grey;
-  background-image: url('/.da/icons/media_140614cba7a994f84af680a58ed80f2ce82083bc2.png');
-  background-size: 20px;
-  background-repeat: no-repeat;
-  background-position: left;
-  padding-left: 20px;
-}
-
-
-@keyframes fade-in {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
 }
 
 header {
@@ -973,16 +953,16 @@ main .section.highlight {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: rgb(0 0 0 / 90%);
   border-radius: var(--border-radius-xl);
   z-index: 10;
-  margin: var(--spacing-md);
   box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
   border: 1px solid transparent;
   background-clip: padding-box;
   position: relative;
   font-family: var(--font-family);
+  gap: var(--spacing-md);
+  margin:0;
+  padding:0;
 }
 
 /* Gradient border effect */

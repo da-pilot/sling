@@ -723,86 +723,164 @@ export async function getZipcode() {
 }
 
 export function configSideKick() {
+  const createStyleLink = (href) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    return link;
+  };
+
+  const setupDialog = (container) => {
+    Object.assign(container.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: '9999',
+    });
+
+    container.addEventListener('click', (e) => {
+      if (e.target === container) {
+        document.body.removeChild(container);
+      }
+    });
+
+    document.body.appendChild(container);
+  };
+
+  const loadDialogScript = (src) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => {
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+    };
+    return script;
+  };
+
+  const handleExportClick = async (event) => {
+    event.preventDefault();
+    const currentBlock = event.currentTarget.closest('.block');
+    const currentBlockName = currentBlock.getAttribute('data-block-name');
+
+    // Create a clone of the block for export
+    const blockClone = currentBlock.cloneNode(true);
+
+    // Remove .block-header from the clone
+    const headerToRemove = blockClone.querySelector('.block-header');
+    if (headerToRemove) {
+      headerToRemove.remove();
+    }
+
+    // Remove 'highlight' class from the clone
+    blockClone.classList.remove('highlight');
+
+    const dialogContainer = document.createElement('div');
+    dialogContainer.className = 'html-offer-dialog-container';
+    dialogContainer.setAttribute('data-current-block', currentBlockName);
+    // Store the cleaned block clone for later use
+    dialogContainer.setAttribute('data-block-content', blockClone.outerHTML);
+
+    try {
+      const [response, styleLink] = await Promise.all([
+        fetch('/tools/htmloffer/htmloffer.html'),
+        createStyleLink('/tools/htmloffer/htmloffer.css'),
+      ]);
+
+      const html = await response.text();
+      dialogContainer.innerHTML = html;
+
+      document.head.appendChild(styleLink);
+      setupDialog(dialogContainer);
+
+      const script = await loadDialogScript('/tools/htmloffer/htmloffer.js');
+      document.body.appendChild(script);
+    } catch (error) {
+      console.error('Error loading HTML offer dialog:', error);
+    }
+  };
+
+  const createExportButton = () => {
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'export-button';
+
+    const exportIcon = document.createElement('img');
+    exportIcon.src = '/.da/icons/export-to-target.png';
+    exportIcon.className = 'export-icon';
+    exportIcon.alt = '';
+
+    const exportText = document.createElement('span');
+    exportText.textContent = 'Export to Target';
+
+    exportBtn.append(exportIcon, exportText);
+    exportBtn.addEventListener('click', handleExportClick);
+    return exportBtn;
+  };
+
+  const formatBlockName = (name) => name
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
   const showBlocks = ({ detail: payload }) => {
     console.log('a custom event happened', payload);
     const blocks = document.querySelectorAll('div.block');
     const excludedBlockList = ['header', 'zipcode', 'footer'];
 
-    // Helper function to format block name
-    const formatBlockName = (name) => name
-      .split('-')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-
     blocks.forEach((block) => {
       const name = block.getAttribute('data-block-name');
-      // const searchableName = name; // Keep original name for export
-      if (name && !excludedBlockList.includes(name)) {
-        block.classList.toggle('highlight');
+      if (!name || excludedBlockList.includes(name)) return;
 
-        const existingHeader = block.querySelector('.block-header');
-        if (existingHeader) {
-          existingHeader.remove();
-        }
+      block.classList.toggle('highlight');
+      const existingHeader = block.querySelector('.block-header');
 
-        if (block.classList.contains('highlight')) {
-          const header = document.createElement('div');
-          header.className = 'block-header';
+      if (existingHeader) {
+        existingHeader.remove();
+      }
 
-          const blockName = document.createElement('h2');
-          blockName.className = 'block-name';
-          blockName.textContent = formatBlockName(name);
+      if (block.classList.contains('highlight')) {
+        const header = document.createElement('div');
+        header.className = 'block-header';
 
-          const exportBtn = document.createElement('button');
-          exportBtn.className = 'export-button';
+        const blockName = document.createElement('h2');
+        blockName.className = 'block-name';
+        blockName.textContent = formatBlockName(name);
 
-          const exportIcon = document.createElement('img');
-          exportIcon.src = '/.da/icons/export-icon.png';
-          exportIcon.className = 'export-icon';
-          exportIcon.alt = '';
-
-          const exportText = document.createElement('span');
-          exportText.textContent = 'Export to Target';
-
-          exportBtn.appendChild(exportIcon);
-          exportBtn.appendChild(exportText);
-
-          exportBtn.addEventListener('click', (event) => {
-            event.preventDefault();
-            const html = block.parentElement?.outerHTML?.replace(/\n/g, '');
-            navigator.clipboard.writeText(html);
-          });
-
-          header.appendChild(blockName);
-          header.appendChild(exportBtn);
-          block.prepend(header);
-        }
+        header.append(blockName, createExportButton());
+        block.prepend(header);
       }
     });
   };
 
   const showSections = ({ detail: payload }) => {
     console.log('a custom event happened', payload);
-    const sections = document.querySelectorAll('div.section');
-    sections.forEach((section) => section.classList.toggle('highlight'));
+    document.querySelectorAll('div.section')
+      .forEach((section) => section.classList.toggle('highlight'));
+  };
+
+  const initSideKick = (sk) => {
+    const events = ['showblocks', 'showsections', 'eventdetials'];
+    const handlers = {
+      showblocks: showBlocks,
+      showsections: showSections,
+      eventdetials: (e) => console.log(e.detail),
+    };
+
+    events.forEach((event) => {
+      sk.addEventListener(`custom:${event}`, handlers[event]);
+    });
   };
 
   const sk = document.querySelector('aem-sidekick');
   if (sk) {
-    sk.addEventListener('custom:showblocks', showBlocks);
-    sk.addEventListener('custom:showsections', showSections);
-    document.querySelector('aem-sidekick')
-      .addEventListener('custom:eventdetials', (e) => {
-        console.log(e.detail);
-      });
+    initSideKick(sk);
   } else {
     document.addEventListener('sidekick-ready', () => {
-      document.querySelector('aem-sidekick')
-        .addEventListener('custom:eventdetials', (e) => console.log(e.detail));
-      document.querySelector('aem-sidekick')
-        .addEventListener('custom:showblocks', showBlocks);
-      document.querySelector('aem-sidekick')
-        .addEventListener('custom:showsections', showSections);
+      initSideKick(document.querySelector('aem-sidekick'));
     }, { once: true });
   }
 }
