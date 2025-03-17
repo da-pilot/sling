@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Sling - Color Palette</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="/tools/sidekick/palette/palette.js" type="module"></script>
+    <link rel="stylesheet" href="/tools/sidekick/palette/palette.css" />
+  </head>
+  <body>
+    <main>
+      <div class="intro">
+          <p>
+          Click to copy color variable for text, backgrounds, and buttons.
+        </p>
+      </div>
+      <div class="filter">
+        <input autocomplete="off" 
+        placeholder="Type to filter by color name or value..." 
+        id="search" type="text" 
+        class="palette-search" 
+        role="searchbox" 
+        aria-label="Search color variables"/>
+      </div>
+      <div id="palette">
+        <palette-element></palette-element>
+      </div>
+    </main>
+  </body>
+</html> 

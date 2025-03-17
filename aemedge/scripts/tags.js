@@ -111,5 +111,5 @@ function fetchPalette(sheet) {
 }
 
 export async function getPalette() {
-  return fetchPalette('palette');
+  return fetchPalette();
 }
