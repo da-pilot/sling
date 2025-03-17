@@ -6,6 +6,7 @@ import { getPalette } from '../../../aemedge/scripts/tags.js';
 class PaletteElement extends LitElement {
   static properties = {
     palette: { type: Array },
+    searchTerm: { type: String },
   };
 
   static styles = css`
@@ -14,7 +15,6 @@ class PaletteElement extends LitElement {
       padding: 0;
       margin: 0;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 1rem;
     }
 
@@ -24,7 +24,10 @@ class PaletteElement extends LitElement {
       border: 1px solid #ddd;
       border-radius: 4px;
       transition: all 0.2s ease;
-      font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+      display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
     }
 
     li:hover {
@@ -34,13 +37,8 @@ class PaletteElement extends LitElement {
 
     .swatch {
       width: 100%;
-      height: 50px;
+      height: 70px;
       border-radius: 4px;
-      margin-bottom: 0.5rem;
-    }
-
-    .label {
-      margin-top: 0.5rem;
     }
 
     .label p {
@@ -51,16 +49,30 @@ class PaletteElement extends LitElement {
       font-family: monospace;
       color: #666;
     }
+
+    .filtered {
+      display: none;
+    }
   `;
 
   constructor() {
     super();
     this.palette = [];
+    this.searchTerm = '';
   }
 
-  async connectedCallback() {
+  handleSearch(e) {
+    this.searchTerm = e.target.value.toLowerCase();
+    this.requestUpdate();
+  }
+
+  connectedCallback() {
     super.connectedCallback();
-    await this.initPalette();
+    this.initPalette();
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => this.handleSearch(e));
+    }
   }
 
   async handleItemClick(brandName) {
@@ -84,9 +96,11 @@ class PaletteElement extends LitElement {
     const brandName = color['brand-name'];
     const colorValue = color['color-value'];
     const uses = color.application;
+    const isMatch = !this.searchTerm || brandName.toLowerCase().includes(this.searchTerm)
+    || colorValue.toLowerCase().includes(this.searchTerm);
 
     return html`
-            <li class=${brandName} 
+            <li class=${isMatch ? brandName : `${brandName} filtered`} 
                 data-color=${colorValue} 
                 data-name=${brandName}
                 @click=${() => this.handleItemClick(brandName)}>

@@ -16,14 +16,18 @@
     <div id="tags-data"></div>
     <main>
       <div class="intro">
-        <h1 id="pick-your-tags">Pick your tags</h1>
         <p>
-          Once you click on a tag, it will populate at the bottom of the page.
+          Once you click on a tag, it will populate at the bottom of this window.
           When you have picked all the tags, click "Insert" to add them to your document.
         </p>
       </div>
       <div class="filter">
-        <input autocomplete="off" placeholder="Type to filter" id="search" />
+        <input autocomplete="off" 
+        placeholder="Type to filter by tag name..." 
+        id="search" type="text" 
+        class="tags-search" 
+        role="searchbox" 
+        aria-label="Search tags"/>
       </div>
       <div id="results"></div>
       <div id="selected" class="hidden">
