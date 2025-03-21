@@ -128,7 +128,7 @@ header nav[aria-expanded='true'] .navprimary {
 }
 
 header nav[aria-expanded='true'] .navprimary .nav-drop {
-  padding: 19px 4px;
+  padding: 19px 20px;
   color: white;
   cursor: pointer;
 }
@@ -317,7 +317,7 @@ header nav[aria-expanded='true'] .nav-sections {
     right: 160px;
     width: 32px;
     height: 32px;
-    padding-right: 45px;
+    padding-right: 55px;
   }
 
   header .section.signup {
@@ -380,9 +380,12 @@ header nav[aria-expanded='true'] .nav-sections {
     color: #f5f5f6 !important;
   }
 
+  header nav .nav-sections .default-content-wrapper {
+    display: flex;
+  }
+
   header nav .nav-sections .default-content-wrapper > ul {
     display: flex;
-    gap: 24px;
     margin: 0;
   }
 
