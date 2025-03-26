@@ -240,10 +240,14 @@ export function createOptimizedBackgroundImage(element, breakpoints = [
 ]) {
   const updateBackground = () => {
     const bgImage = getBackgroundImage(element);
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexColorRegex.test(bgImage)) {
+      element.style.backgroundColor = bgImage;
+      return;
+    }
     const pathname = EXT_IMAGE_URL.test(bgImage)
       ? bgImage
       : new URL(bgImage, window.location.href).pathname;
-
     const matchedBreakpoint = breakpoints
       .filter((br) => !br.media || window.matchMedia(br.media).matches)
       .reduce((acc, curr) => (parseInt(curr.width, 10)
