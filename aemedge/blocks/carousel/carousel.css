@@ -404,9 +404,3 @@
 .carousel.full .carousel-navigation-buttons .slide-next::after {
   transform: translate(-75%, -50%) rotate(-45deg);
 }
-
-@media (width < 768px) {
-  .carousel.full{
-    display: none;
-  }
-}
