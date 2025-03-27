@@ -25,6 +25,7 @@
 
 .package-cards-container.section.dark {
     margin: 0;
+    border-radius: 0;
 }
 
 .package-cards.block {
