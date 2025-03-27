@@ -728,11 +728,7 @@ export async function getZipcode() {
   }
   return zipcode;
 }
-
 export function configSideKick() {
-  const showBlocks = ({ detail: payload }) => {
-    // eslint-disable-next-line no-console
-    console.log('a custom event happened', payload);
   const createStyleLink = (href) => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -782,12 +778,14 @@ export function configSideKick() {
       return;
     }
 
+    // Get login status from the most recent payload
+    const isLoggedIn = window.lastSidekickPayload?.status?.profile !== undefined;
+
     // Determine if it's a block or section and get the appropriate attributes
     const isBlock = currentElement.classList.contains('block');
     const elementName = isBlock
       ? currentElement.getAttribute('data-block-name')
-      : (currentElement.getAttribute('data-section-name')
-        || currentElement.className.split(' ').find((cls) => cls !== 'section' && cls !== 'highlight'));
+      : Array.from(currentElement.classList).pop();
     const fragmentId = currentElement.getAttribute('data-fragment-id');
 
     if (!elementName) {
@@ -796,7 +794,9 @@ export function configSideKick() {
     }
 
     // Create a clone of the element for export
-    const elementClone = currentElement.cloneNode(true);
+    const elementClone = isBlock
+      ? currentElement.parentElement.cloneNode(true)
+      : currentElement.cloneNode(true);
 
     // Remove header from the clone
     const headerToRemove = elementClone.querySelector(isBlock ? '.block-header' : '.section-header');
@@ -813,6 +813,8 @@ export function configSideKick() {
     dialogContainer.setAttribute('data-fragment-id', fragmentId);
     // Store the cleaned element clone for later use
     dialogContainer.setAttribute(`data-${isBlock ? 'block' : 'section'}-content`, elementClone.outerHTML);
+    // Store login status
+    dialogContainer.setAttribute('data-user-logged-in', isLoggedIn);
 
     try {
       const [response, styleLink] = await Promise.all([
@@ -857,32 +859,20 @@ export function configSideKick() {
 
   const showBlocks = ({ detail: payload }) => {
     console.info('showblocks event triggered with payload:', payload);
+    // Store the payload for login status check
+    window.lastSidekickPayload = payload;
+
     const blocks = document.querySelectorAll('div.block');
     const excludedBlockList = ['header', 'zipcode', 'footer'];
 
-    // Helper function to format block name
-    const formatBlockName = (name) => name
-      .split('-')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-
     blocks.forEach((block) => {
       const name = block.getAttribute('data-block-name');
-      // const searchableName = name; // Keep original name for export
-      if (name && !excludedBlockList.includes(name)) {
-        block.classList.toggle('highlight');
-
       if (!name || excludedBlockList.includes(name)) {
         return;
       }
 
-      // Count occurrences for data-fragment-id
-      const count = blockOccurrences.get(name) || 0;
-      blockOccurrences.set(name, count + 1);
-      const fragmentId = `block-${name}-${count + 1}`;
-      block.setAttribute('data-fragment-id', fragmentId);
       block.classList.toggle('highlight');
-      // Only add header if it doesn't exist
+      // Only add header if it doesn't exist and block has a fragment ID
       if (!block.querySelector('.block-header')) {
         const header = document.createElement('div');
         header.className = 'block-header';
@@ -890,57 +880,25 @@ export function configSideKick() {
         const blockName = document.createElement('h2');
         blockName.className = 'block-name';
         blockName.textContent = formatElementName(name);
-
-        header.append(blockName, createExportButton());
+        header.append(blockName);
+        if (block.getAttribute('data-fragment-id')) {
+          header.append(createExportButton());
+        }
         block.prepend(header);
       } else {
         const existingHeader = block.querySelector('.block-header');
         if (existingHeader) {
           existingHeader.remove();
         }
-
-        if (block.classList.contains('highlight')) {
-          const header = document.createElement('div');
-          header.className = 'block-header';
-
-          const blockName = document.createElement('h2');
-          blockName.className = 'block-name';
-          blockName.textContent = formatBlockName(name);
-
-          const exportBtn = document.createElement('button');
-          exportBtn.className = 'export-button';
-
-          const exportIcon = document.createElement('img');
-          exportIcon.src = '/.da/icons/export-icon.png';
-          exportIcon.className = 'export-icon';
-          exportIcon.alt = '';
-
-          const exportText = document.createElement('span');
-          exportText.textContent = 'Export to Target';
-
-          exportBtn.appendChild(exportIcon);
-          exportBtn.appendChild(exportText);
-
-          exportBtn.addEventListener('click', (event) => {
-            event.preventDefault();
-            const html = block.parentElement?.outerHTML?.replace(/\n/g, '');
-            navigator.clipboard.writeText(html);
-          });
-
-          header.appendChild(blockName);
-          header.appendChild(exportBtn);
-          block.prepend(header);
-        }
       }
     });
   };
 
   const showSections = ({ detail: payload }) => {
-    // eslint-disable-next-line no-console
-    console.log('a custom event happened', payload);
-    const sections = document.querySelectorAll('div.section');
-    sections.forEach((section) => section.classList.toggle('highlight'));
     console.info('showsections event:', payload);
+    // Store the payload for login status check
+    window.lastSidekickPayload = payload;
+
     const sections = document.querySelectorAll('div.section');
     const excludedParents = ['header', 'footer'];
     sections.forEach((section) => {
@@ -949,18 +907,13 @@ export function configSideKick() {
         return;
       }
 
-      const name = section.getAttribute('data-section-name')
-                  || section.className.split(' ').find((cls) => cls !== 'section' && cls !== 'highlight');
+      const name = Array.from(section.classList).pop();
 
       if (!name || excludedParents.includes(name)) {
         return;
       }
 
-      // Set data-fragment-id for sections
-      const fragmentId = `section-${name}`;
-      section.setAttribute('data-fragment-id', fragmentId);
-
-      // Only add header if it doesn't exist
+      // Only add header if it doesn't exist and section has a fragment ID
       if (!section.querySelector('.section-header')) {
         const header = document.createElement('div');
         header.className = 'section-header';
@@ -968,8 +921,10 @@ export function configSideKick() {
         const sectionName = document.createElement('h2');
         sectionName.className = 'section-name';
         sectionName.textContent = formatElementName(name);
-
-        header.append(sectionName, createExportButton());
+        header.append(sectionName);
+        if (section.getAttribute('data-fragment-id')) {
+          header.append(createExportButton());
+        }
         section.prepend(header);
       } else {
         section.classList.remove('highlight');
@@ -983,6 +938,7 @@ export function configSideKick() {
   };
 
   const initSideKick = (sk) => {
+    // Existing event listeners
     const events = ['showblocks', 'showsections', 'eventdetials'];
     const handlers = {
       showblocks: showBlocks,
@@ -997,22 +953,28 @@ export function configSideKick() {
 
   const sk = document.querySelector('aem-sidekick');
   if (sk) {
-    sk.addEventListener('custom:showblocks', showBlocks);
-    sk.addEventListener('custom:showsections', showSections);
-    document.querySelector('aem-sidekick')
-      .addEventListener('custom:eventdetials', (e) => {
-        // eslint-disable-next-line no-console
-        console.log(e.detail);
-      });
+    initSideKick(sk);
   } else {
     document.addEventListener('sidekick-ready', () => {
-      document.querySelector('aem-sidekick')
-        // eslint-disable-next-line no-console
-        .addEventListener('custom:eventdetials', (e) => console.log(e.detail));
-      document.querySelector('aem-sidekick')
-        .addEventListener('custom:showblocks', showBlocks);
-      document.querySelector('aem-sidekick')
-        .addEventListener('custom:showsections', showSections);
+      initSideKick(document.querySelector('aem-sidekick'));
     }, { once: true });
   }
+}
+
+/**
+ * Sets fragment IDs on blocks and sections based on their CSS classes
+ * @param {Element} main The container element
+ */
+export async function setFragmentIds(main) {
+  // Handle blocks
+  const blocks = [...main.querySelectorAll('div.block')];
+  blocks.forEach((block) => {
+    const classes = Array.from(block.classList);
+    const fragmentClass = classes.find((cls) => cls.startsWith('fragment-id-'));
+    if (fragmentClass) {
+      const fragmentId = fragmentClass.replace('fragment-id-', '');
+      block.setAttribute('data-fragment-id', fragmentId);
+      block.classList.remove(fragmentClass);
+    }
+  });
 }
