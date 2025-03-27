@@ -171,16 +171,16 @@ export default async function decorate(block) {
   if (navSections) {
     navSections.querySelectorAll(':scope .default-content-wrapper > ul > li').forEach((navSection) => {
       const navheading = Array.from(navSection.childNodes)
-        .find((node) => node.nodeType === Node.TEXT_NODE);
+        .find((node) => node.nodeName === 'P');
       if (navheading) {
         const aTag = document.createElement('a');
         aTag.classList.add('nav-heading');
-        aTag.href = '#'; // Set your desired URL here
+        aTag.href = '#';
         aTag.textContent = navheading.textContent;
         navSection.replaceChild(aTag, navheading);
       }
       if (navSection.querySelector('ul')) navSection.classList.add('nav-drop');
-      navSection.addEventListener('click', (event) => {
+      navSection.addEventListener('click', (event) => {        
         if (isDesktop.matches) {
           const expanded = navSection.getAttribute('aria-expanded') === 'true';
           toggleAllNavSections(navSections);

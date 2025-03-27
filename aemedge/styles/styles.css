@@ -485,6 +485,62 @@ button.text {
   color: var(--link-color);
 }
 
+a:not(.button),
+button.text,
+a.button.text {
+  &.bg-dark {
+    color: var(--dark-button-color) !important;
+  }
+
+  &.bg-white {
+    color: var(--clr-white)!important;
+  }
+
+  &.bg-dark-rock-candy {
+    color: var(--dark-rock-candy) !important;
+  }
+
+  &.bg-blueberry {
+    color: var(--blueberry) !important;
+  }
+
+  &.bg-mac-and-cheese {
+    color: var(--mac-and-cheese) !important;
+  }
+
+  &.bg-fire {
+    color: var(--clr-fire) !important;
+  }
+
+  &.bg-charcoal {
+    color: var(--charcoal) !important;
+  }
+
+  &.bg-coal {
+    color: var(--coal) !important;
+  }
+
+  &.bg-dark-green {
+    color: var(--dark-green) !important;
+  }
+
+  &.bg-shadow-blue {
+    color: var(--shadow-blue) !important;
+  }
+
+  &.bg-steam {
+    color: var(--steam) !important;
+  }
+
+  &.bg-steel {
+    color: var(--steel) !important;
+  }
+
+  &.bg-cherry-red {
+    color: var(--cherry-red) !important;
+  }
+}
+
 a.button.text:hover,
 button.text:hover {
   background-color: unset;
@@ -581,6 +637,10 @@ main img {
 main > .section {
   padding: 0 8%;
   margin: 64px 0;
+}
+
+.section.wide {
+  padding: 0;
 }
 
 .section > .default-content-wrapper > p.fragment-wrapper {
@@ -813,6 +873,10 @@ a.black {
 @media (width >=768px) {
     main .section {
         padding: 0 48px;
+    }
+
+    .section.wide {
+      padding: 0;
     }
 
     .international main .icons .icon img {

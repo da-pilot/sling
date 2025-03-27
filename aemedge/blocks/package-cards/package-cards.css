@@ -23,6 +23,11 @@
     }
 }
 
+.package-cards-container.section.dark {
+    margin: 0;
+    border-radius: 0;
+}
+
 .package-cards.block {
     > div:not([id]) p {
         display: none;

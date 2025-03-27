@@ -26,6 +26,7 @@ import {
   linkTextIncludesHref,
   centerHeadlines,
   configSideKick,
+  buildVideoBlocks,
 } from './utils.js';
 
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
@@ -241,10 +242,14 @@ export function createOptimizedBackgroundImage(element, breakpoints = [
 ]) {
   const updateBackground = () => {
     const bgImage = getBackgroundImage(element);
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexColorRegex.test(bgImage)) {
+      element.style.backgroundColor = bgImage;
+      return;
+    }
     const pathname = EXT_IMAGE_URL.test(bgImage)
       ? bgImage
       : new URL(bgImage, window.location.href).pathname;
-
     const matchedBreakpoint = breakpoints
       .filter((br) => !br.media || window.matchMedia(br.media).matches)
       .reduce((acc, curr) => (parseInt(curr.width, 10)
@@ -438,55 +443,63 @@ export function makeLastButtonSticky() {
   }
 }
 
+/* LOOKING FOR CURLY BRACES */
+
 /**
- * Extracts color information from p text content in curly braces.
+ * Extracts color + number information from text content in curly braces.
  * @returns {Object|null} - An object containing the extracted color
  * or null if no color information is found.
  */
-export function extractElementsColor() {
-//  const textNodes = Array.from(document.querySelectorAll('div > p:first-child'));
+export function extractStyleVariables() {
   const textNodes = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, li, p'));
   textNodes.forEach((node) => {
     const up = node.parentElement;
     const isParagraph = node.tagName === 'P';
     const text = node.textContent;
-    // color must be letters or dashes
-    const colorRegex = text && /{([a-zA-Z-\s]+)?}/;
+    const colorRegex = text && /{([a-zA-Z-\s]+)?}/; // color must be letters or dashes
     const numberRegex = text && /\{(\d{1,2})?}/;
-    const spanRegex = new RegExp(`\\[${colorRegex.source}([a-zA-Z0-9\\s]*.)\\]`);
+    const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`);
+
+    const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
     const colorMatches = text.match(colorRegex);
     const numberMatches = text.match(numberRegex);
     const spanMatches = text.match(spanRegex);
-    // case where colored text is wrapped in a span.
-    // no HTML elements allowed (no bold, no links).
+
+    if (isParagraph && spacerMatch) {
+      const spacerHeight = parseInt(spacerMatch[1], 10);
+      node.style.height = `${spacerHeight * 10}px`;
+      node.className = 'spacer';
+      node.innerHTML = '';
+    } else
+      // case where only the color or width is in the first cell
+      if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.trim().startsWith('{') && text.trim().endsWith('}')) {
+        if (colorMatches) {
+          const backgroundColor = colorMatches[1];
+          up.classList.add(`bg-${toClassName(backgroundColor)}`);
+        }
+        if (numberMatches) {
+          const percentWidth = numberMatches[1];
+          up.style.maxWidth = `${percentWidth}%`;
+        }
+        node.remove();
+      }
+    const anchor = node.querySelector('a');
+    // First handle span wrapping
     if (spanMatches) {
-      node.innerHTML = text.replace(new RegExp(spanRegex, 'g'), (match, color, spanText) => {
+      const currentHTML = node.innerHTML;
+      node.innerHTML = currentHTML.replace(new RegExp(spanRegex, 'g'), (match, spanText, color) => {
         const span = createTag('span', { class: `${toClassName(color)}` }, spanText);
         return span.outerHTML;
       });
     }
 
-    // case for buttons
-    if (isParagraph && node.querySelector('a')) {
-      const anchor = node.querySelector('a');
-      if (colorMatches) {
+    // Then handle anchor tag coloring
+    if (anchor) {
+      if (colorMatches && anchor.textContent.endsWith(colorMatches[0])) {
         anchor.classList.add(`bg-${toClassName(colorMatches[1])}`);
-        // remove the color from the text
         anchor.textContent = anchor.textContent.replace(colorMatches[0], '');
+        anchor.title = anchor.title.replace(colorMatches[0], '');
       }
-    }
-
-    // case where only the color or width is in the first cell
-    if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.trim().startsWith('{') && text.trim().endsWith('}')) {
-      if (colorMatches) {
-        const backgroundColor = colorMatches[1];
-        up.classList.add(`bg-${toClassName(backgroundColor)}`);
-      }
-      if (numberMatches) {
-        const percentWidth = numberMatches[1];
-        up.style.maxWidth = `${percentWidth}%`;
-      }
-      node.remove();
     }
   });
 }
@@ -604,6 +617,19 @@ function decorateLinkedImages() {
   });
 }
 
+async function loadLaunchEager() {
+  const isTarget = getMetadata('target');
+  if (isTarget && isTarget.toLowerCase() === 'true') {
+    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
+    if (window.location.host.startsWith('localhost')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
+    } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
+    } else if (window.location.host.endsWith('.page')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
+    }
+  }
+}
 /**
    * Decorates the main element.
    * @param {Element} main The main element
@@ -620,26 +646,10 @@ export function decorateMain(main) {
   makeTwoColumns(main);
   decorateStyledSections(main);
   buildSpacer(main);
-  extractElementsColor();
+  extractStyleVariables(main);
   decorateExtImage(main);
   decorateLinkedImages();
-}
-
-async function loadLaunchEager() {
-  const isTarget = getMetadata('target');
-  if (isTarget && isTarget.toLowerCase() === 'true') {
-    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
-    if (window.location.host.startsWith('localhost')) {
-      // await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
-      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
-    } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
-      // await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
-      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
-    } else if (window.location.host.endsWith('.page')) {
-      // await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
-      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
-    }
-  }
+  buildVideoBlocks(main);
 }
 
 /**
@@ -741,11 +751,18 @@ function loadDelayed() {
 }
 
 async function loadPage() {
+  // load everything that needs to be loaded eagerly
   await loadEager(document);
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager();
+
+  // load everything that can be postponed to the latest here
   await loadLazy(document);
+  // load launch eagerly when target metadata is set to true
+  await loadLaunchEager();
+  // load everything that needs to be loaded later
   loadDelayed();
+  // make the last button sticky on blog pages
   makeLastButtonSticky();
 }
 loadPage();
