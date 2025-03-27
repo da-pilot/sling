@@ -764,28 +764,45 @@ export function configSideKick() {
 
   const handleExportClick = async (event) => {
     event.preventDefault();
-    const currentBlock = event.currentTarget.closest('.block');
-    const currentBlockName = currentBlock.getAttribute('data-block-name');
-    const fragmentId = currentBlock.getAttribute('data-fragment-id');
 
-    // Create a clone of the block for export
-    const blockClone = currentBlock.cloneNode(true);
+    // Find the closest block or section element
+    const currentElement = event.currentTarget.closest('.block, .section');
+    if (!currentElement) {
+      console.error('No block or section found for export');
+      return;
+    }
 
-    // Remove .block-header from the clone
-    const headerToRemove = blockClone.querySelector('.block-header');
+    // Determine if it's a block or section and get the appropriate attributes
+    const isBlock = currentElement.classList.contains('block');
+    const elementName = isBlock
+      ? currentElement.getAttribute('data-block-name')
+      : (currentElement.getAttribute('data-section-name')
+        || currentElement.className.split(' ').find((cls) => cls !== 'section' && cls !== 'highlight'));
+    const fragmentId = currentElement.getAttribute('data-fragment-id');
+
+    if (!elementName) {
+      console.error('No name found for element');
+      return;
+    }
+
+    // Create a clone of the element for export
+    const elementClone = currentElement.cloneNode(true);
+
+    // Remove header from the clone
+    const headerToRemove = elementClone.querySelector(isBlock ? '.block-header' : '.section-header');
     if (headerToRemove) {
       headerToRemove.remove();
     }
 
     // Remove 'highlight' class from the clone
-    blockClone.classList.remove('highlight');
+    elementClone.classList.remove('highlight');
 
     const dialogContainer = document.createElement('div');
     dialogContainer.className = 'html-offer-dialog-container';
-    dialogContainer.setAttribute('data-current-block', currentBlockName);
+    dialogContainer.setAttribute(`data-current-${isBlock ? 'block' : 'section'}`, elementName);
     dialogContainer.setAttribute('data-fragment-id', fragmentId);
-    // Store the cleaned block clone for later use
-    dialogContainer.setAttribute('data-block-content', blockClone.outerHTML);
+    // Store the cleaned element clone for later use
+    dialogContainer.setAttribute(`data-${isBlock ? 'block' : 'section'}-content`, elementClone.outerHTML);
 
     try {
       const [response, styleLink] = await Promise.all([
@@ -829,9 +846,8 @@ export function configSideKick() {
     .join(' ');
 
   const showBlocks = ({ detail: payload }) => {
-    console.log('showblocks event triggered with payload:', payload);
+    console.info('showblocks event triggered with payload:', payload);
     const blocks = document.querySelectorAll('div.block');
-    console.log('Found blocks:', blocks.length);
     const excludedBlockList = ['header', 'zipcode', 'footer'];
 
     // Create a map to track occurrences of each block type
@@ -839,9 +855,7 @@ export function configSideKick() {
 
     blocks.forEach((block) => {
       const name = block.getAttribute('data-block-name');
-      console.log('Processing block:', name);
       if (!name || excludedBlockList.includes(name)) {
-        console.log('Skipping block:', name);
         return;
       }
 
@@ -850,9 +864,6 @@ export function configSideKick() {
       blockOccurrences.set(name, count + 1);
       const fragmentId = `block-${name}-${count + 1}`;
       block.setAttribute('data-fragment-id', fragmentId);
-      console.log('Setting fragment ID:', fragmentId);
-
-      console.log('Toggling highlight to block:', name);
       block.classList.toggle('highlight');
       // Only add header if it doesn't exist
       if (!block.querySelector('.block-header')) {
@@ -875,38 +886,40 @@ export function configSideKick() {
   };
 
   const showSections = ({ detail: payload }) => {
-    console.log('showsections event:', payload);
+    console.info('showsections event:', payload);
     const sections = document.querySelectorAll('div.section');
-    const excludedSectionList = ['header', 'footer'];
-    const shouldShow = payload?.data !== false; // If payload.data is false, we're hiding sections
-
+    const excludedParents = ['header', 'footer'];
     sections.forEach((section) => {
+      // Skip if section is within a fragment-wrapper or any excluded parent
+      if (section.closest('.fragment-wrapper') || excludedParents.some((parent) => section.closest(`.${parent}`))) {
+        return;
+      }
+
       const name = section.getAttribute('data-section-name')
                   || section.className.split(' ').find((cls) => cls !== 'section' && cls !== 'highlight');
 
-      if (!name || excludedSectionList.includes(name)) return;
+      if (!name || excludedParents.includes(name)) {
+        return;
+      }
 
       // Set data-fragment-id for sections
       const fragmentId = `section-${name}`;
       section.setAttribute('data-fragment-id', fragmentId);
-      console.log('Setting section fragment ID:', fragmentId);
 
-      if (shouldShow) {
-        section.classList.add('highlight');
-        // Only add header if it doesn't exist
-        if (!section.querySelector('.section-header')) {
-          const header = document.createElement('div');
-          header.className = 'section-header';
+      // Only add header if it doesn't exist
+      if (!section.querySelector('.section-header')) {
+        const header = document.createElement('div');
+        header.className = 'section-header';
 
-          const sectionName = document.createElement('h2');
-          sectionName.className = 'section-name';
-          sectionName.textContent = formatElementName(name);
+        const sectionName = document.createElement('h2');
+        sectionName.className = 'section-name';
+        sectionName.textContent = formatElementName(name);
 
-          header.append(sectionName, createExportButton());
-          section.prepend(header);
-        }
+        header.append(sectionName, createExportButton());
+        section.prepend(header);
       } else {
         section.classList.remove('highlight');
+        // Remove header if it exists
         const existingHeader = section.querySelector('.section-header');
         if (existingHeader) {
           existingHeader.remove();
@@ -920,7 +933,7 @@ export function configSideKick() {
     const handlers = {
       showblocks: showBlocks,
       showsections: showSections,
-      eventdetials: (e) => console.log(e.detail),
+      eventdetials: (e) => console.info(e.detail),
     };
 
     events.forEach((event) => {
