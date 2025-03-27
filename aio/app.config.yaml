@@ -1,0 +1,37 @@
+application:
+  actions: actions
+  web: false
+  runtimeManifest:
+    packages:
+      sling-da:
+        license: Apache-2.0
+        actions:
+          gettoken:
+            function: actions/gettoken/index.js
+            web: false
+            runtime: nodejs:18
+            inputs:
+              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
+              ADOBE_CLIENT_SECRET: $ADOBE_CLIENT_SECRET
+              LOG_LEVEL: debug
+            annotations:
+              final: true
+              require-adobe-auth: false
+            limits:
+              timeout: 60000
+              memorySize: 1024
+
+          exportoffers:
+            function: actions/exportoffers/index.js
+            web: true
+            runtime: nodejs:18
+            inputs:
+              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
+              ADOBE_TARGET_TENANT: $ADOBE_TARGET_TENANT
+              LOG_LEVEL: debug
+            annotations:
+              final: true
+              require-adobe-auth: false
+            limits:
+              timeout: 60000
+              memorySize: 1024
