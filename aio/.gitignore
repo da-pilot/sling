@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.webpack/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+*.swp
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime
+.env
+.aio
+.wskdebug.props.tmp
+.adobe-helix-*
+.aws.tmp.creds.json
+
+# Mac OS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Adobe specific
+console.json
+.env.enc 
