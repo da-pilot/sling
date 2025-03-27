@@ -175,6 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         path: window.location.pathname,
       };
 
+      showMessage('Exporting offer...');
       // Call the exportoffers action
       const response = await fetch(`https://${RUNTIME_NAMESPACE}.adobeioruntime.net/api/v1/web/sling-da/exportoffers`, {
         method: 'POST',
@@ -191,7 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const result = await response.json();
-      showMessage(`  Offer ${result.name} successfully exported`);
+      showMessage(`Offer ${result.name} successfully exported`);
       console.log('Exported offer:', result);
     } catch (err) {
       showMessage(err.message || 'An error occurred while processing the offer', 'error');
