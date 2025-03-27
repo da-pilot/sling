@@ -120,7 +120,7 @@ body.appear {
   display: block;
 }
 
-.block.highlight {
+.block.highlight, .section.highlight {
   outline: 2px dotted   #0072ec;
 }
 
@@ -1234,13 +1234,12 @@ main .icon-still-have-questions img {
 }
 
 /* section metadata */
-main .section.light,
-main .section.highlight {
+main .section.light{
   background-color: var(--light-color);
 }
 
 /* Block header styling */
-.block-header {
+.block-header,.section-header {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1257,7 +1256,7 @@ main .section.highlight {
 }
 
 /* Gradient border effect */
-.block-header::before {
+.block-header::before, .section-header::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1268,7 +1267,11 @@ main .section.highlight {
   background: linear-gradient(108.93deg, #0072ec 37.23%, #00b9ff 112.13%);
 }
 
-.block-name {
+.section-header::before {
+  background: linear-gradient(to right, rgb(255 163 0), rgb(255 208 60));
+}
+
+.block-name, .section-name {
   color: var(--clr-white);
   margin: 0;
   position: static;
@@ -1277,10 +1280,12 @@ main .section.highlight {
   font-weight: 500;
 }
 
+
+
 .export-button {
   font-family: var(--font-family);
   padding: var(--spacing-xs) var(--spacing-md);
-  background: var(--color-primary-hover);
+  background: var(--clr-black);
   color: #fff;
   border: none;
   border-radius: var(--border-radius-lg);
@@ -1301,13 +1306,19 @@ main .section.highlight {
   filter: brightness(0) invert(1);
 }
 
-.export-button:hover {
-  background: var(--color-primary-hover);
-}
 
 .export-button:focus {
   outline: 2px solid #fff;
   outline-offset: 2px;
+}
+
+.section-name {
+  color: var(--clr-black);
+}
+
+.section-header .export-button {
+  background: var(--clr-black);
+  color: var(--clr-white);
 }
 
 /* Specific fix for marquee block */
