@@ -665,8 +665,12 @@ async function loadEager(doc) {
     if (window.innerWidth >= 900 || sessionStorage.getItem('fonts-loaded')) {
       loadFonts();
     }
-  } catch (e) {
-    // do nothing
+
+    /* initialize sidekick */
+    await configSideKick();
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.log('Error in loadEager:', err);
   }
 }
 
@@ -741,8 +745,6 @@ async function loadPage() {
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager();
   await loadLazy(document);
-  configSideKick();
-
   loadDelayed();
   makeLastButtonSticky();
 }
