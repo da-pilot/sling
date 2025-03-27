@@ -29,6 +29,26 @@
         "title": "Blocks",
         "environments": ["dev", "preview", "live"],
         "event": "showblocks"
+      },
+      {
+        "id": "showsections",
+        "title": "Sections",
+        "environments": ["dev", "preview", "live"],
+        "event": "showsections"
+      },    
+      {
+        "id": "review",
+        "title": "Review...",
+        "environments": [
+          "dev",
+          "preview",
+          "review"
+        ],
+        "url": "https://labs.aem.live/tools/snapshot-admin/palette.html",
+        "isPopover": true,
+        "popoverRect": "width:200px; height: 200px",
+        "passConfig": true,
+        "passReferrer": true
       }
     ]
   }
