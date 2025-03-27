@@ -766,6 +766,7 @@ export function configSideKick() {
     event.preventDefault();
     const currentBlock = event.currentTarget.closest('.block');
     const currentBlockName = currentBlock.getAttribute('data-block-name');
+    const fragmentId = currentBlock.getAttribute('data-fragment-id');
 
     // Create a clone of the block for export
     const blockClone = currentBlock.cloneNode(true);
@@ -782,6 +783,7 @@ export function configSideKick() {
     const dialogContainer = document.createElement('div');
     dialogContainer.className = 'html-offer-dialog-container';
     dialogContainer.setAttribute('data-current-block', currentBlockName);
+    dialogContainer.setAttribute('data-fragment-id', fragmentId);
     // Store the cleaned block clone for later use
     dialogContainer.setAttribute('data-block-content', blockClone.outerHTML);
 
@@ -821,45 +823,96 @@ export function configSideKick() {
     return exportBtn;
   };
 
-  const formatBlockName = (name) => name
+  const formatElementName = (name) => name
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
   const showBlocks = ({ detail: payload }) => {
-    console.log('a custom event happened', payload);
+    console.log('showblocks event triggered with payload:', payload);
     const blocks = document.querySelectorAll('div.block');
+    console.log('Found blocks:', blocks.length);
     const excludedBlockList = ['header', 'zipcode', 'footer'];
+
+    // Create a map to track occurrences of each block type
+    const blockOccurrences = new Map();
 
     blocks.forEach((block) => {
       const name = block.getAttribute('data-block-name');
-      if (!name || excludedBlockList.includes(name)) return;
-
-      block.classList.toggle('highlight');
-      const existingHeader = block.querySelector('.block-header');
-
-      if (existingHeader) {
-        existingHeader.remove();
+      console.log('Processing block:', name);
+      if (!name || excludedBlockList.includes(name)) {
+        console.log('Skipping block:', name);
+        return;
       }
 
-      if (block.classList.contains('highlight')) {
+      // Count occurrences for data-fragment-id
+      const count = blockOccurrences.get(name) || 0;
+      blockOccurrences.set(name, count + 1);
+      const fragmentId = `block-${name}-${count + 1}`;
+      block.setAttribute('data-fragment-id', fragmentId);
+      console.log('Setting fragment ID:', fragmentId);
+
+      console.log('Toggling highlight to block:', name);
+      block.classList.toggle('highlight');
+      // Only add header if it doesn't exist
+      if (!block.querySelector('.block-header')) {
         const header = document.createElement('div');
         header.className = 'block-header';
 
         const blockName = document.createElement('h2');
         blockName.className = 'block-name';
-        blockName.textContent = formatBlockName(name);
+        blockName.textContent = formatElementName(name);
 
         header.append(blockName, createExportButton());
         block.prepend(header);
+      } else {
+        const existingHeader = block.querySelector('.block-header');
+        if (existingHeader) {
+          existingHeader.remove();
+        }
       }
     });
   };
 
   const showSections = ({ detail: payload }) => {
-    console.log('a custom event happened', payload);
-    document.querySelectorAll('div.section')
-      .forEach((section) => section.classList.toggle('highlight'));
+    console.log('showsections event:', payload);
+    const sections = document.querySelectorAll('div.section');
+    const excludedSectionList = ['header', 'footer'];
+    const shouldShow = payload?.data !== false; // If payload.data is false, we're hiding sections
+
+    sections.forEach((section) => {
+      const name = section.getAttribute('data-section-name')
+                  || section.className.split(' ').find((cls) => cls !== 'section' && cls !== 'highlight');
+
+      if (!name || excludedSectionList.includes(name)) return;
+
+      // Set data-fragment-id for sections
+      const fragmentId = `section-${name}`;
+      section.setAttribute('data-fragment-id', fragmentId);
+      console.log('Setting section fragment ID:', fragmentId);
+
+      if (shouldShow) {
+        section.classList.add('highlight');
+        // Only add header if it doesn't exist
+        if (!section.querySelector('.section-header')) {
+          const header = document.createElement('div');
+          header.className = 'section-header';
+
+          const sectionName = document.createElement('h2');
+          sectionName.className = 'section-name';
+          sectionName.textContent = formatElementName(name);
+
+          header.append(sectionName, createExportButton());
+          section.prepend(header);
+        }
+      } else {
+        section.classList.remove('highlight');
+        const existingHeader = section.querySelector('.section-header');
+        if (existingHeader) {
+          existingHeader.remove();
+        }
+      }
+    });
   };
 
   const initSideKick = (sk) => {
