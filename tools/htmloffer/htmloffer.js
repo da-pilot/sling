@@ -1,10 +1,11 @@
-
 document.addEventListener('DOMContentLoaded', async () => {
+  // Constants
+  const RUNTIME_NAMESPACE = '916809-952dimlouse';
+  const TARGET_WORKSPACE_ID = '857317386';
+
   // Form elements
   const form = document.getElementById('offerForm');
-  const titleInput = document.getElementById('title');
-  const nameInput = document.getElementById('name');
-  const descriptionInput = document.getElementById('description');
+  const offerNameInput = document.getElementById('offer-name');
   const blockHtmlInput = document.getElementById('block-html');
   const resetButton = document.querySelector('.btn-reset');
   const closeButton = document.querySelector('.btn-close');
@@ -30,35 +31,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * Formats HTML with proper indentation
+   * Formats HTML with proper indentation for display
    * @param {string} html - The HTML string to format
    * @returns {string} Formatted HTML string
    */
-  function formatHTML(html) {
+  function formatHTMLForDisplay(html) {
     let formatted = '';
     let indent = 0;
 
-    // Split HTML into individual lines
-    const lines = html
-      .replace(/>\s*</g, '>\n<') // Add line breaks between elements
-      .replace(/</g, '\n<') // Add line breaks before opening tags
-      .replace(/>/g, '>\n') // Add line breaks after closing tags
-      .split('\n');
+    // First clean up any excessive whitespace and line breaks
+    const cleanHtml = html
+      .replace(/>\s+</g, '><')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    lines.forEach((line) => {
-      const trimmedLine = line.trim();
-      if (!trimmedLine) return;
+    // Then add proper formatting
+    const tokens = cleanHtml.split(/(<\/?[^>]+>)/g);
+    tokens.forEach((token) => {
+      if (!token) return;
 
       // Decrease indent for closing tags
-      if (trimmedLine.startsWith('</')) {
+      if (token.startsWith('</')) {
         indent -= 1;
       }
 
-      // Add indentation
-      formatted += `${'  '.repeat(Math.max(0, indent)) + trimmedLine}\n`;
+      // Add the token with proper indentation
+      if (token.startsWith('<')) {
+        formatted += `${'  '.repeat(Math.max(0, indent)) + token}\n`;
+      } else {
+        formatted += `${'  '.repeat(Math.max(0, indent)) + token.trim()}\n`;
+      }
 
       // Increase indent for opening tags, but not for self-closing tags
-      if (trimmedLine.startsWith('<') && !trimmedLine.startsWith('</') && !trimmedLine.endsWith('/>')) {
+      if (token.startsWith('<') && !token.startsWith('</') && !token.endsWith('/>')) {
         indent += 1;
       }
     });
@@ -67,17 +72,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * Converts title to URL-friendly name format
-   * @param {string} title - The title to convert
-   * @returns {string} URL-friendly name
+   * Formats HTML for API by removing excessive whitespace and line breaks
+   * @param {string} html - The HTML string to format
+   * @returns {string} Cleaned HTML string
    */
-  function convertTitleToName(title) {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-      .trim(); // Remove leading/trailing spaces
+  function formatHTMLForAPI(html) {
+    return html
+      .replace(/>\s+</g, '><')
+      .replace(/\s+/g, ' ')
+      .replace(/\n+/g, '')
+      .trim();
   }
 
   /**
@@ -90,78 +94,109 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * Gets the HTML of the current block
-   * @returns {string} Formatted HTML of the block
+   * Gets the HTML of the current element (block or section)
+   * @returns {string} Formatted HTML of the element
    */
-  function getBlockHtml() {
-    const currentBlockName = dialogContainer.getAttribute('data-current-block');
-    const block = window.parent.document.querySelector(`.block[data-block-name="${currentBlockName}"]`);
-    return block ? formatHTML(block.outerHTML) : '';
+  function getElementHtml() {
+    const blockName = dialogContainer.getAttribute('data-current-block');
+    const sectionName = dialogContainer.getAttribute('data-current-section');
+
+    if (blockName) {
+      const block = window.parent.document.querySelector(`.block[data-block-name="${blockName}"]`);
+      return block ? formatHTMLForDisplay(block.outerHTML) : '';
+    } if (sectionName) {
+      const section = window.parent.document.querySelector(`.section[data-section-name="${sectionName}"]`);
+      return section ? formatHTMLForDisplay(section.outerHTML) : '';
+    }
+    return '';
   }
 
   /**
    * Resets the form to initial state
    */
   function resetForm() {
-    const currentBlockName = dialogContainer.getAttribute('data-current-block');
-    titleInput.value = currentBlockName || '';
-    nameInput.value = convertTitleToName(currentBlockName || '');
-    descriptionInput.value = '';
-    blockHtmlInput.value = getBlockHtml();
-    titleInput.classList.remove('error');
+    const blockName = dialogContainer.getAttribute('data-current-block');
+    const sectionName = dialogContainer.getAttribute('data-current-section');
+
+    // Use block or section name for the offer name
+    const elementName = blockName || sectionName || '';
+    offerNameInput.value = elementName;
+
+    // Get the HTML content
+    blockHtmlInput.value = getElementHtml();
+    offerNameInput.classList.remove('error');
     clearMessage();
   }
 
-  // Initialize form with current block data
-  const currentBlockName = dialogContainer.getAttribute('data-current-block');
-  const blockContent = dialogContainer.getAttribute('data-block-content');
+  // Initialize form with current data
+  const blockName = dialogContainer.getAttribute('data-current-block');
+  const sectionName = dialogContainer.getAttribute('data-current-section');
+  const fragmentId = dialogContainer.getAttribute('data-fragment-id');
+  const elementContent = dialogContainer.getAttribute('data-block-content')
+                        || dialogContainer.getAttribute('data-section-content');
 
-  if (currentBlockName) {
-    titleInput.value = `${currentBlockName} Block`;
-    nameInput.value = convertTitleToName(currentBlockName);
-    blockHtmlInput.value = blockContent || getBlockHtml();
+  if (blockName || sectionName) {
+    // Format the name: convert from "banner-image" to "Banner Image Offer"
+    const elementName = blockName || sectionName;
+    const formattedName = `${elementName
+      .split('-')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')} Offer`;
+
+    offerNameInput.value = formattedName;
+    blockHtmlInput.value = elementContent ? formatHTMLForDisplay(elementContent) : getElementHtml();
     blockHtmlInput.classList.add('formatted-html');
   }
 
   // Event Listeners
-  titleInput.addEventListener('input', (e) => {
-    nameInput.value = convertTitleToName(e.target.value);
-    clearMessage(); // Clear message when user starts typing
+  offerNameInput.addEventListener('input', () => {
+    offerNameInput.classList.remove('error');
+    clearMessage();
   });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     // Validate form
-    if (!titleInput.value.trim()) {
-      titleInput.classList.add('error');
-      showMessage('Title is required', 'error');
+    if (!offerNameInput.value.trim()) {
+      offerNameInput.classList.add('error');
+      showMessage('Offer Name is required', 'error');
       return;
     }
 
-    // Create offer object
-    const offer = {
-      title: titleInput.value.trim(),
-      name: nameInput.value,
-      description: descriptionInput.value.trim(),
-      html: blockHtmlInput.value,
-    };
-
     try {
-      // Copy HTML to clipboard
-      await navigator.clipboard.writeText(blockHtmlInput.value);
-      showMessage('HTML Offer Created');
+      // Create offer object with proper structure
+      const params = {
+        offer: {
+          name: offerNameInput.value.trim(),
+          content: formatHTMLForAPI(blockHtmlInput.value),
+          workspace: TARGET_WORKSPACE_ID,
+        },
+        fragmentId,
+        path: window.location.pathname,
+      };
+
+      // Call the exportoffers action
+      const response = await fetch(`https://${RUNTIME_NAMESPACE}.adobeioruntime.net/api/v1/web/sling-da/exportoffers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Export error:', errorData);
+        throw new Error(errorData.error || 'Failed to export offer');
+      }
+
+      const result = await response.json();
+      showMessage(`  Offer ${result.name} successfully exported`);
+      console.log('Exported offer:', result);
     } catch (err) {
-      showMessage('Failed to copy HTML to clipboard', 'error');
-      console.error('Failed to copy HTML:', err);
+      showMessage(err.message || 'An error occurred while processing the offer', 'error');
+      console.error('Export error:', err);
     }
-
-    // Log the export data
-    console.log('Exporting offer:', offer);
-  });
-
-  // Remove error class on input
-  titleInput.addEventListener('input', () => {
-    titleInput.classList.remove('error');
   });
 
   // Handle reset and close buttons
