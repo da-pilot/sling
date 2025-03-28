@@ -23,6 +23,16 @@
         "experience": "dialog",
         "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1754eba0e972f3aaa5a26e4cff5c8a1af99bbd324.png",
         "path": "/tools/fragments/fragments.html"
+      }, 
+      {
+        "id": "properties",
+        "title": "Properties",
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "dialog",
+        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1497fb39986fd7dc0882bdd79633114a7a5a8710f.png",
+        "path": "/tools/properties/properties.html"
       },      
       {
         "id": "showblocks",
