@@ -27,6 +27,7 @@ import {
   centerHeadlines,
   configSideKick,
   buildVideoBlocks,
+  setFragmentIds,
 } from './utils.js';
 
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
@@ -704,13 +705,14 @@ async function loadHeader(header) {
 }
 
 /**
-   * Loads everything that doesn't need to be delayed.
-   * @param {Element} doc The container element
-   */
+ * Loads everything that doesn't need to be delayed.
+ * @param {Element} doc The container element
+ */
 async function loadLazy(doc) {
   autolinkModals(doc);
   const main = doc.querySelector('main');
   await loadBlocks(main);
+  await setFragmentIds(main);
   const gameFinders = doc.querySelectorAll('.game-finder.block');
   if (gameFinders && gameFinders.length > 0) {
     await loadGameFinders(doc);
