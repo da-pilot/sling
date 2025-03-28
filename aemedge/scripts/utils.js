@@ -776,8 +776,7 @@ export function configSideKick() {
     const isBlock = currentElement.classList.contains('block');
     const elementName = isBlock
       ? currentElement.getAttribute('data-block-name')
-      : (currentElement.getAttribute('data-section-name')
-        || currentElement.className.split(' ').find((cls) => cls !== 'section' && cls !== 'highlight'));
+      : Array.from(currentElement.classList).pop();
     const fragmentId = currentElement.getAttribute('data-fragment-id');
 
     if (!elementName) {
@@ -786,7 +785,9 @@ export function configSideKick() {
     }
 
     // Create a clone of the element for export
-    const elementClone = currentElement.cloneNode(true);
+    const elementClone = isBlock
+      ? currentElement.parentElement.cloneNode(true)
+      : currentElement.cloneNode(true);
 
     // Remove header from the clone
     const headerToRemove = elementClone.querySelector(isBlock ? '.block-header' : '.section-header');
