@@ -777,10 +777,10 @@ async function loadPage() {
   await loadEager(document);
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager(document);
-
+  loadTargetSections(document);
   // load everything that can be postponed to the latest here
   await loadLazy(document);
-  loadTargetSections(document);
+
   // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
