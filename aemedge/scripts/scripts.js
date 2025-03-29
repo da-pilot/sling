@@ -638,7 +638,7 @@ function loadTargetSections(doc) {
   console.log('main', main);
   main.querySelectorAll(':scope > div').forEach((section) => {
     console.log('section', section);
-    const childSection = section.querySelector(':scope > div.section');
+    const childSection = section.querySelector('div.section');
     console.log('childSection', childSection);
     if (childSection) {
       console.log('Found child section', childSection);
