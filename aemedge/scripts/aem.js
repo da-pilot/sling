@@ -470,6 +470,8 @@ function decorateIcons(element, prefix = '') {
  */
 function decorateSections(main) {
   main.querySelectorAll(':scope > div').forEach((section) => {
+    if (section.classList.contains('section')) return;
+
     // Check for immediate child section with same fragment-id
     const childSection = section.querySelector(':scope > div.section');
     if (childSection) {
