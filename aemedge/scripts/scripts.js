@@ -653,6 +653,7 @@ function handleSectionNesting(section) {
  * @param {Element} section The section element to observe
  */
 function observeSection(section) {
+  console.log('observeSection', section);
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       console.log('mutation', mutation);
@@ -680,7 +681,7 @@ function observeSection(section) {
  * @param {Element} doc The document element
  */
 function observeSectionChanges(doc) {
-  const main = doc.querySelector('main');
+  const main = doc.querySelector('main'); c;
   // Set up observers for existing first-level sections
   main.querySelectorAll(':scope > div.section').forEach(observeSection);
 }
