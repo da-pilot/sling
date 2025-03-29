@@ -727,10 +727,27 @@ async function loadLaunchEager() {
   }
 }
 /**
-   * Decorates the main element.
-   * @param {Element} main The main element
-   */
-// eslint-disable-next-line import/prefer-default-export
+ * Handles section nesting when sections have the same fragment-id
+ * @param {Element} section The section element to check
+ */
+function handleTargetSections(doc) {
+  const main = doc.querySelector('main');
+  main.querySelectorAll(':scope > div.section').forEach((section) => {
+    const childSection = section.querySelector('div.section');
+    if (childSection) {
+      const parentFragmentId = section.getAttribute('data-fragment-id');
+      const childFragmentId = childSection.getAttribute('data-fragment-id');
+      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+        section.replaceWith(childSection);
+      }
+    }
+  });
+}
+
+/**
+ * Decorates the main element.
+ * @param {Element} main The main element
+ */
 export function decorateMain(main) {
   // hopefully forward compatible button decoration
   centerHeadlines();
@@ -776,6 +793,9 @@ async function loadEager(doc) {
   } catch (e) {
     // do nothing
   }
+  configSideKick();
+  // load launch eagerly when target metadata is set to true
+  await loadLaunchEager();
 }
 
 /**
@@ -851,9 +871,8 @@ async function loadPage() {
 
   // load everything that can be postponed to the latest here
   await loadLazy(document);
-  configSideKick();
-  // load launch eagerly when target metadata is set to true
-  await loadLaunchEager();
+  // Start observing for section changes after initial decoration
+  handleTargetSections(document);
   // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
