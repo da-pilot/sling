@@ -681,7 +681,7 @@ function observeSection(section) {
  * @param {Element} doc The document element
  */
 function observeSectionChanges(doc) {
-  const main = doc.querySelector('main'); c;
+  const main = doc.querySelector('main');
   // Set up observers for existing first-level sections
   main.querySelectorAll(':scope > div.section').forEach(observeSection);
 }
