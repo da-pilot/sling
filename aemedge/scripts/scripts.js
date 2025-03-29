@@ -648,33 +648,33 @@ function handleSectionNesting(section) {
   }
 }
 
-/**
- * Sets up observation for a single section
- * @param {Element} section The section element to observe
- */
-function observeSection(section) {
-  console.log('observeSection', section);
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      console.log('mutation', mutation);
-      if (mutation.type === 'childList') {
-        // Only check direct children additions
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE
-              && node.classList.contains('section')
-              && node.parentElement === section) {
-            handleSectionNesting(section);
-          }
-        });
-      }
-    });
-  });
+/// **
+// * Sets up observation for a single section
+// * @param {Element} section The section element to observe
+// */
+// function observeSection(section) {
+//  console.log('observeSection', section);
+//  const observer = new MutationObserver((mutations) => {
+//    mutations.forEach((mutation) => {
+//      console.log('mutation', mutation);
+//      if (mutation.type === 'childList') {
+//        // Only check direct children additions
+//        mutation.addedNodes.forEach((node) => {
+//          if (node.nodeType === Node.ELEMENT_NODE
+//              && node.classList.contains('section')
+//              && node.parentElement === section) {
+//            handleSectionNesting(section);
+//          }
+//        });
+//      }
+//    });
+//  });
 
-  observer.observe(section, {
-    childList: true, // watch for child elements being added
-    subtree: false, // don't watch descendants, only direct children
-  });
-}
+//  observer.observe(section, {
+//    childList: true, // watch for child elements being added
+//    subtree: false, // don't watch descendants, only direct children
+//  });
+// }
 
 /**
  * Sets up observation for all first-level sections
@@ -685,7 +685,7 @@ function observeSectionChanges(doc) {
   // Set up observers for existing first-level sections
   console.log('sections', main.querySelectorAll(':scope > div.section')?.length || 0);
   console.log('divs', main.querySelectorAll(':scope > div')?.length || 0);
-  main.querySelectorAll(':scope > div.section').forEach(observeSection);
+  main.querySelectorAll(':scope > div.section').forEach(handleSectionNesting);
 }
 
 /**
