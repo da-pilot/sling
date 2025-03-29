@@ -633,9 +633,13 @@ async function loadLaunchEager() {
 }
 
 function loadTargetSections(doc) {
+  console.log('loadTargetSections');
   const main = doc.querySelector('main');
+  console.log('main', main);
   main.querySelectorAll(':scope > div').forEach((section) => {
+    console.log('section', section);
     const childSection = section.querySelector(':scope > div.section');
+    console.log('childSection', childSection);
     if (childSection) {
       console.log('Found child section', childSection);
       const parentFragmentId = section.getAttribute('data-fragment-id');
