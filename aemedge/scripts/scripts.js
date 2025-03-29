@@ -655,6 +655,7 @@ function handleSectionNesting(section) {
 function observeSection(section) {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
+      console.log('mutation', mutation);
       if (mutation.type === 'childList') {
         // Only check direct children additions
         mutation.addedNodes.forEach((node) => {
