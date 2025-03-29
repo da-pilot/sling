@@ -475,9 +475,11 @@ function decorateSections(main) {
     // Check for immediate child section with same fragment-id
     const childSection = section.querySelector(':scope > div.section');
     if (childSection) {
+      console.log('Found child section', childSection);
       const parentFragmentId = section.getAttribute('data-fragment-id');
       const childFragmentId = childSection.getAttribute('data-fragment-id');
       if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+        console.log('Replacing section with child section');
         section.replaceWith(childSection);
         return;
       }
