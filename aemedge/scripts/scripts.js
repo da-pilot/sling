@@ -648,31 +648,60 @@ function handleSectionNesting(section) {
 }
 
 /**
- * Observes section changes and handles nested sections
- * @param {Element} main The main container element
+ * Sets up observation for a single section
+ * @param {Element} section The section element to observe
  */
-function observeSectionChanges(main) {
+function observeSection(section) {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
-      console.log('mutation', mutation);
       if (mutation.type === 'childList') {
-        // Check added nodes for sections
+        // Only check direct children additions
         mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.classList.contains('section')) {
-              handleSectionNesting(node);
-            }
-            // Also check for any sections within the added node
-            node.querySelectorAll('.section').forEach(handleSectionNesting);
+          if (node.nodeType === Node.ELEMENT_NODE
+              && node.classList.contains('section')
+              && node.parentElement === section) {
+            handleSectionNesting(section);
           }
         });
       }
     });
   });
 
-  observer.observe(main, {
-    childList: true,
-    subtree: true,
+  observer.observe(section, {
+    childList: true, // watch for child elements being added
+    subtree: false, // don't watch descendants, only direct children
+  });
+}
+
+/**
+ * Sets up observation for all first-level sections
+ * @param {Element} doc The document element
+ */
+function observeSectionChanges(doc) {
+  const main = doc.querySelector('main');
+
+  // Set up observers for existing first-level sections
+  main.querySelectorAll(':scope > div.section').forEach(observeSection);
+
+  // Also watch main for new first-level sections being added
+  const mainObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE
+              && node.classList.contains('section')
+              && node.parentElement === main) {
+            // Set up observer for the new first-level section
+            observeSection(node);
+          }
+        });
+      }
+    });
+  });
+
+  mainObserver.observe(main, {
+    childList: true, // watch for child elements being added
+    subtree: false, // don't watch descendants, only direct children
   });
 }
 
@@ -695,8 +724,6 @@ export function decorateMain(main) {
   decorateExtImage(main);
   decorateLinkedImages();
   buildVideoBlocks(main);
-  // Start observing for section changes after initial decoration
-  observeSectionChanges(main);
 }
 
 /**
@@ -805,7 +832,8 @@ async function loadPage() {
   await loadLaunchEager(document);
   // load everything that can be postponed to the latest here
   await loadLazy(document);
-
+  // Start observing for section changes after initial decoration
+  observeSectionChanges(document);
   // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
