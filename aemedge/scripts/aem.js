@@ -470,21 +470,6 @@ function decorateIcons(element, prefix = '') {
  */
 function decorateSections(main) {
   main.querySelectorAll(':scope > div').forEach((section) => {
-    if (section.classList.contains('section')) return;
-
-    // Check for immediate child section with same fragment-id
-    const childSection = section.querySelector(':scope > div.section');
-    if (childSection) {
-      console.log('Found child section', childSection);
-      const parentFragmentId = section.getAttribute('data-fragment-id');
-      const childFragmentId = childSection.getAttribute('data-fragment-id');
-      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
-        console.log('Replacing section with child section');
-        section.replaceWith(childSection);
-        return;
-      }
-    }
-
     const wrappers = [];
     let defaultContent = false;
     [...section.children].forEach((e) => {
