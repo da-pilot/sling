@@ -13,12 +13,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   const messageWrapper = document.querySelector('.message-wrapper');
 
   /**
+   * Creates a fieldset element wrapping the form contents if it doesn't exist
+   * @returns {HTMLFieldSetElement} The created fieldset element
+   */
+  function createFieldset() {
+    const fieldset = document.createElement('fieldset');
+    // Move all form elements inside the fieldset
+    while (form.firstChild) {
+      fieldset.appendChild(form.firstChild);
+    }
+    form.appendChild(fieldset);
+    return fieldset;
+  }
+
+  const formFieldset = form.querySelector('fieldset') || createFieldset();
+
+  /**
    * Shows a message in the message wrapper
    * @param {string} message - The message to display
-   * @param {string} type - The type of message ('success' or 'error')
+   * @param {string} type - The type of message ('success', 'error', or 'loading')
    */
   function showMessage(message, type = 'success') {
-    messageWrapper.textContent = message;
+    if (type === 'loading') {
+      messageWrapper.innerHTML = `
+        <div class="loading-spinner">
+          <span>${message}</span>
+          <div class="spinner"></div>
+        </div>
+      `;
+    } else {
+      messageWrapper.innerHTML = message;
+    }
     messageWrapper.className = `message-wrapper ${type}`;
   }
 
@@ -26,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Clears any displayed message
    */
   function clearMessage() {
-    messageWrapper.textContent = '';
+    messageWrapper.innerHTML = '';
     messageWrapper.className = 'message-wrapper';
   }
 
@@ -154,6 +179,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearMessage();
   });
 
+  /**
+   * Disables all form elements during export
+   */
+  function disableFormDuringExport() {
+    formFieldset.disabled = true;
+  }
+
+  /**
+   * Enables all form elements after export
+   */
+  function enableFormAfterExport() {
+    formFieldset.disabled = false;
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     // Validate form
@@ -164,6 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
+      disableFormDuringExport();
       // Create offer object with proper structure
       const params = {
         offer: {
@@ -175,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         path: window.location.pathname,
       };
 
-      showMessage('Exporting offer...');
+      showMessage('Exporting offer...', 'loading');
       // Call the exportoffers action
       const response = await fetch(`https://${RUNTIME_NAMESPACE}.adobeioruntime.net/api/v1/web/sling-da/exportoffers`, {
         method: 'POST',
@@ -192,11 +232,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const result = await response.json();
-      showMessage(`Offer ${result.name} successfully exported`);
+      showMessage(`Offer "<strong>${result.name}</strong>" successfully exported`);
       console.log('Exported offer:', result);
     } catch (err) {
       showMessage(err.message || 'An error occurred while processing the offer', 'error');
       console.error('Export error:', err);
+    } finally {
+      enableFormAfterExport();
     }
   });
 
