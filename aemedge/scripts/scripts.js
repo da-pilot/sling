@@ -777,7 +777,7 @@ async function loadPage() {
   await loadEager(document);
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager(document);
-
+  loadTargetSections(document);
   // load everything that can be postponed to the latest here
   await loadLazy(document);
 
@@ -787,7 +787,7 @@ async function loadPage() {
   makeLastButtonSticky();
 }
 loadPage();
-loadTargetSections(document);
+
 // enable live preview in da.live
 (async function loadDa() {
   if (!new URL(window.location.href).searchParams.get('dapreview')) return;
