@@ -469,8 +469,8 @@ function decorateIcons(element, prefix = '') {
  * @param {Element} main The container element
  */
 function decorateSections(main) {
-  console.log('decorateSections');
   main.querySelectorAll(':scope > div:not(.section)').forEach((section) => {
+    console.log('decorateSections', section);
     const wrappers = [];
     let defaultContent = false;
     [...section.children].forEach((e) => {
