@@ -618,7 +618,7 @@ function decorateLinkedImages() {
   });
 }
 
-async function loadLaunchEager(doc) {
+async function loadLaunchEager() {
   const isTarget = getMetadata('target');
   if (isTarget && isTarget.toLowerCase() === 'true') {
     // await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
@@ -630,10 +630,11 @@ async function loadLaunchEager(doc) {
       await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
     }
   }
+}
 
+function loadTargetSections(doc) {
   const main = doc.querySelector('main');
-  main.querySelectorAll(':scope > div.section').forEach((section) => {
-  // Check for immediate child section with same fragment-id
+  main.querySelectorAll(':scope > div').forEach((section) => {
     const childSection = section.querySelector(':scope > div.section');
     if (childSection) {
       console.log('Found child section', childSection);
@@ -772,6 +773,7 @@ async function loadPage() {
   await loadEager(document);
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager(document);
+  loadTargetSections(document);
   // load everything that can be postponed to the latest here
   await loadLazy(document);
 
