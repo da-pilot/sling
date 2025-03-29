@@ -636,26 +636,18 @@ async function loadLaunchEager() {
  * Handles section nesting when sections have the same fragment-id
  * @param {Element} section The section element to check
  */
-function handleSectionNesting(section) {
-  const childSection = section.querySelector('div.section');
-  console.log('childSection added', childSection);
-  if (childSection) {
-    const parentFragmentId = section.getAttribute('data-fragment-id');
-    const childFragmentId = childSection.getAttribute('data-fragment-id');
-    if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
-      section.replaceWith(childSection);
-    }
-  }
-}
-
-/**
- * Sets up observation for all first-level sections
- * @param {Element} doc The document element
- */
-function observeSectionChanges(doc) {
+function handleTargetSections(doc) {
   const main = doc.querySelector('main');
-  // Set up observers for existing first-level sections
-  main.querySelectorAll(':scope > div.section').forEach(handleSectionNesting);
+  main.querySelectorAll(':scope > div.section').forEach((section) => {
+    const childSection = section.querySelector('div.section');
+    if (childSection) {
+      const parentFragmentId = section.getAttribute('data-fragment-id');
+      const childFragmentId = childSection.getAttribute('data-fragment-id');
+      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+        section.replaceWith(childSection);
+      }
+    }
+  });
 }
 
 /**
@@ -786,7 +778,7 @@ async function loadPage() {
   // load everything that can be postponed to the latest here
   await loadLazy(document);
   // Start observing for section changes after initial decoration
-  observeSectionChanges(document);
+  handleTargetSections(document);
   // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
