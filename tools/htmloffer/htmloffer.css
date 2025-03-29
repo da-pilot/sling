@@ -132,6 +132,33 @@ body {
     color: var(--error-color);
 }
 
+.html-offer-dialog-container .message-wrapper.loading {
+    color: var(--primary-button-color);
+}
+
+.html-offer-dialog-container .loading-spinner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--primary-button-color);
+}
+
+.html-offer-dialog-container .spinner {
+    width: 20px;
+    height: 20px;
+    background: url('/.da/icons/export-to-target.png') no-repeat center center;
+    background-size: contain;
+    animation: pulse 1.5s ease-in-out infinite;
+    display: inline-block;
+    filter: brightness(0) saturate(100%);
+}
+
+@keyframes pulse {
+    0% { filter: brightness(0) saturate(100%) invert(45%) sepia(98%) saturate(1765%) hue-rotate(194deg) brightness(98%) contrast(101%); }
+    50% { filter: brightness(0) saturate(100%) invert(83%) sepia(31%) saturate(436%) hue-rotate(157deg) brightness(89%) contrast(85%); }
+    100% { filter: brightness(0) saturate(100%) invert(45%) sepia(98%) saturate(1765%) hue-rotate(194deg) brightness(98%) contrast(101%); }
+}
+
 .html-offer-dialog-container .button-group {
     display: flex;
     gap: var(--spacing-sm);
@@ -264,4 +291,10 @@ body {
 
 .html-offer-dialog-container form::-webkit-scrollbar-thumb:hover {
     background: var(--primary-color);
+}
+
+.html-offer-dialog-container fieldset {
+    border: none;
+    margin: 0;
+    padding: 0;
 } 
