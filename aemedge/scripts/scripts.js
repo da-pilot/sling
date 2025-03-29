@@ -637,7 +637,8 @@ async function loadLaunchEager() {
  * @param {Element} section The section element to check
  */
 function handleSectionNesting(section) {
-  const childSection = section.querySelector(':scope > div.section');
+  const childSection = section.querySelector('div.section');
+  console.log('childSection added', childSection);
   if (childSection) {
     const parentFragmentId = section.getAttribute('data-fragment-id');
     const childFragmentId = childSection.getAttribute('data-fragment-id');
@@ -679,30 +680,8 @@ function observeSection(section) {
  */
 function observeSectionChanges(doc) {
   const main = doc.querySelector('main');
-
   // Set up observers for existing first-level sections
   main.querySelectorAll(':scope > div.section').forEach(observeSection);
-
-  // Also watch main for new first-level sections being added
-  const mainObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList') {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE
-              && node.classList.contains('section')
-              && node.parentElement === main) {
-            // Set up observer for the new first-level section
-            observeSection(node);
-          }
-        });
-      }
-    });
-  });
-
-  mainObserver.observe(main, {
-    childList: true, // watch for child elements being added
-    subtree: false, // don't watch descendants, only direct children
-  });
 }
 
 /**
