@@ -470,6 +470,8 @@ function decorateIcons(element, prefix = '') {
  */
 function decorateSections(main) {
   main.querySelectorAll(':scope > div').forEach((section) => {
+    if (section.classList.contains('section')) return;
+
     const wrappers = [];
     let defaultContent = false;
     [...section.children].forEach((e) => {

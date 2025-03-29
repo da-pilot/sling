@@ -632,30 +632,53 @@ async function loadLaunchEager() {
   }
 }
 
-function loadTargetSections(doc) {
-  console.log('loadTargetSections');
-  const main = doc.querySelector('main');
-  console.log('main', main);
-  main.querySelectorAll(':scope > div').forEach((section) => {
-    console.log('section', section);
-    const childSection = section.querySelector('div.section');
-    console.log('childSection', childSection);
-    if (childSection) {
-      console.log('Found child section', childSection);
-      const parentFragmentId = section.getAttribute('data-fragment-id');
-      const childFragmentId = childSection.getAttribute('data-fragment-id');
-      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
-        console.log('Replacing section with child section');
-        section.replaceWith(childSection);
-      }
+/**
+ * Handles section nesting when sections have the same fragment-id
+ * @param {Element} section The section element to check
+ */
+function handleSectionNesting(section) {
+  const childSection = section.querySelector(':scope > div.section');
+  if (childSection) {
+    const parentFragmentId = section.getAttribute('data-fragment-id');
+    const childFragmentId = childSection.getAttribute('data-fragment-id');
+    if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+      section.replaceWith(childSection);
     }
+  }
+}
+
+/**
+ * Observes section changes and handles nested sections
+ * @param {Element} main The main container element
+ */
+function observeSectionChanges(main) {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        // Check added nodes for sections
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.classList.contains('section')) {
+              handleSectionNesting(node);
+            }
+            // Also check for any sections within the added node
+            node.querySelectorAll('.section').forEach(handleSectionNesting);
+          }
+        });
+      }
+    });
+  });
+
+  observer.observe(main, {
+    childList: true,
+    subtree: true,
   });
 }
+
 /**
-   * Decorates the main element.
-   * @param {Element} main The main element
-   */
-// eslint-disable-next-line import/prefer-default-export
+ * Decorates the main element.
+ * @param {Element} main The main element
+ */
 export function decorateMain(main) {
   // hopefully forward compatible button decoration
   centerHeadlines();
@@ -671,6 +694,8 @@ export function decorateMain(main) {
   decorateExtImage(main);
   decorateLinkedImages();
   buildVideoBlocks(main);
+  // Start observing for section changes after initial decoration
+  observeSectionChanges(main);
 }
 
 /**
@@ -777,7 +802,6 @@ async function loadPage() {
   await loadEager(document);
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager(document);
-  loadTargetSections(document);
   // load everything that can be postponed to the latest here
   await loadLazy(document);
 
