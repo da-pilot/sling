@@ -469,8 +469,18 @@ function decorateIcons(element, prefix = '') {
  * @param {Element} main The container element
  */
 function decorateSections(main) {
-  main.querySelectorAll(':scope > div:not(.section)').forEach((section) => {
-    console.log('decorateSections', section);
+  main.querySelectorAll(':scope > div').forEach((section) => {
+    // Check for immediate child section with same fragment-id
+    const childSection = section.querySelector(':scope > div.section');
+    if (childSection) {
+      const parentFragmentId = section.getAttribute('data-fragment-id');
+      const childFragmentId = childSection.getAttribute('data-fragment-id');
+      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+        section.replaceWith(childSection);
+        return;
+      }
+    }
+
     const wrappers = [];
     let defaultContent = false;
     [...section.children].forEach((e) => {
