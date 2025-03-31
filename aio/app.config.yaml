@@ -11,7 +11,7 @@ application:
             web: false
             runtime: nodejs:18
             inputs:
-              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
+              ADOBE_CLIENT_ID: $SERVICE_API_KEY
               ADOBE_CLIENT_SECRET: $ADOBE_CLIENT_SECRET
               ADOBE_TARGET_SCOPES: $ADOBE_TARGET_SCOPES
               LOG_LEVEL: info

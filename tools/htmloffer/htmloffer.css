@@ -129,7 +129,8 @@ body {
 }
 
 .html-offer-dialog-container .message-wrapper.error {
-    color: var(--error-color);
+    color: #ff3b30;
+    font-weight: 500;
 }
 
 .html-offer-dialog-container .message-wrapper.loading {
@@ -297,4 +298,8 @@ body {
     border: none;
     margin: 0;
     padding: 0;
+}
+
+.html-offer-dialog-container input.error {
+    border-color: #ff3b30;
 } 
