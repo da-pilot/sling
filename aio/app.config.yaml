@@ -11,8 +11,9 @@ application:
             web: false
             runtime: nodejs:18
             inputs:
-              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
+              ADOBE_CLIENT_ID: $SERVICE_API_KEY
               ADOBE_CLIENT_SECRET: $ADOBE_CLIENT_SECRET
+              ADOBE_TARGET_SCOPES: $AIO_ims_contexts_Credential__in__AEM__Target__Integration__Sling__YP_scopes
               LOG_LEVEL: debug
             annotations:
               final: true
@@ -26,8 +27,8 @@ application:
             web: true
             runtime: nodejs:18
             inputs:
-              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
-              ADOBE_TARGET_TENANT: $ADOBE_TARGET_TENANT
+              ADOBE_CLIENT_ID: $SERVICE_API_KEY
+              ADOBE_TARGET_TENANT: 'acssandboxusone'
               LOG_LEVEL: debug
             annotations:
               final: true

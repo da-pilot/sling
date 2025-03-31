@@ -128,10 +128,55 @@ function toCamelCase(str) {
     .replace(/\s+/g, '');
 }
 
+/**
+ * Checks if the given origin is allowed
+ * @param {string|URL} url - The URL to check
+ * @returns {boolean} - Whether the origin is allowed
+ */
+function isOriginAllowed(url) {
+  const urlToCheck = typeof url === 'string' ? new URL(url) : url;
+  const isHlx = ['hlx.page', 'hlx.live', 'aem.page', 'aem.live'].some((host) => urlToCheck.hostname.includes(host));
+  const isLocal = urlToCheck.hostname.includes('localhost');
+  const isAllowed = (isHlx || isLocal) ? true : false;
+  return isAllowed;
+}
+
+const allowedOrigins = [
+  'https://916809-952dimlouse.adobeioruntime.net',
+  'http://localhost:3000'
+]
+
+/**
+ * Checks the origin of a request and returns the allowed origin
+ * @param {Object} request - The request object
+ * @returns {string} - The allowed origin
+ */
+function checkOrigin(request) {
+  const origin = request.headers.get("Origin") || 'http://localhost:3000';
+  return isOriginAllowed(origin) ? origin : allowedOrigins[0];
+}
+
+/**
+ * Returns CORS headers for the given origin
+ * @param {string} origin - The origin to allow
+ * @returns {Object} - CORS headers
+ */
+function corsHeaders(origin) {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true'
+  };
+}
+
 module.exports = {
   errorResponse,
   stringParameters,
   checkMissingRequestInputs,
   toCamelCase,
-  getBearerToken
+  getBearerToken,
+  isOriginAllowed,
+  corsHeaders,
+  checkOrigin
 };

@@ -26,7 +26,8 @@ async function main(params) {
     if (!params.ADOBE_CLIENT_ID || !params.ADOBE_CLIENT_SECRET) {
       throw new Error('Missing required environment variables: ADOBE_CLIENT_ID and/or ADOBE_CLIENT_SECRET');
     }
-
+    logger.info(`ADOBE_CLIENT_ID: ${params.ADOBE_CLIENT_ID}`);
+    logger.info(`ADOBE_CLIENT_SECRET: ${params.ADOBE_CLIENT_SECRET}`);
     // Try to get cached token first
     const cachedToken = await getCachedToken(logger);
     if (cachedToken) {

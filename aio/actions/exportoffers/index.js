@@ -106,8 +106,20 @@ async function main(params) {
   
   try {
     // Log the incoming parameters (excluding sensitive data)
-    logger.info(`Processing offer with params: ${JSON.stringify(params)}`);
+    logger.info(`Processing offer with params: ${JSON.stringify(params)} with method: ${params.method}`);
+    if (params.method === "GET") {
+      return errorResponse(405, 'GET method not allowed', logger);
+    }
 
+    if (params.method === "OPTIONS") {
+        // Check that the request's origin is a valid origin, allowed to access this API
+        const allowedOrigin = checkOrigin(params);
+        return {
+            statusCode: 200,
+            headers: corsHeaders(allowedOrigin)
+        }
+    }
+ 
     // Validate required parameters
     if (!params.offer || !params.fragmentId || !params.path) {
       return errorResponse(400, 'Missing required parameters: offer, fragmentId, and path are required', logger);
@@ -213,7 +225,7 @@ async function main(params) {
 
   } catch (error) {
     // Log the full error for debugging
-    logger.error('Error processing offer:', error.message);
+    logger.error(`Error processing offer: ${error.message}`);
     // Pass the full error object to errorResponse
     const statusCode = error.statusCode || 500;
     const errorMessage = error.message || 'An unknown error occurred';

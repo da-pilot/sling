@@ -225,15 +225,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify(params),
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Export error:', errorData);
-        throw new Error(errorData.error || 'Failed to export offer');
+        console.error('Export error:', responseData);
+        throw new Error(responseData.error || 'Failed to export offer');
       }
 
-      const result = await response.json();
-      showMessage(`Offer "<strong>${result.name}</strong>" successfully exported`);
-      console.log('Exported offer:', result);
+      showMessage(`Offer "<strong>${responseData.name}</strong>" successfully exported`);
+      console.log('Exported offer:', responseData);
     } catch (err) {
       showMessage(err.message || 'An error occurred while processing the offer', 'error');
       console.error('Export error:', err);
