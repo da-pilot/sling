@@ -48,6 +48,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
+   * Checks if the user is logged in
+   * @returns {boolean} True if user is logged in, false otherwise
+   */
+  function isUserLoggedIn() {
+    return dialogContainer.getAttribute('data-user-logged-in') === 'true';
+  }
+
+  /**
+   * Handles the not logged in state
+   */
+  function handleNotLoggedIn() {
+    showMessage('Please log into Sidekick to export offers', 'error');
+    formFieldset.disabled = true;
+  }
+
+  // Check login status immediately
+  if (!isUserLoggedIn()) {
+    handleNotLoggedIn();
+  }
+
+  /**
    * Clears any displayed message
    */
   function clearMessage() {
@@ -195,6 +216,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    // Check login status first
+    if (!isUserLoggedIn()) {
+      handleNotLoggedIn();
+      return;
+    }
+
     // Validate form
     if (!offerNameInput.value.trim()) {
       offerNameInput.classList.add('error');
