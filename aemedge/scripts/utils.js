@@ -772,6 +772,9 @@ export function configSideKick() {
       return;
     }
 
+    // Get login status from the most recent payload
+    const isLoggedIn = window.lastSidekickPayload?.status?.profile !== undefined;
+
     // Determine if it's a block or section and get the appropriate attributes
     const isBlock = currentElement.classList.contains('block');
     const elementName = isBlock
@@ -804,6 +807,8 @@ export function configSideKick() {
     dialogContainer.setAttribute('data-fragment-id', fragmentId);
     // Store the cleaned element clone for later use
     dialogContainer.setAttribute(`data-${isBlock ? 'block' : 'section'}-content`, elementClone.outerHTML);
+    // Store login status
+    dialogContainer.setAttribute('data-user-logged-in', isLoggedIn);
 
     try {
       const [response, styleLink] = await Promise.all([
@@ -848,6 +853,9 @@ export function configSideKick() {
 
   const showBlocks = ({ detail: payload }) => {
     console.info('showblocks event triggered with payload:', payload);
+    // Store the payload for login status check
+    window.lastSidekickPayload = payload;
+
     const blocks = document.querySelectorAll('div.block');
     const excludedBlockList = ['header', 'zipcode', 'footer'];
 
@@ -882,6 +890,9 @@ export function configSideKick() {
 
   const showSections = ({ detail: payload }) => {
     console.info('showsections event:', payload);
+    // Store the payload for login status check
+    window.lastSidekickPayload = payload;
+
     const sections = document.querySelectorAll('div.section');
     const excludedParents = ['header', 'footer'];
     sections.forEach((section) => {
@@ -921,6 +932,7 @@ export function configSideKick() {
   };
 
   const initSideKick = (sk) => {
+    // Existing event listeners
     const events = ['showblocks', 'showsections', 'eventdetials'];
     const handlers = {
       showblocks: showBlocks,
