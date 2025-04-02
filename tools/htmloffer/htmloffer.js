@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Handles the not logged in state
    */
   function handleNotLoggedIn() {
-    showMessage('Please log into Sidekick to export offers', 'error');
+    showMessage('Please log into Sidekick and refresh the page before exporting offers', 'error');
     formFieldset.disabled = true;
   }
 
