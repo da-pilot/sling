@@ -914,13 +914,13 @@ async function loadPage() {
   await loadEager(document);
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager(document);
-  // load everything that can be postponed to the latest here
-  // Start observing for section changes after initial decoration
-  handleTargetSections(document);
+
   // Set up observer for block DOM changes
   setupBlockObserver();
   // load everything that needs to be loaded later
   await loadLazy(document);
+  // Start observing for section changes after initial decoration
+  handleTargetSections(document);
 
   loadDelayed();
   // make the last button sticky on blog pages
