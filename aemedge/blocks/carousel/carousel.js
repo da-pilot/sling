@@ -218,19 +218,21 @@ export default async function decorate(block) {
 
   if (!isSingleSlide) {
     bindEvents(block);
+    block.setAttribute('data-bound', 'true');
   }
 
   // Auto-scrolling functionality that's always enabled
   let slideIndex = parseInt(block.dataset.activeSlide, 10) || 0;
   let autoScrollInterval = null;
 
-  function autoScroll() {
+  // Define autoScroll function at the root level
+  const autoScroll = () => {
     slideIndex += 1;
     if (slideIndex >= rows.length) {
       slideIndex = 0;
     }
     showSlide(block, slideIndex);
-  }
+  };
 
   updateSlideArrows(block, rows);
   window.addEventListener('resize', () => updateSlideArrows(block, rows));
@@ -253,4 +255,47 @@ export default async function decorate(block) {
       }
     });
   });
+}
+
+/**
+ * Re-establishes all event bindings for a carousel block.
+ * This function is called when a carousel block is replaced in the DOM.
+ * @param {HTMLElement} block The carousel block element
+ * @returns {HTMLElement} The carousel block element for chaining
+ */
+export function rebindEvents(block) {
+  // Check if the carousel structure is still intact
+  const prevButton = block.querySelector('.slide-prev');
+  const nextButton = block.querySelector('.slide-next');
+
+  if (prevButton && nextButton) {
+    // Re-establish bindings
+    bindEvents(block);
+
+    // Re-initialize auto-scrolling if needed
+    const variant = block.classList.value;
+    if (variant.includes('autoscroll')) {
+      // Clear any existing intervals
+      if (block.autoScrollInterval) {
+        clearInterval(block.autoScrollInterval);
+      }
+
+      // Set up new auto-scrolling
+      let slideIndex = 0;
+      const slides = block.querySelectorAll('.carousel-slide');
+
+      // Define autoScroll function at the root level
+      const autoScroll = () => {
+        slideIndex += 1;
+        if (slideIndex >= slides.length) {
+          slideIndex = 0;
+        }
+        showSlide(block, slideIndex);
+      };
+
+      block.autoScrollInterval = setInterval(autoScroll, 3000);
+    }
+  }
+
+  return block;
 }

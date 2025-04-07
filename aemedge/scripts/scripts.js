@@ -865,6 +865,84 @@ function loadDelayed() {
   // load anything that can be postponed to the latest here
 }
 
+/**
+ * Sets up a MutationObserver to watch for DOM changes and reinitialize blocks
+ * that have been replaced in the DOM.
+ * @param {Document} doc The document to observe
+ */
+function setupBlockObserver(doc) {
+  // Create a MutationObserver to watch for DOM changes
+  const observer = new MutationObserver((mutations) => {
+    // Process each mutation
+    mutations.forEach((mutation) => {
+      // Check for added nodes
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        // Process each added node
+        mutation.addedNodes.forEach((node) => {
+          // Check if the added node is an element
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Check if the added node is a block
+            if (node.classList && node.classList.contains('block')) {
+              // Get the block name from the class list
+              const blockClasses = Array.from(node.classList)
+                .filter((className) => className !== 'block');
+
+              if (blockClasses.length > 0) {
+                const blockName = blockClasses[0];
+                // Try to import the block module and call rebindEvents
+                import(`../blocks/${blockName}/${blockName}.js`)
+                  .then((module) => {
+                    if (module.rebindEvents) {
+                      module.rebindEvents(node);
+                    }
+                  })
+                  .catch(() => {
+                    // Silently handle errors for blocks that don't have rebindEvents
+                    console.debug(`No rebindEvents function for block: ${blockName}`);
+                  });
+              }
+            }
+
+            // Check for blocks within the added node
+            const blocks = node.querySelectorAll('.block');
+            blocks.forEach((block) => {
+              // Get the block name from the class list
+              const blockClasses = Array.from(block.classList)
+                .filter((className) => className !== 'block');
+
+              if (blockClasses.length > 0) {
+                const blockName = blockClasses[0];
+                // Try to import the block module and call rebindEvents
+                import(`../blocks/${blockName}/${blockName}.js`)
+                  .then((module) => {
+                    if (module.rebindEvents) {
+                      module.rebindEvents(block);
+                    }
+                  })
+                  .catch(() => {
+                    // Silently handle errors for blocks that don't have rebindEvents
+                    console.debug(`No rebindEvents function for block: ${blockName}`);
+                  });
+              }
+            });
+          }
+        });
+      }
+    });
+  });
+
+  // Start observing the document with the configured parameters
+  observer.observe(doc.body, {
+    childList: true,
+    subtree: true,
+    attributes: false,
+    characterData: false,
+  });
+
+  // Store the observer on the window for potential cleanup
+  window.blockObserver = observer;
+}
+
 async function loadPage() {
   // load everything that needs to be loaded eagerly
   await loadEager(document);
@@ -873,6 +951,8 @@ async function loadPage() {
   await loadLazy(document);
   // Start observing for section changes after initial decoration
   handleTargetSections(document);
+  // Set up observer for block DOM changes
+  setupBlockObserver(document);
   // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
