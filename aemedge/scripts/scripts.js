@@ -1036,12 +1036,12 @@ async function loadPage() {
   await loadEager(document);
 
   // load everything that can be postponed to the latest here
-  // Set up observer for block DOM changes
-  setupBlockObserver(document);
+
   await loadLazy(document);
   // Start observing for section changes after initial decoration
   handleTargetSections(document);
-
+  // Set up observer for block DOM changes
+  setupBlockObserver(document);
   // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
