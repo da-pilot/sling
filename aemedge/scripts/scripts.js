@@ -771,179 +771,142 @@ function loadDelayed() {
 }
 
 /**
- * Sets up a MutationObserver to watch for DOM changes and reinitialize blocks
- * that have been replaced in the DOM.
- * @param {Document} doc The document to observe
+ * Sets up a MutationObserver to watch for block replacements in the DOM
+ * and reinitialize them when they are replaced.
  */
-function setupBlockObserver(doc) {
-  console.log('Setting up block observer');
+function setupBlockObserver() {
+  // Define an array of block names to observe
+  // These are blocks that have interactive elements and need rebinding
+  const blocksToObserve = [
+    'carousel', // Has slide navigation and auto-scroll
+    'accordion', // Has expand/collapse functionality
+    'tabs', // Has tab switching functionality
+    'modal', // Has dialog show/hide and close button events
+    'image-slider', // Has auto-scrolling functionality
+    'game-finder', // Has interactive React app elements
+    'channel-lookup', // Has form submission and API interactions
+    'chat', // Has interactive chat functionality
+    'marquee', // Has scroll CTA and resize handlers
+    'offer-cards', // Has resize event handlers
+    'channel-shopper', // Has IntersectionObserver and React app
+    'category', // Has media query listeners and author click handlers
+  ];
 
   // Create a MutationObserver to watch for DOM changes
   const observer = new MutationObserver((mutations) => {
-    // Process each mutation
     mutations.forEach((mutation) => {
-      // Check for added nodes
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        console.log('DOM mutation detected:', mutation.addedNodes.length, 'nodes added');
-
         // Process each added node
         mutation.addedNodes.forEach((node) => {
-          // Check if the added node is an element
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            console.log('Added node:', node.tagName, node.className);
+          // Skip text nodes and nodes that are directly in header or footer
+          if (node.nodeType !== Node.ELEMENT_NODE
+              || (node.parentElement
+               && (node.parentElement.tagName === 'HEADER'
+                || node.parentElement.tagName === 'FOOTER'))) {
+            return;
+          }
 
-            // Check if the node is directly in header or footer
-            const isInHeader = node.closest('header');
-            const isInFooter = node.closest('footer');
+          // Check if the added node is one of the blocks we want to observe
+          const isObservedBlock = node.classList
+          && blocksToObserve.some((blockName) => node.classList.contains(blockName)
+            || (node.classList.contains('block') && node.classList.contains(blockName)));
 
-            // Only skip if it's directly in header or footer, not just anywhere in the page
-            if ((isInHeader && isInHeader === node.parentElement)
-                || (isInFooter && isInFooter === node.parentElement)) {
-              console.log('Skipping node directly in header or footer:', node.tagName);
-              return;
+          if (isObservedBlock) {
+            // Determine which block type this is
+            const blockType = blocksToObserve.find((blockName) => node.classList.contains(blockName)
+              || (node.classList.contains('block') && node.classList.contains(blockName)));
+
+            if (blockType) {
+              // Import the block module and call rebindEvents
+              const importPath = window.hlx?.codeBasePath
+                ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+                : `/aemedge/blocks/${blockType}/${blockType}.js`;
+
+              import(importPath)
+                .then((module) => {
+                  if (module.rebindEvents) {
+                    module.rebindEvents(node);
+                    node.setAttribute('data-bound', 'true');
+                  }
+                })
+                .catch(() => {
+                  // Try alternative path resolution
+                  const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+
+                  import(altImportPath)
+                    .then((module) => {
+                      if (module.rebindEvents) {
+                        module.rebindEvents(node);
+                        node.setAttribute('data-bound', 'true');
+                      }
+                    })
+                    .catch(() => {
+                      // Handle error silently
+                    });
+                });
             }
-
-            // Check if the added node is a block
-            if (node.classList && node.classList.contains('block')) {
-              console.log('Block detected:', node.className);
-
-              // Get the block name from the class list
-              const blockClasses = Array.from(node.classList)
-                .filter((className) => className !== 'block');
-
-              console.log('Block classes:', blockClasses);
-
-              if (blockClasses.length > 0) {
-                const blockName = blockClasses[0];
-                console.log('Attempting to import block:', blockName);
-
-                // Try to import the block module and call rebindEvents
-                // Use a more robust path resolution approach
-                const importPath = `/aemedge/blocks/${blockName}/${blockName}.js`;
-                console.log('Import path:', importPath);
-
-                import(importPath)
-                  .then((module) => {
-                    console.log('Module imported successfully:', module);
-                    if (module.rebindEvents) {
-                      console.log('Calling rebindEvents on block:', blockName);
-                      module.rebindEvents(node);
-                    } else {
-                      console.log('No rebindEvents function found in module');
-                    }
-                  })
-                  .catch((error) => {
-                    // Log the error for debugging
-                    console.error(`Error importing block ${blockName}:`, error);
-
-                    // Try alternative path resolution
-                    const altImportPath = `../blocks/${blockName}/${blockName}.js`;
-                    console.log('Trying alternative import path:', altImportPath);
-
-                    import(altImportPath)
-                      .then((module) => {
-                        console.log('Module imported successfully with alternative path:', module);
-                        if (module.rebindEvents) {
-                          console.log('Calling rebindEvents on block:', blockName);
-                          module.rebindEvents(node);
-                        } else {
-                          console.log('No rebindEvents function found in module');
-                        }
-                      })
-                      .catch((altError) => {
-                        console.error(`Error importing block ${blockName} with alternative path:`, altError);
-                      });
-                  });
-              }
-            }
-
-            // Check for blocks within the added node
-            const blocks = node.querySelectorAll('.block');
-            if (blocks.length > 0) {
-              console.log('Found', blocks.length, 'blocks within added node');
-            }
-
-            blocks.forEach((block) => {
-              // Check if the block is directly in header or footer
-              const isBlockInHeader = block.closest('header');
-              const isBlockInFooter = block.closest('footer');
-
-              // Only skip if it's directly in header or footer, not just anywhere in the page
-              if ((isBlockInHeader && isBlockInHeader === block.parentElement)
-                  || (isBlockInFooter && isBlockInFooter === block.parentElement)) {
-                console.log('Skipping block directly in header or footer:', block.className);
-                return;
-              }
-
-              console.log('Block within node:', block.className);
-
-              // Get the block name from the class list
-              const blockClasses = Array.from(block.classList)
-                .filter((className) => className !== 'block');
-
-              console.log('Block classes:', blockClasses);
-
-              if (blockClasses.length > 0) {
-                const blockName = blockClasses[0];
-                console.log('Attempting to import block:', blockName);
-
-                // Try to import the block module and call rebindEvents
-                // Use a more robust path resolution approach
-                const importPath = `/aemedge/blocks/${blockName}/${blockName}.js`;
-                console.log('Import path:', importPath);
-
-                import(importPath)
-                  .then((module) => {
-                    console.log('Module imported successfully:', module);
-                    if (module.rebindEvents) {
-                      console.log('Calling rebindEvents on block:', blockName);
-                      module.rebindEvents(block);
-                    } else {
-                      console.log('No rebindEvents function found in module');
-                    }
-                  })
-                  .catch((error) => {
-                    // Log the error for debugging
-                    console.error(`Error importing block ${blockName}:`, error);
-
-                    // Try alternative path resolution
-                    const altImportPath = `../blocks/${blockName}/${blockName}.js`;
-                    console.log('Trying alternative import path:', altImportPath);
-
-                    import(altImportPath)
-                      .then((module) => {
-                        console.log('Module imported successfully with alternative path:', module);
-                        if (module.rebindEvents) {
-                          console.log('Calling rebindEvents on block:', blockName);
-                          module.rebindEvents(block);
-                        } else {
-                          console.log('No rebindEvents function found in module');
-                        }
-                      })
-                      .catch((altError) => {
-                        console.error(`Error importing block ${blockName} with alternative path:`, altError);
-                      });
-                  });
-              }
-            });
           }
         });
       }
     });
   });
 
-  // Start observing the document with the configured parameters
-  observer.observe(doc.body, {
+  // Start observing the document body for changes
+  observer.observe(document.body, {
     childList: true,
     subtree: true,
-    attributes: false,
-    characterData: false,
   });
 
-  console.log('Block observer set up successfully');
+  // Also set up a periodic check for blocks that need rebinding
+  setInterval(() => {
+    // Find all blocks in the main content area that need rebinding
+    const blocksToCheck = blocksToObserve
+      .map((blockName) => `main .${blockName}, main .block.${blockName}`)
+      .join(', ');
 
-  // Store the observer on the window for potential cleanup
-  window.blockObserver = observer;
+    const blocks = document.querySelectorAll(blocksToCheck);
+
+    blocks.forEach((block) => {
+      // Skip if already bound
+      if (block.hasAttribute('data-bound')) {
+        return;
+      }
+
+      // Determine which block type this is
+      const blockType = blocksToObserve.find((blockName) => block.classList.contains(blockName)
+        || (block.classList.contains('block') && block.classList.contains(blockName)));
+
+      if (blockType) {
+        // Import the block module and call rebindEvents
+        const importPath = window.hlx?.codeBasePath
+          ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+          : `/aemedge/blocks/${blockType}/${blockType}.js`;
+
+        import(importPath)
+          .then((module) => {
+            if (module.rebindEvents) {
+              module.rebindEvents(block);
+              block.setAttribute('data-bound', 'true');
+            }
+          })
+          .catch(() => {
+            // Try alternative path resolution
+            const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+
+            import(altImportPath)
+              .then((module) => {
+                if (module.rebindEvents) {
+                  module.rebindEvents(block);
+                  block.setAttribute('data-bound', 'true');
+                }
+              })
+              .catch(() => {
+                // Handle error silently
+              });
+          });
+      }
+    });
+  }, 2000); // Check every 2 seconds
 }
 
 async function loadPage() {
@@ -952,13 +915,13 @@ async function loadPage() {
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager(document);
   // load everything that can be postponed to the latest here
-
-  await loadLazy(document);
   // Start observing for section changes after initial decoration
   handleTargetSections(document);
   // Set up observer for block DOM changes
-  setupBlockObserver(document);
+  setupBlockObserver();
   // load everything that needs to be loaded later
+  await loadLazy(document);
+
   loadDelayed();
   // make the last button sticky on blog pages
   makeLastButtonSticky();
