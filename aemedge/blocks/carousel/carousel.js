@@ -262,29 +262,15 @@ export default async function decorate(block) {
  * @param {HTMLElement} block The carousel block element
  */
 export function rebindEvents(block) {
-  console.log('rebindEvents called for carousel block:', block);
-
   // Get the carousel buttons - using the correct class names
   const prevButton = block.querySelector('.slide-prev');
   const nextButton = block.querySelector('.slide-next');
 
-  console.log('Carousel buttons found:', {
-    prevButton: !!prevButton,
-    nextButton: !!nextButton,
-  });
-
   // Get the carousel variant
   const variant = block.dataset.variant || 'default';
-  console.log('Carousel variant:', variant);
-
-  // Get the slides
-  const slides = block.querySelectorAll('.carousel-slide');
-  console.log('Number of slides found:', slides.length);
 
   // Re-establish event bindings
   if (prevButton && nextButton) {
-    console.log('Re-establishing event bindings for carousel buttons');
-
     // Remove any existing event listeners
     prevButton.replaceWith(prevButton.cloneNode(true));
     nextButton.replaceWith(nextButton.cloneNode(true));
@@ -295,41 +281,32 @@ export function rebindEvents(block) {
 
     // Add event listeners
     newPrevButton.addEventListener('click', () => {
-      console.log('Previous button clicked');
       const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
       showSlide(block, currentSlide - 1);
     });
 
     newNextButton.addEventListener('click', () => {
-      console.log('Next button clicked');
       const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
       showSlide(block, currentSlide + 1);
     });
 
     // Re-initialize auto-scrolling if applicable
     if (variant.includes('autoscroll')) {
-      console.log('Re-initializing auto-scrolling');
       const autoScrollInterval = block.dataset.autoScrollInterval || 3000;
-      console.log('Auto-scroll interval:', autoScrollInterval);
 
       // Clear any existing interval
       if (block.autoScrollInterval) {
-        console.log('Clearing existing auto-scroll timer');
         clearInterval(block.autoScrollInterval);
       }
 
       // Set up new interval
       const autoScroll = () => {
-        console.log('Auto-scroll timer triggered');
         const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
         showSlide(block, currentSlide + 1);
       };
 
       // Store the timer ID
       block.autoScrollInterval = setInterval(autoScroll, autoScrollInterval);
-      console.log('New auto-scroll timer set:', block.autoScrollInterval);
     }
-  } else {
-    console.warn('Carousel buttons not found, cannot rebind events');
   }
 }
