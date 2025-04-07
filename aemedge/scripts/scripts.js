@@ -792,6 +792,12 @@ function setupBlockObserver(doc) {
           if (node.nodeType === Node.ELEMENT_NODE) {
             console.log('Added node:', node.tagName, node.className);
 
+            // Skip nodes in header or footer
+            if (node.closest('header') || node.closest('footer')) {
+              console.log('Skipping node in header or footer:', node.tagName);
+              return;
+            }
+
             // Check if the added node is a block
             if (node.classList && node.classList.contains('block')) {
               console.log('Block detected:', node.className);
@@ -853,6 +859,12 @@ function setupBlockObserver(doc) {
             }
 
             blocks.forEach((block) => {
+              // Skip blocks in header or footer
+              if (block.closest('header') || block.closest('footer')) {
+                console.log('Skipping block in header or footer:', block.className);
+                return;
+              }
+
               console.log('Block within node:', block.className);
 
               // Get the block name from the class list
