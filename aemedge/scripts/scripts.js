@@ -792,9 +792,14 @@ function setupBlockObserver(doc) {
           if (node.nodeType === Node.ELEMENT_NODE) {
             console.log('Added node:', node.tagName, node.className);
 
-            // Skip nodes in header or footer
-            if (node.closest('header') || node.closest('footer')) {
-              console.log('Skipping node in header or footer:', node.tagName);
+            // Check if the node is directly in header or footer
+            const isInHeader = node.closest('header');
+            const isInFooter = node.closest('footer');
+
+            // Only skip if it's directly in header or footer, not just anywhere in the page
+            if ((isInHeader && isInHeader === node.parentElement)
+                || (isInFooter && isInFooter === node.parentElement)) {
+              console.log('Skipping node directly in header or footer:', node.tagName);
               return;
             }
 
@@ -859,9 +864,14 @@ function setupBlockObserver(doc) {
             }
 
             blocks.forEach((block) => {
-              // Skip blocks in header or footer
-              if (block.closest('header') || block.closest('footer')) {
-                console.log('Skipping block in header or footer:', block.className);
+              // Check if the block is directly in header or footer
+              const isBlockInHeader = block.closest('header');
+              const isBlockInFooter = block.closest('footer');
+
+              // Only skip if it's directly in header or footer, not just anywhere in the page
+              if ((isBlockInHeader && isBlockInHeader === block.parentElement)
+                  || (isBlockInFooter && isBlockInFooter === block.parentElement)) {
+                console.log('Skipping block directly in header or footer:', block.className);
                 return;
               }
 
