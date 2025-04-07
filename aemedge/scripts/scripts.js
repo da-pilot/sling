@@ -776,57 +776,131 @@ function loadDelayed() {
  * @param {Document} doc The document to observe
  */
 function setupBlockObserver(doc) {
+  console.log('Setting up block observer');
+
   // Create a MutationObserver to watch for DOM changes
   const observer = new MutationObserver((mutations) => {
     // Process each mutation
     mutations.forEach((mutation) => {
       // Check for added nodes
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        console.log('DOM mutation detected:', mutation.addedNodes.length, 'nodes added');
+
         // Process each added node
         mutation.addedNodes.forEach((node) => {
           // Check if the added node is an element
           if (node.nodeType === Node.ELEMENT_NODE) {
+            console.log('Added node:', node.tagName, node.className);
+
             // Check if the added node is a block
             if (node.classList && node.classList.contains('block')) {
+              console.log('Block detected:', node.className);
+
               // Get the block name from the class list
               const blockClasses = Array.from(node.classList)
                 .filter((className) => className !== 'block');
 
+              console.log('Block classes:', blockClasses);
+
               if (blockClasses.length > 0) {
                 const blockName = blockClasses[0];
+                console.log('Attempting to import block:', blockName);
+
                 // Try to import the block module and call rebindEvents
-                import(`../blocks/${blockName}/${blockName}.js`)
+                // Use a more robust path resolution approach
+                const importPath = `/aemedge/blocks/${blockName}/${blockName}.js`;
+                console.log('Import path:', importPath);
+
+                import(importPath)
                   .then((module) => {
+                    console.log('Module imported successfully:', module);
                     if (module.rebindEvents) {
+                      console.log('Calling rebindEvents on block:', blockName);
                       module.rebindEvents(node);
+                    } else {
+                      console.log('No rebindEvents function found in module');
                     }
                   })
-                  .catch(() => {
-                    // Silently handle errors for blocks that don't have rebindEvents
-                    console.debug(`No rebindEvents function for block: ${blockName}`);
+                  .catch((error) => {
+                    // Log the error for debugging
+                    console.error(`Error importing block ${blockName}:`, error);
+
+                    // Try alternative path resolution
+                    const altImportPath = `../blocks/${blockName}/${blockName}.js`;
+                    console.log('Trying alternative import path:', altImportPath);
+
+                    import(altImportPath)
+                      .then((module) => {
+                        console.log('Module imported successfully with alternative path:', module);
+                        if (module.rebindEvents) {
+                          console.log('Calling rebindEvents on block:', blockName);
+                          module.rebindEvents(node);
+                        } else {
+                          console.log('No rebindEvents function found in module');
+                        }
+                      })
+                      .catch((altError) => {
+                        console.error(`Error importing block ${blockName} with alternative path:`, altError);
+                      });
                   });
               }
             }
 
             // Check for blocks within the added node
             const blocks = node.querySelectorAll('.block');
+            if (blocks.length > 0) {
+              console.log('Found', blocks.length, 'blocks within added node');
+            }
+
             blocks.forEach((block) => {
+              console.log('Block within node:', block.className);
+
               // Get the block name from the class list
               const blockClasses = Array.from(block.classList)
                 .filter((className) => className !== 'block');
 
+              console.log('Block classes:', blockClasses);
+
               if (blockClasses.length > 0) {
                 const blockName = blockClasses[0];
+                console.log('Attempting to import block:', blockName);
+
                 // Try to import the block module and call rebindEvents
-                import(`../blocks/${blockName}/${blockName}.js`)
+                // Use a more robust path resolution approach
+                const importPath = `/aemedge/blocks/${blockName}/${blockName}.js`;
+                console.log('Import path:', importPath);
+
+                import(importPath)
                   .then((module) => {
+                    console.log('Module imported successfully:', module);
                     if (module.rebindEvents) {
+                      console.log('Calling rebindEvents on block:', blockName);
                       module.rebindEvents(block);
+                    } else {
+                      console.log('No rebindEvents function found in module');
                     }
                   })
-                  .catch(() => {
-                    // Silently handle errors for blocks that don't have rebindEvents
-                    console.debug(`No rebindEvents function for block: ${blockName}`);
+                  .catch((error) => {
+                    // Log the error for debugging
+                    console.error(`Error importing block ${blockName}:`, error);
+
+                    // Try alternative path resolution
+                    const altImportPath = `../blocks/${blockName}/${blockName}.js`;
+                    console.log('Trying alternative import path:', altImportPath);
+
+                    import(altImportPath)
+                      .then((module) => {
+                        console.log('Module imported successfully with alternative path:', module);
+                        if (module.rebindEvents) {
+                          console.log('Calling rebindEvents on block:', blockName);
+                          module.rebindEvents(block);
+                        } else {
+                          console.log('No rebindEvents function found in module');
+                        }
+                      })
+                      .catch((altError) => {
+                        console.error(`Error importing block ${blockName} with alternative path:`, altError);
+                      });
                   });
               }
             });
@@ -843,6 +917,8 @@ function setupBlockObserver(doc) {
     attributes: false,
     characterData: false,
   });
+
+  console.log('Block observer set up successfully');
 
   // Store the observer on the window for potential cleanup
   window.blockObserver = observer;

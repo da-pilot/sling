@@ -181,44 +181,93 @@ export default async function decorate(block) {
 }
 
 /**
- * Re-establishes all event bindings for a carousel block.
- * This function is called when a carousel block is replaced in the DOM.
+ * Re-establishes event bindings for a carousel block
  * @param {HTMLElement} block The carousel block element
- * @returns {HTMLElement} The carousel block element for chaining
  */
 export function rebindEvents(block) {
-  // Check if the carousel structure is still intact
-  const prevButton = block.querySelector('.slide-prev');
-  const nextButton = block.querySelector('.slide-next');
+  console.log('rebindEvents called for carousel block:', block);
 
+  // Get the carousel buttons
+  const prevButton = block.querySelector('.carousel-button-prev');
+  const nextButton = block.querySelector('.carousel-button-next');
+
+  console.log('Carousel buttons found:', {
+    prevButton: !!prevButton,
+    nextButton: !!nextButton,
+  });
+
+  // Get the carousel variant
+  const variant = block.dataset.variant || 'default';
+  console.log('Carousel variant:', variant);
+
+  // Get the slides
+  const slides = block.querySelectorAll('.carousel-slide');
+  console.log('Number of slides found:', slides.length);
+
+  // Re-establish event bindings
   if (prevButton && nextButton) {
-    // Re-establish bindings
-    bindEvents(block);
+    console.log('Re-establishing event bindings for carousel buttons');
 
-    // Re-initialize auto-scrolling if needed
-    const variant = block.classList.value;
-    if (variant.includes('autoscroll')) {
-      // Clear any existing intervals
-      if (block.autoScrollInterval) {
-        clearInterval(block.autoScrollInterval);
+    // Remove any existing event listeners
+    prevButton.replaceWith(prevButton.cloneNode(true));
+    nextButton.replaceWith(nextButton.cloneNode(true));
+
+    // Get the fresh references after replacement
+    const newPrevButton = block.querySelector('.carousel-button-prev');
+    const newNextButton = block.querySelector('.carousel-button-next');
+
+    // Add event listeners
+    newPrevButton.addEventListener('click', () => {
+      console.log('Previous button clicked');
+      const currentSlide = block.querySelector('.carousel-slide.active');
+      const prevSlide = currentSlide.previousElementSibling || slides[slides.length - 1];
+
+      if (prevSlide && prevSlide.classList.contains('carousel-slide')) {
+        currentSlide.classList.remove('active');
+        prevSlide.classList.add('active');
+      }
+    });
+
+    newNextButton.addEventListener('click', () => {
+      console.log('Next button clicked');
+      const currentSlide = block.querySelector('.carousel-slide.active');
+      const nextSlide = currentSlide.nextElementSibling || slides[0];
+
+      if (nextSlide && nextSlide.classList.contains('carousel-slide')) {
+        currentSlide.classList.remove('active');
+        nextSlide.classList.add('active');
+      }
+    });
+
+    // Re-initialize auto-scrolling if applicable
+    if (variant === 'auto-scroll') {
+      console.log('Re-initializing auto-scrolling');
+      const autoScrollInterval = block.dataset.autoScrollInterval || 5000;
+      console.log('Auto-scroll interval:', autoScrollInterval);
+
+      // Clear any existing interval
+      if (block.dataset.autoScrollTimer) {
+        console.log('Clearing existing auto-scroll timer');
+        clearInterval(parseInt(block.dataset.autoScrollTimer, 10));
       }
 
-      // Set up new auto-scrolling
-      let slideIndex = 0;
-      const slides = block.querySelectorAll('.carousel-slide');
+      // Set up new interval
+      const timer = setInterval(() => {
+        console.log('Auto-scroll timer triggered');
+        const currentSlide = block.querySelector('.carousel-slide.active');
+        const nextSlide = currentSlide.nextElementSibling || slides[0];
 
-      // Define autoScroll function at the root level
-      const autoScroll = () => {
-        slideIndex += 1;
-        if (slideIndex >= slides.length) {
-          slideIndex = 0;
+        if (nextSlide && nextSlide.classList.contains('carousel-slide')) {
+          currentSlide.classList.remove('active');
+          nextSlide.classList.add('active');
         }
-        showSlide(block, slideIndex);
-      };
+      }, parseInt(autoScrollInterval, 10));
 
-      block.autoScrollInterval = setInterval(autoScroll, 3000);
+      // Store the timer ID
+      block.dataset.autoScrollTimer = timer;
+      console.log('New auto-scroll timer set:', timer);
     }
+  } else {
+    console.warn('Carousel buttons not found, cannot rebind events');
   }
-
-  return block;
 }
