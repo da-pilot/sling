@@ -187,9 +187,9 @@ export default async function decorate(block) {
 export function rebindEvents(block) {
   console.log('rebindEvents called for carousel block:', block);
 
-  // Get the carousel buttons
-  const prevButton = block.querySelector('.carousel-button-prev');
-  const nextButton = block.querySelector('.carousel-button-next');
+  // Get the carousel buttons - using the correct class names
+  const prevButton = block.querySelector('.slide-prev');
+  const nextButton = block.querySelector('.slide-next');
 
   console.log('Carousel buttons found:', {
     prevButton: !!prevButton,
@@ -213,59 +213,44 @@ export function rebindEvents(block) {
     nextButton.replaceWith(nextButton.cloneNode(true));
 
     // Get the fresh references after replacement
-    const newPrevButton = block.querySelector('.carousel-button-prev');
-    const newNextButton = block.querySelector('.carousel-button-next');
+    const newPrevButton = block.querySelector('.slide-prev');
+    const newNextButton = block.querySelector('.slide-next');
 
     // Add event listeners
     newPrevButton.addEventListener('click', () => {
       console.log('Previous button clicked');
-      const currentSlide = block.querySelector('.carousel-slide.active');
-      const prevSlide = currentSlide.previousElementSibling || slides[slides.length - 1];
-
-      if (prevSlide && prevSlide.classList.contains('carousel-slide')) {
-        currentSlide.classList.remove('active');
-        prevSlide.classList.add('active');
-      }
+      const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
+      showSlide(block, currentSlide - 1);
     });
 
     newNextButton.addEventListener('click', () => {
       console.log('Next button clicked');
-      const currentSlide = block.querySelector('.carousel-slide.active');
-      const nextSlide = currentSlide.nextElementSibling || slides[0];
-
-      if (nextSlide && nextSlide.classList.contains('carousel-slide')) {
-        currentSlide.classList.remove('active');
-        nextSlide.classList.add('active');
-      }
+      const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
+      showSlide(block, currentSlide + 1);
     });
 
     // Re-initialize auto-scrolling if applicable
-    if (variant === 'auto-scroll') {
+    if (variant.includes('autoscroll')) {
       console.log('Re-initializing auto-scrolling');
-      const autoScrollInterval = block.dataset.autoScrollInterval || 5000;
+      const autoScrollInterval = block.dataset.autoScrollInterval || 3000;
       console.log('Auto-scroll interval:', autoScrollInterval);
 
       // Clear any existing interval
-      if (block.dataset.autoScrollTimer) {
+      if (block.autoScrollInterval) {
         console.log('Clearing existing auto-scroll timer');
-        clearInterval(parseInt(block.dataset.autoScrollTimer, 10));
+        clearInterval(block.autoScrollInterval);
       }
 
       // Set up new interval
-      const timer = setInterval(() => {
+      const autoScroll = () => {
         console.log('Auto-scroll timer triggered');
-        const currentSlide = block.querySelector('.carousel-slide.active');
-        const nextSlide = currentSlide.nextElementSibling || slides[0];
-
-        if (nextSlide && nextSlide.classList.contains('carousel-slide')) {
-          currentSlide.classList.remove('active');
-          nextSlide.classList.add('active');
-        }
-      }, parseInt(autoScrollInterval, 10));
+        const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
+        showSlide(block, currentSlide + 1);
+      };
 
       // Store the timer ID
-      block.dataset.autoScrollTimer = timer;
-      console.log('New auto-scroll timer set:', timer);
+      block.autoScrollInterval = setInterval(autoScroll, autoScrollInterval);
+      console.log('New auto-scroll timer set:', block.autoScrollInterval);
     }
   } else {
     console.warn('Carousel buttons not found, cannot rebind events');
