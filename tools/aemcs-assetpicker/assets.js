@@ -7,6 +7,9 @@ async function init() {
   try {
     const { context, token } = await DA_SDK;
 
+    // Define the redirect URI for authentication flow
+    const redirectUri = window.location.origin + window.location.pathname;
+
     // Configure the auth service based on environment
     const authConfig = {
       imsClientId: 'darkalley', // Required parameter for AEM Assets Selectors

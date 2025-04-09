@@ -12,14 +12,14 @@
         "url": "/tools/sidekick/library/library.html"
       },
       {
-        "id": "tagger",
-        "title": "Tag browser",
+        "id": "aemcs-assetpicker",
+        "title": "AEM CS Asset Picker",
         "environments": ["edit"],
         "daLibrary": true,
         "includePaths": ["DA"],
         "experience": "dialog",
-        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_16f3cfd2160c5fe8c99f1c7f3c330cb64d674775f.png",
-        "path": "/tools/sidekick/tagger/tagger.html"
+        "icon": "https://da.live/blocks/edit/img/Smock_Images_18_N.svg",
+        "path": "/tools/aemcs-assetpicker/assets.html"
       },
       {
         "id": "palette",
@@ -32,16 +32,6 @@
         "path": "/tools/sidekick/palette/palette.html"
       },
       {
-        "id": "scheduler",
-        "title": "Scheduler", 
-        "environments": ["edit"],
-        "daLibrary": true,
-        "includePaths": ["DA"],
-        "experience": "dialog",
-        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1b16054ca2df31c22b312d39dcc00109e7926ac4c.png",
-        "path": "/tools/scheduler/scheduler.html"
-      },
-      {
         "id": "fragments",
         "title": "Fragments",
         "environments": ["edit"],
@@ -52,14 +42,24 @@
         "path": "/tools/fragments/fragments.html"
       },
       {
-        "id": "aemcs-assetpicker",
-        "title": "AEM CS Asset Picker",
+        "id": "scheduler",
+        "title": "Scheduler", 
         "environments": ["edit"],
         "daLibrary": true,
         "includePaths": ["DA"],
         "experience": "dialog",
-        "icon": "https://da.live/blocks/edit/img/Smock_Images_18_N.svg",
-        "path": "/tools/aemcs-assetpicker/assets.html"
+        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1b16054ca2df31c22b312d39dcc00109e7926ac4c.png",
+        "path": "/tools/scheduler/scheduler.html"
+      },
+      {
+        "id": "tagger",
+        "title": "Tag browser",
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "dialog",
+        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_16f3cfd2160c5fe8c99f1c7f3c330cb64d674775f.png",
+        "path": "/tools/sidekick/tagger/tagger.html"
       },
       {
         "id": "showblocks",
