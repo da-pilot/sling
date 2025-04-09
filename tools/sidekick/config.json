@@ -25,22 +25,12 @@
         "path": "/tools/fragments/fragments.html"
       },
       {
-        "id": "aem65-assetpicker",
-        "title": "AEM 6.5 Asset Picker",
-        "environments": ["edit"],
-        "daLibrary": true,
-        "includePaths": ["DA"],
-        "experience": "fullsize-dialog",
-        "icon": "https://da.live/blocks/edit/img/Smock_Images_18_N.svg",
-        "path": "/tools/aem65-assetpicker/assets65.html"
-      },
-      {
         "id": "aemcs-assetpicker",
         "title": "AEM CS Asset Picker",
         "environments": ["edit"],
         "daLibrary": true,
         "includePaths": ["DA"],
-        "experience": "fullsize-dialog",
+        "experience": "dialog",
         "icon": "https://da.live/blocks/edit/img/Smock_Images_18_N.svg",
         "path": "/tools/aemcs-assetpicker/assets.html"
       },
