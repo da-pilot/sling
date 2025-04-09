@@ -50,7 +50,17 @@
         "experience": "dialog",
         "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1754eba0e972f3aaa5a26e4cff5c8a1af99bbd324.png",
         "path": "/tools/fragments/fragments.html"
-      },      
+      },
+      {
+        "id": "aemcs-assetpicker",
+        "title": "AEM CS Asset Picker",
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "dialog",
+        "icon": "https://da.live/blocks/edit/img/Smock_Images_18_N.svg",
+        "path": "/tools/aemcs-assetpicker/assets.html"
+      },
       {
         "id": "showblocks",
         "title": "Blocks",

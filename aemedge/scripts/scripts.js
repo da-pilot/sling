@@ -23,7 +23,6 @@ import {
   createTag,
   loadGameFinders,
   loadPackageCards,
-  linkTextIncludesHref,
   centerHeadlines,
   configSideKick,
   buildVideoBlocks,
@@ -32,7 +31,7 @@ import {
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
 const TEMPLATES = ['blog-article', 'blog-category']; // add your templates here
 const TEMPLATE_META = 'template';
-const EXT_IMAGE_URL = /dish\.scene7\.com|\/aemedge\/svgs\//;
+const EXT_IMAGE_URL = /dish\.scene7\.com|\/aemedge\/svgs\/|delivery-p\d+-e\d+\.adobeaemcloud\.com\/adobe\/assets\//;
 
 /**
  * Sanitizes a string for use as class name.
@@ -563,7 +562,7 @@ export function decorateExtImage() {
   const fragment = document.createDocumentFragment();
 
   document.querySelectorAll('a[href]').forEach((a) => {
-    if (EXT_IMAGE_URL.test(a.href) && linkTextIncludesHref(a)) {
+    if (EXT_IMAGE_URL.test(a.href)) {
       const extImageSrc = a.href;
       const picture = document.createElement('picture');
       const img = document.createElement('img');
