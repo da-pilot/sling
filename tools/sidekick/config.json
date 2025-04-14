@@ -17,7 +17,7 @@
         "environments": ["edit"],
         "daLibrary": true,
         "includePaths": ["DA"],
-        "experience": "dialog",
+        "experience": "fullsize-dialog",
         "icon": "https://da.live/blocks/edit/img/Smock_Images_18_N.svg",
         "path": "/tools/aemcs-assetpicker/assets.html"
       },
