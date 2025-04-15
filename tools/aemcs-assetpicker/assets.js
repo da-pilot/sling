@@ -109,25 +109,17 @@ async function init() {
 
     // Check if repositoryId is empty and show configuration message
     if (!repositoryId) {
-      container.innerHTML = `
-        <div style="color: #d32f2f; padding: 20px; border: 1px solid #d32f2f; border-radius: 4px; background-color: #ffebee; 
-             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-             max-width: 80%; width: 600px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 1000;">
-          <h3 style="margin-top: 0;">Configuration Required</h3>
-          <p>The Asset Selector requires a repository ID to function properly.</p>
-          <p>Please configure the <strong>aem.repositoryId</strong> in your config file:</p>
-          <ol>
-            <li>Navigate to <code>https://content.da.live/${owner}/${repo}/.da/config.json</code></li>
-            <li>Add or update the configuration with the following key-value pair:</li>
-            <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">
-{
-  "key": "aem.repositoryId",
-  "value": "your-repository-id"
-}</pre>
-            <li>Save the changes and refresh this page</li>
-          </ol>
-        </div>
-      `;
+      // Use the template from HTML
+      const template = document.getElementById('config-error-template');
+      const configErrorContent = template.content.cloneNode(true);
+
+      // Set the config URL
+      const configUrlElement = configErrorContent.querySelector('#config-url');
+      if (configUrlElement) {
+        configUrlElement.textContent = `https://content.da.live/${owner}/${repo}/.da/config.json`;
+      }
+
+      container.appendChild(configErrorContent);
       return;
     }
 
@@ -178,11 +170,19 @@ async function init() {
     window.PureJSSelectors.renderAssetSelector(container, selectorProps);
     window.DA_TOKEN = token;
   } catch (error) {
-    document.getElementById('asset-selector-container').innerHTML = `
-      <div style="color: red; padding: 20px;">
-        Error initializing Asset Selector: ${error.message}
-      </div>
-    `;
+    const container = document.getElementById('asset-selector-container');
+
+    // Use the error template from HTML
+    const template = document.getElementById('error-message-template');
+    const errorContent = template.content.cloneNode(true);
+
+    // Set the error message
+    const errorMessageElement = errorContent.querySelector('#error-message-text');
+    if (errorMessageElement) {
+      errorMessageElement.textContent = error.message;
+    }
+
+    container.appendChild(errorContent);
   }
 }
 
