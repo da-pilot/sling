@@ -190,6 +190,11 @@
     width: 24px;
   }
 
+  .columns.devices span.icon {
+    height:unset;
+    width:60%;
+  }
+
   .columns.icons {
     place-content: normal center;
     align-items: center;
