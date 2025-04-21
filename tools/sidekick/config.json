@@ -12,6 +12,16 @@
         "url": "/tools/sidekick/library/library.html"
       },
       {
+        "id": "block-library",
+        "title": "Block Library",
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "fullsize-dialog",
+        "icon": "https://da.live/blocks/edit/img/Smock_Table_18_N.svg",
+        "path": "/tools/sidekick/block-library/library.html"
+      },
+      {
         "id": "aemcs-assetpicker",
         "title": "AEM CS Asset Picker",
         "environments": ["edit"],
