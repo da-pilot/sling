@@ -616,6 +616,10 @@ main > .section {
   padding: 0;
 }
 
+.section.wide img {
+  width: 100%;
+}
+
 .section > .default-content-wrapper > p.fragment-wrapper {
   margin: 0;
 }
