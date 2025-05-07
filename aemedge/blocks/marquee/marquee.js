@@ -90,18 +90,6 @@ function setupBGPictures(block) {
   });
 }
 
-const scrollCTAIntoHeader = (entries) => {
-  entries.forEach((entry) => {
-    const block = entry.target;
-    const cta = block.querySelector('.cta a');
-    if (entry.isIntersecting) {
-      cta.classList.remove('scroll-into-header');
-    } else {
-      cta.classList.add('scroll-into-header');
-    }
-  });
-};
-
 // read the config and construct the DOM
 function processBlockConfig(block) {
   const marqueContent = createTag('div', { class: 'marquee-content' });
@@ -140,21 +128,7 @@ export default function decorate(block) {
   processBlockConfig(block);
   const background = block.querySelector('.background');
   const bgColor = block.querySelector('.background-color');
-  const scrollCTA = block.querySelector('.scroll-cta-into-header');
-
-  // if scroll configured then toggle the respective css class
-  if (scrollCTA) {
-    const cta = document.querySelector('.cta a');
-    if (cta) {
-      const options = {
-        root: null,
-        threshold: 0.1,
-      };
-      const observer = new IntersectionObserver(scrollCTAIntoHeader, options);
-      observer.observe(block);
-    }
-    scrollCTA.remove();
-  }
+  
   let bgMediaType;
   if (background) {
     if (background.querySelector('picture')) {
@@ -163,6 +137,7 @@ export default function decorate(block) {
       bgMediaType = 'video';
     }
   }
+
   // set the bg color on the section
   if (bgColor) {
     const section = block.closest('.section');
