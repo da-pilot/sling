@@ -341,13 +341,14 @@ async function setNavType() {
 }
 
 export function replaceTildesWithDel() {
-  const divs = document.querySelectorAll('div, div > p');
-  divs.forEach((div) => {
-    const text = div.innerHTML;
-    const tildeRegex = /^~~(.*?)~~$/;
-    const match = text.match(tildeRegex);
-    if (match) {
-      div.innerHTML = text.replace(tildeRegex, '<del>$1</del>');
+  // Only process block-level elements where tildes might wrap HTML
+  const blocks = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, div');
+  const tildeRegex = /~~([\s\S]*?)~~/g; // [\s\S] allows matching across tags and newlines
+
+  blocks.forEach((block) => {
+    // Only replace if there are tildes present
+    if (block.innerHTML.includes('~~')) {
+      block.innerHTML = block.innerHTML.replace(tildeRegex, '<del>$1</del>');
     }
   });
 }
