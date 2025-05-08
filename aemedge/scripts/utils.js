@@ -739,7 +739,7 @@ export function configSideKick() {
           blockName.innerText = name;
           blockName.classList.toggle('show');
           block.prepend(blockName);
-          copyAction.href = block.querySelector('a').href;
+          copyAction.href = block.querySelector('a')?.href;
           copyAction.classList.add('copy-action');
           copyAction.target = '_blank';
           copyAction.textContent = 'Copy HTML';
