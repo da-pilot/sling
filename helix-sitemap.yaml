@@ -1,5 +1,5 @@
 sitemaps:
-  whatson:
-    source: /whatson/query-index.json
-    destination: /sitemap-whatson.xml
+  landingpages:
+    source: /query-index.json
+    destination: /sitemap.xml
     lastmod: YYYY-MM-DD
