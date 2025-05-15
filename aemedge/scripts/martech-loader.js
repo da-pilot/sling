@@ -43,7 +43,7 @@ const martechLoadedPromise = initMartech(
     dataLayer: true, // whether to use the Adobe Client Data Layer (ACDL)
     dataLayerInstanceName: 'adobeDataLayer', // the name of the global ACDL instance
     includeDataLayerState: true, // whether to include the whole data layer state on every event sent
-    launchUrls: [''], // the list of Launch containers to load
+    launchUrls: ['https://assets.adobedtm.com/b571b7f9ddbe/d2cb1fb5f7cb/launch-9faa83378e20-development.min.js'], // the list of Launch containers to load
     // https://assets.adobedtm.com/f4211b096882/1811238be96f/launch-088c475bb1c3-development.min.js - dish
     personalization: true && isConsentGiven, // whether to apply page personalization from Adobe Target (AT) or Adobe Journey Optimizer (AJO)
     performanceOptimized: true, // whether to use the agressive performance optimized approach or more traditional
