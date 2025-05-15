@@ -1,3 +1,14 @@
+/* eslint-disable no-underscore-dangle */
+
+import {
+  martechLoadedPromise,
+  martechEager,
+  martechLazy,
+  martechDelayed,
+} from './martech-loader.js';
+
+import { setDataLayer } from './datalayer-utils.js';
+
 import {
   buildBlock,
   loadFooter,
@@ -667,7 +678,12 @@ async function loadEager(doc) {
     decorateMain(main);
     await loadTemplate(main);
     document.body.classList.add('appear');
-    await waitForLCP(LCP_BLOCKS);
+    await Promise.all([
+      martechLoadedPromise.then(martechEager),
+      waitForLCP(LCP_BLOCKS),
+      // loadSection(main.querySelector('.section'), waitForFirstImage),
+    ]);
+    // await waitForLCP(LCP_BLOCKS);
   }
 
   try {
@@ -734,6 +750,7 @@ async function loadLazy(doc) {
   buildGlobalBanner(main);
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
+  await martechLazy();
 }
 
 /**
@@ -742,11 +759,17 @@ async function loadLazy(doc) {
    */
 function loadDelayed() {
   // eslint-disable-next-line import/no-cycle
-  window.setTimeout(() => import('./delayed.js'), 3000);
+  // window.setTimeout(() => import('./delayed.js'), 3000);
   // load anything that can be postponed to the latest here
+  window.setTimeout(async () => {
+    await martechDelayed();
+    return import('./delayed.js');
+  }, 3000);
 }
 
 async function loadPage() {
+  window.adobeDataLayer = window.adobeDataLayer || [];
+  await setDataLayer();
   // load everything that needs to be loaded eagerly
   await loadEager(document);
 
