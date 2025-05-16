@@ -135,7 +135,7 @@ function getDefaultAlloyConfiguration() {
     // enable while debugging
     debugEnabled: hostname === 'localhost' || hostname.endsWith('.hlx.page') || hostname.endsWith('.aem.page'),
     // wait for exlicit consent before tracking anything
-    defaultConsent: 'pending',
+    defaultConsent: 'in',
   };
 }
 
@@ -571,6 +571,7 @@ export async function applyPersonalization(viewName) {
  * @returns a promise that the eager logic was executed
  */
 export async function martechEager() {
+  console.log(config);
   if (config.personalization && config.performanceOptimized) {
     // eslint-disable-next-line no-console
     console.assert(window.alloy, 'Martech needs to be initialized before the `martechEager` method is called');
