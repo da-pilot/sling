@@ -995,14 +995,13 @@ async function loadPage() {
   // await setDataLayer();
   // load everything that needs to be loaded eagerly
   await loadEager(document);
-
-  // Set up observer for block DOM changes
-  setupBlockObserver();
   // load everything that needs to be loaded later
   await loadLazy(document);
+
   // Start observing for section changes after initial decoration
   handleTargetSections(document);
-
+  // Set up observer for block DOM changes
+  setupBlockObserver();
   configSideKick();
   // load launch eagerly when target metadata is set to true
   // await loadLaunchEager();
