@@ -726,7 +726,8 @@ async function loadEager(doc) {
     // The library config
     {
       launchUrls: [/* your Launch script URLs here */],
-      personalization: !!getMetadata('target') && isConsentGiven,
+      // personalization: !!getMetadata('target') && isConsentGiven,
+      personalization: true,
     },
   );
   document.documentElement.lang = 'en';
