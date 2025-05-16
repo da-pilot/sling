@@ -165,24 +165,6 @@ function buildHeroBlock(main) {
   }
 }
 
-/**
- * Handles section nesting when sections have the same fragment-id
- * @param {Element} section The section element to check
- */
-function handleTargetSections(doc) {
-  const main = doc.querySelector('main');
-  main.querySelectorAll(':scope > div.section').forEach((section) => {
-    const childSection = section.querySelector('div.section');
-    if (childSection) {
-      const parentFragmentId = section.getAttribute('data-fragment-id');
-      const childFragmentId = childSection.getAttribute('data-fragment-id');
-      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
-        section.replaceWith(childSection);
-      }
-    }
-  });
-}
-
 function autolinkModals(element) {
   element.addEventListener('click', async (e) => {
     const origin = e.target.closest('a');
@@ -852,6 +834,24 @@ function loadDelayed() {
 }
 
 /**
+ * Handles section nesting when sections have the same fragment-id
+ * @param {Element} section The section element to check
+ */
+function handleTargetSections(doc) {
+  const main = doc.querySelector('main');
+  main.querySelectorAll(':scope > div.section').forEach((section) => {
+    const childSection = section.querySelector('div.section');
+    if (childSection) {
+      const parentFragmentId = section.getAttribute('data-fragment-id');
+      const childFragmentId = childSection.getAttribute('data-fragment-id');
+      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+        section.replaceWith(childSection);
+      }
+    }
+  });
+}
+
+/**
  * Sets up a MutationObserver to watch for block replacements in the DOM
  * and reinitialize them when they are replaced.
  */
@@ -995,9 +995,6 @@ async function loadPage() {
   // await setDataLayer();
   // load everything that needs to be loaded eagerly
   await loadEager(document);
-
-  // load everything that can be postponed to the latest here
-  await loadLazy(document);
 
   // Set up observer for block DOM changes
   setupBlockObserver();
