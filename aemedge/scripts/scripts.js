@@ -763,10 +763,10 @@ async function loadEager(doc) {
 }
 
 /**
-   * Loads a block named 'header' into header
-   * @param {Element} header header element
-   * @returns {Promise}
-   */
+ * Loads a block named 'header' into header
+ * @param {Element} header header element
+ * @returns {Promise}
+ */
 async function loadHeader(header) {
   let block = 'header';
   const template = getMetadata('template');
@@ -850,6 +850,21 @@ function handleTargetSections(doc) {
     }
   });
 }
+
+// Helper to compute a simple hash of a string (djb2)
+// eslint-disable-next-line no-bitwise
+function hashString(str) {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i += 1) {
+    // eslint-disable-next-line no-bitwise
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+  }
+  // eslint-disable-next-line no-bitwise
+  return hash >>> 0;
+}
+
+// Map to store last known hash for each block
+const blockContentHashes = new WeakMap();
 
 /**
  * Sets up a MutationObserver to watch for block replacements in the DOM
@@ -948,10 +963,17 @@ function setupBlockObserver() {
     const blocks = document.querySelectorAll(blocksToCheck);
 
     blocks.forEach((block) => {
-      // Skip if already bound
-      if (block.hasAttribute('data-bound')) {
+      // Compute hash of current content
+      const currentHash = hashString(block.innerHTML);
+      const lastHash = blockContentHashes.get(block);
+      // If hash changed or block is not bound, rebind
+      if (block.hasAttribute('data-bound') && lastHash === currentHash) {
         return;
       }
+      // Update hash
+      blockContentHashes.set(block, currentHash);
+      // Remove data-bound to force rebinding
+      block.removeAttribute('data-bound');
 
       // Determine which block type this is
       const blockType = blocksToObserve.find((blockName) => block.classList.contains(blockName)
