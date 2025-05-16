@@ -177,3 +177,56 @@ export default async function decorate(block) {
     setInterval(autoScroll, 3000);
   }
 }
+/**
+ * Re-establishes event bindings for a carousel block
+ * @param {HTMLElement} block The carousel block element
+ */
+export function rebindEvents(block) {
+  // Get the carousel buttons - using the correct class names
+  const prevButton = block.querySelector('.slide-prev');
+  const nextButton = block.querySelector('.slide-next');
+
+  // Get the carousel variant
+  const variant = block.dataset.variant || 'default';
+
+  // Re-establish event bindings
+  if (prevButton && nextButton) {
+    // Remove any existing event listeners
+    prevButton.replaceWith(prevButton.cloneNode(true));
+    nextButton.replaceWith(nextButton.cloneNode(true));
+
+    // Get the fresh references after replacement
+    const newPrevButton = block.querySelector('.slide-prev');
+    const newNextButton = block.querySelector('.slide-next');
+
+    // Add event listeners
+    newPrevButton.addEventListener('click', () => {
+      const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
+      showSlide(block, currentSlide - 1);
+    });
+
+    newNextButton.addEventListener('click', () => {
+      const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
+      showSlide(block, currentSlide + 1);
+    });
+
+    // Re-initialize auto-scrolling if applicable
+    if (variant.includes('autoscroll')) {
+      const autoScrollInterval = block.dataset.autoScrollInterval || 3000;
+
+      // Clear any existing interval
+      if (block.autoScrollInterval) {
+        clearInterval(block.autoScrollInterval);
+      }
+
+      // Set up new interval
+      const autoScroll = () => {
+        const currentSlide = parseInt(block.dataset.activeSlide, 10) || 0;
+        showSlide(block, currentSlide + 1);
+      };
+
+      // Store the timer ID
+      block.autoScrollInterval = setInterval(autoScroll, autoScrollInterval);
+    }
+  }
+}
