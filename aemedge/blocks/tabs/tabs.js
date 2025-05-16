@@ -197,3 +197,24 @@ export default async function decorate(block) {
     await loadBlocks(block);
   }
 }
+
+export function rebindEvents(block) {
+  const tablist = block.querySelector('.tabs-list');
+  if (!tablist) return;
+  const tabButtons = tablist.querySelectorAll('button');
+  const tabpanels = block.querySelectorAll('[role=tabpanel]');
+  tabButtons.forEach((button, i) => {
+    const tabpanel = tabpanels[i];
+    button.onclick = null;
+    button.addEventListener('click', () => {
+      tabpanels.forEach((panel) => {
+        panel.setAttribute('aria-hidden', true);
+      });
+      tabButtons.forEach((btn) => {
+        btn.setAttribute('aria-selected', false);
+      });
+      tabpanel.setAttribute('aria-hidden', false);
+      button.setAttribute('aria-selected', true);
+    });
+  });
+}
