@@ -1,13 +1,22 @@
+/* eslint-disable import/no-relative-packages */
 /* eslint-disable no-underscore-dangle */
 
+// import {
+//  martechLoadedPromise,
+//  martechEager,
+//  martechLazy,
+//  martechDelayed,
+// } from './martech-loader.js';
+
+// import { setDataLayer } from './datalayer-utils.js';
+/* eslint-disable no-underscore-dangle */
 import {
-  martechLoadedPromise,
+  initMartech,
+  // updateUserConsent,
   martechEager,
   martechLazy,
   martechDelayed,
-} from './martech-loader.js';
-
-import { setDataLayer } from './datalayer-utils.js';
+} from '../plugins/martech/src/index.js';
 
 import {
   buildBlock,
@@ -669,6 +678,57 @@ export function decorateMain(main) {
    * @param {Element} doc The container element
    */
 async function loadEager(doc) {
+  const isConsentGiven = true;
+  const martechLoadedPromise = initMartech(
+    // The WebSDK config
+    // Documentation: https://experienceleague.adobe.com/en/docs/experience-platform/web-sdk/commands/configure/overview#configure-js
+    {
+      datastreamId: 'cce7e9e9-6e47-4b10-b74d-0e16cb8d3f01', // b854d2aa-518d-4a36-9ff1-856c71d83ce2
+      orgId: 'C8F3055362AB2C450A495E69@AdobeOrg', // ACS Sandbox
+      onBeforeEventSend: (payload) => {
+        // set custom Target params
+        // see doc at https://experienceleague.adobe.com/en/docs/platform-learn/migrate-target-to-websdk/send-parameters#parameter-mapping-summary
+        payload.data.__adobe.target ||= {};
+
+        // set custom Analytics params
+        // see doc at https://experienceleague.adobe.com/en/docs/analytics/implementation/aep-edge/data-var-mapping
+        payload.data.__adobe.analytics ||= {};
+      },
+
+      // set custom datastream overrides
+      // see doc at:
+      // - https://experienceleague.adobe.com/en/docs/experience-platform/web-sdk/commands/datastream-overrides
+      // - https://experienceleague.adobe.com/en/docs/experience-platform/datastreams/overrides
+      edgeConfigOverrides: {
+        // Override the datastream id
+        // datastreamId: '...'
+
+        // Override AEP event datasets
+        // com_adobe_experience_platform: {
+        //   datasets: {
+        //     event: {
+        //       datasetId: '...'
+        //     }
+        //   }
+        // },
+
+        // Override the Analytics report suites
+        // com_adobe_analytics: {
+        //   reportSuites: ['...']
+        // },
+
+        // Override the Target property token
+        // com_adobe_target: {
+        //   propertyToken: '...'
+        // }
+      },
+    },
+    // The library config
+    {
+      launchUrls: [/* your Launch script URLs here */],
+      personalization: !!getMetadata('target') && isConsentGiven,
+    },
+  );
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
@@ -678,12 +738,16 @@ async function loadEager(doc) {
     }
     decorateMain(main);
     await loadTemplate(main);
-    document.body.classList.add('appear');
     await Promise.all([
       martechLoadedPromise.then(martechEager),
       waitForLCP(LCP_BLOCKS),
-      // loadSection(main.querySelector('.section'), waitForFirstImage),
     ]);
+    document.body.classList.add('appear');
+    // await Promise.all([
+    //  martechLoadedPromise.then(martechEager),
+    //  waitForLCP(LCP_BLOCKS),
+    //  // loadSection(main.querySelector('.section'), waitForFirstImage),
+    // ]);
     // await waitForLCP(LCP_BLOCKS);
   }
 
@@ -770,7 +834,7 @@ function loadDelayed() {
 
 async function loadPage() {
   window.adobeDataLayer = window.adobeDataLayer || [];
-  await setDataLayer();
+  // await setDataLayer();
   // load everything that needs to be loaded eagerly
   await loadEager(document);
 
