@@ -1,3 +1,23 @@
+/* eslint-disable import/no-relative-packages */
+/* eslint-disable no-underscore-dangle */
+
+// import {
+//  martechLoadedPromise,
+//  martechEager,
+//  martechLazy,
+//  martechDelayed,
+// } from './martech-loader.js';
+
+// import { setDataLayer } from './datalayer-utils.js';
+/* eslint-disable no-underscore-dangle */
+import {
+  initMartech,
+  // updateUserConsent,
+  martechEager,
+  martechLazy,
+  martechDelayed,
+} from '../plugins/martech/src/index.js';
+
 import {
   buildBlock,
   loadFooter,
@@ -12,7 +32,7 @@ import {
   decorateBlock,
   loadBlock,
   toClassName,
-  loadScript,
+  // loadScript,
 } from './aem.js';
 
 import {
@@ -617,19 +637,20 @@ function decorateLinkedImages() {
   });
 }
 
-async function loadLaunchEager() {
-  const isTarget = getMetadata('target');
-  if (isTarget && isTarget.toLowerCase() === 'true') {
-    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
-    if (window.location.host.startsWith('localhost')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
-    } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
-    } else if (window.location.host.endsWith('.page')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
-    }
-  }
-}
+// async function loadLaunchEager() {
+//  const isTarget = getMetadata('target');
+//  if (isTarget && isTarget.toLowerCase() === 'true') {
+//    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
+//    if (window.location.host.startsWith('localhost')) {
+//      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
+//    } else if (window.location.host.startsWith('www.sling.com')
+// || window.location.host.endsWith('.live')) {
+//      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
+//    } else if (window.location.host.endsWith('.page')) {
+//      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
+//    }
+//  }
+// }
 /**
    * Decorates the main element.
    * @param {Element} main The main element
@@ -657,6 +678,58 @@ export function decorateMain(main) {
    * @param {Element} doc The container element
    */
 async function loadEager(doc) {
+  // const isConsentGiven = true;
+  const martechLoadedPromise = initMartech(
+    // The WebSDK config
+    // Documentation: https://experienceleague.adobe.com/en/docs/experience-platform/web-sdk/commands/configure/overview#configure-js
+    {
+      datastreamId: 'cce7e9e9-6e47-4b10-b74d-0e16cb8d3f01', // b854d2aa-518d-4a36-9ff1-856c71d83ce2
+      orgId: 'C8F3055362AB2C450A495E69@AdobeOrg', // ACS Sandbox
+      onBeforeEventSend: (payload) => {
+        // set custom Target params
+        // see doc at https://experienceleague.adobe.com/en/docs/platform-learn/migrate-target-to-websdk/send-parameters#parameter-mapping-summary
+        payload.data.__adobe.target ||= {};
+
+        // set custom Analytics params
+        // see doc at https://experienceleague.adobe.com/en/docs/analytics/implementation/aep-edge/data-var-mapping
+        payload.data.__adobe.analytics ||= {};
+      },
+
+      // set custom datastream overrides
+      // see doc at:
+      // - https://experienceleague.adobe.com/en/docs/experience-platform/web-sdk/commands/datastream-overrides
+      // - https://experienceleague.adobe.com/en/docs/experience-platform/datastreams/overrides
+      edgeConfigOverrides: {
+        // Override the datastream id
+        // datastreamId: '...'
+
+        // Override AEP event datasets
+        // com_adobe_experience_platform: {
+        //   datasets: {
+        //     event: {
+        //       datasetId: '...'
+        //     }
+        //   }
+        // },
+
+        // Override the Analytics report suites
+        // com_adobe_analytics: {
+        //   reportSuites: ['...']
+        // },
+
+        // Override the Target property token
+        // com_adobe_target: {
+        //   propertyToken: '...'
+        // }
+      },
+    },
+    // The library config
+    {
+      launchUrls: [/* your Launch script URLs here */],
+      // personalization: !!getMetadata('target') && isConsentGiven,
+      personalization: true,
+    },
+  );
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
@@ -666,8 +739,17 @@ async function loadEager(doc) {
     }
     decorateMain(main);
     await loadTemplate(main);
+    await Promise.all([
+      martechLoadedPromise.then(martechEager),
+      waitForLCP(LCP_BLOCKS),
+    ]);
     document.body.classList.add('appear');
-    await waitForLCP(LCP_BLOCKS);
+    // await Promise.all([
+    //  martechLoadedPromise.then(martechEager),
+    //  waitForLCP(LCP_BLOCKS),
+    //  // loadSection(main.querySelector('.section'), waitForFirstImage),
+    // ]);
+    // await waitForLCP(LCP_BLOCKS);
   }
 
   try {
@@ -734,6 +816,7 @@ async function loadLazy(doc) {
   buildGlobalBanner(main);
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
+  await martechLazy();
 }
 
 /**
@@ -742,19 +825,186 @@ async function loadLazy(doc) {
    */
 function loadDelayed() {
   // eslint-disable-next-line import/no-cycle
-  window.setTimeout(() => import('./delayed.js'), 3000);
+  // window.setTimeout(() => import('./delayed.js'), 3000);
   // load anything that can be postponed to the latest here
+  window.setTimeout(async () => {
+    await martechDelayed();
+    return import('./delayed.js');
+  }, 3000);
+}
+
+/**
+ * Handles section nesting when sections have the same fragment-id
+ * @param {Element} section The section element to check
+ */
+function handleTargetSections(doc) {
+  const main = doc.querySelector('main');
+  main.querySelectorAll(':scope > div.section').forEach((section) => {
+    const childSection = section.querySelector('div.section');
+    if (childSection) {
+      const parentFragmentId = section.getAttribute('data-fragment-id');
+      const childFragmentId = childSection.getAttribute('data-fragment-id');
+      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+        section.replaceWith(childSection);
+      }
+    }
+  });
+}
+
+/**
+ * Sets up a MutationObserver to watch for block replacements in the DOM
+ * and reinitialize them when they are replaced.
+ */
+function setupBlockObserver() {
+  // Define an array of block names to observe
+  // These are blocks that have interactive elements and need rebinding
+  const blocksToObserve = [
+    'carousel', // Has slide navigation and auto-scroll
+    'accordion', // Has expand/collapse functionality
+    'tabs', // Has tab switching functionality
+    'modal', // Has dialog show/hide and close button events
+    'image-slider', // Has auto-scrolling functionality
+    'game-finder', // Has interactive React app elements
+    'channel-lookup', // Has form submission and API interactions
+    'chat', // Has interactive chat functionality
+    'marquee', // Has scroll CTA and resize handlers
+    'offer-cards', // Has resize event handlers
+    'channel-shopper', // Has IntersectionObserver and React app
+    'category', // Has media query listeners and author click handlers
+  ];
+
+  // Create a MutationObserver to watch for DOM changes
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        // Process each added node
+        mutation.addedNodes.forEach((node) => {
+          // Skip text nodes and nodes that are directly in header or footer
+          if (node.nodeType !== Node.ELEMENT_NODE
+              || (node.parentElement
+               && (node.parentElement.tagName === 'HEADER'
+                || node.parentElement.tagName === 'FOOTER'))) {
+            return;
+          }
+
+          // Check if the added node is one of the blocks we want to observe
+          const isObservedBlock = node.classList
+          && blocksToObserve.some((blockName) => node.classList.contains(blockName)
+            || (node.classList.contains('block') && node.classList.contains(blockName)));
+
+          if (isObservedBlock) {
+            // Determine which block type this is
+            const blockType = blocksToObserve.find((blockName) => node.classList.contains(blockName)
+              || (node.classList.contains('block') && node.classList.contains(blockName)));
+
+            if (blockType) {
+              // Import the block module and call rebindEvents
+              const importPath = window.hlx?.codeBasePath
+                ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+                : `/aemedge/blocks/${blockType}/${blockType}.js`;
+
+              import(importPath)
+                .then((module) => {
+                  if (module.rebindEvents) {
+                    module.rebindEvents(node);
+                    node.setAttribute('data-bound', 'true');
+                  }
+                })
+                .catch(() => {
+                  // Try alternative path resolution
+                  const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+
+                  import(altImportPath)
+                    .then((module) => {
+                      if (module.rebindEvents) {
+                        module.rebindEvents(node);
+                        node.setAttribute('data-bound', 'true');
+                      }
+                    })
+                    .catch(() => {
+                      // Handle error silently
+                    });
+                });
+            }
+          }
+        });
+      }
+    });
+  });
+
+  // Start observing the document body for changes
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+
+  // Also set up a periodic check for blocks that need rebinding
+  setInterval(() => {
+    // Find all blocks in the main content area that need rebinding
+    const blocksToCheck = blocksToObserve
+      .map((blockName) => `main .${blockName}, main .block.${blockName}`)
+      .join(', ');
+
+    const blocks = document.querySelectorAll(blocksToCheck);
+
+    blocks.forEach((block) => {
+      // Skip if already bound
+      if (block.hasAttribute('data-bound')) {
+        return;
+      }
+
+      // Determine which block type this is
+      const blockType = blocksToObserve.find((blockName) => block.classList.contains(blockName)
+        || (block.classList.contains('block') && block.classList.contains(blockName)));
+
+      if (blockType) {
+        // Import the block module and call rebindEvents
+        const importPath = window.hlx?.codeBasePath
+          ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+          : `/aemedge/blocks/${blockType}/${blockType}.js`;
+
+        import(importPath)
+          .then((module) => {
+            if (module.rebindEvents) {
+              module.rebindEvents(block);
+              block.setAttribute('data-bound', 'true');
+            }
+          })
+          .catch(() => {
+            // Try alternative path resolution
+            const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+
+            import(altImportPath)
+              .then((module) => {
+                if (module.rebindEvents) {
+                  module.rebindEvents(block);
+                  block.setAttribute('data-bound', 'true');
+                }
+              })
+              .catch(() => {
+                // Handle error silently
+              });
+          });
+      }
+    });
+  }, 2000); // Check every 2 seconds
 }
 
 async function loadPage() {
+  window.adobeDataLayer = window.adobeDataLayer || [];
+  // await setDataLayer();
   // load everything that needs to be loaded eagerly
   await loadEager(document);
-
-  // load everything that can be postponed to the latest here
+  // load everything that needs to be loaded later
   await loadLazy(document);
+
+  // Start observing for section changes after initial decoration
+  handleTargetSections(document);
+  // Set up observer for block DOM changes
+  setupBlockObserver();
   configSideKick();
   // load launch eagerly when target metadata is set to true
-  await loadLaunchEager();
+  // await loadLaunchEager();
   // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
