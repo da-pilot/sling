@@ -199,6 +199,7 @@ export default async function decorate(block) {
 }
 
 export function rebindEvents(block) {
+  console.log('[DEBUG] TABS rebindEvents called for block:', block);
   const tablist = block.querySelector('.tabs-list');
   if (!tablist) return;
   const tabButtons = tablist.querySelectorAll('button');
@@ -207,6 +208,7 @@ export function rebindEvents(block) {
     const tabpanel = tabpanels[i];
     button.onclick = null;
     button.addEventListener('click', () => {
+      console.log('[DEBUG] Tab clicked:', button, 'Panel:', tabpanel);
       tabpanels.forEach((panel) => {
         panel.setAttribute('aria-hidden', true);
       });

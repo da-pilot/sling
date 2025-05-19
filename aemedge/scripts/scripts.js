@@ -892,6 +892,7 @@ function setupBlockObserver() {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        console.log('[DEBUG] Mutation observed:', mutation);
         // Process each added node and its descendants
         mutation.addedNodes.forEach((node) => {
           // Skip text nodes and nodes that are directly in header or footer
@@ -911,6 +912,7 @@ function setupBlockObserver() {
           }
 
           nodesToCheck.forEach((el) => {
+            console.log('[DEBUG] Checking node for observed block:', el);
             // Check if the element is one of the blocks we want to observe
             const isObservedBlock = el.classList
               && blocksToObserve.some((blockName) => el.classList.contains(blockName)
@@ -922,6 +924,7 @@ function setupBlockObserver() {
                 || (el.classList.contains('block') && el.classList.contains(blockName)));
 
               if (blockType) {
+                console.log(`[DEBUG] Calling rebindEvents for block type: ${blockType}`, el);
                 // Import the block module and call rebindEvents
                 const importPath = window.hlx?.codeBasePath
                   ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
