@@ -881,9 +881,10 @@ function isHeaderOrFooter(el) {
 
 function rebindFlaggedBlocks() {
   blocksNeedingRebind.forEach((el) => {
-    // Determine which block type this is
-    const blockType = blocksToObserve.find((blockName) => el.classList.contains(blockName)
-      || (el.classList.contains('block') && el.classList.contains(blockName)));
+    // Use data-block-name as the primary block type, fallback to class matching
+    const blockType = el.getAttribute('data-block-name')
+      || blocksToObserve.find((blockName) => el.classList.contains(blockName)
+        || (el.classList.contains('block') && el.classList.contains(blockName)));
     if (blockType) {
       const importPath = window.hlx?.codeBasePath
         ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
@@ -893,6 +894,9 @@ function rebindFlaggedBlocks() {
           if (module.rebindEvents) {
             module.rebindEvents(el);
             el.setAttribute('data-bound', 'true');
+            if (el.hasAttribute('data-rebind')) {
+              el.removeAttribute('data-rebind');
+            }
           }
         })
         .catch(() => {
@@ -903,6 +907,9 @@ function rebindFlaggedBlocks() {
               if (module.rebindEvents) {
                 module.rebindEvents(el);
                 el.setAttribute('data-bound', 'true');
+                if (el.hasAttribute('data-rebind')) {
+                  el.removeAttribute('data-rebind');
+                }
               }
             })
             .catch(() => {
