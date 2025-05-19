@@ -1,0 +1,43 @@
+{
+    "definitions": [
+      {
+        "id": "marquee",
+        "plugins": {
+          "da": {
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Marquee Content"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "marquee",
+        "fields": [
+          {
+            "name": "content",
+            "type": "richtext",
+            "label": "Content",
+            "selector": ".marquee > div:first-child > div:first-child"
+          },
+          {
+            "name": "classes",
+            "type": "select",
+            "label": "Variant",
+            "options": [
+              { "value": "", "label": "Default" },
+              { "value": "wide", "label": "Wide" },
+              { "value": "dark", "label": "Dark" }
+            ]
+          }
+        ]
+      }
+    ],
+    "filters": []
+  }

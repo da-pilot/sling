@@ -1,0 +1,150 @@
+{
+    "version": 1,
+    "filters": [
+      {
+        "id": "section",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "section"
+          },
+          {
+            "property": "tagName",
+            "operator": "equals",
+            "value": "DIV"
+          }
+        ]
+      },
+      {
+        "id": "marquee",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "marquee"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "base-cards",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "base-cards"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "banner-image",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "banner-image"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "tabs",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "tabs"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "columns",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "columns"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "carousel",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "carousel"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "accordion",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "accordion"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "tab-panel",
+        "rules": [
+          {
+            "property": "role",
+            "operator": "equals",
+            "value": "tabpanel"
+          }
+        ],
+        "appliesTo": {
+          "components": ["tabs"]
+        }
+      },
+      {
+        "id": "carousel-slide",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "carousel-slide"
+          }
+        ],
+        "appliesTo": {
+          "components": ["carousel"]
+        }
+      },
+      {
+        "id": "accordion-item",
+        "rules": [
+          {
+            "property": "tagName",
+            "operator": "equals",
+            "value": "DETAILS"
+          }
+        ],
+        "appliesTo": {
+          "components": ["accordion"]
+        }
+      }
+    ]
+  }

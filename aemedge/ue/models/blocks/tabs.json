@@ -1,0 +1,54 @@
+{
+    "definitions": [
+      {
+        "id": "tabs",
+        "plugins": {
+          "da": {
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Tab Name", "Content", "Image"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "tabs",
+        "fields": [
+          {
+            "name": "classes",
+            "type": "select",
+            "label": "Variant",
+            "multiSelect": true,
+            "options": [
+              { "value": "columns", "label": "Columns" },
+              { "value": "accordion", "label": "Accordion" },
+              { "value": "carousel", "label": "Carousel" },
+              { "value": "background", "label": "Background" },
+              { "value": "wide", "label": "Wide" }
+            ]
+          }
+        ]
+      }
+    ],
+    "filters": [
+      {
+        "id": "tabs",
+        "rules": [
+          {
+            "property": "id",
+            "operator": "contains",
+            "value": "tab-"
+          }
+        ],
+        "appliesTo": {
+          "components": ["tabs"]
+        }
+      }
+    ]
+  }

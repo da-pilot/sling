@@ -1,0 +1,83 @@
+{
+    "definitions": [
+      {
+        "id": "base-cards",
+        "plugins": {
+          "da": {
+            "decorators": [
+              {
+                "id": "container",
+                "options": {
+                  "emptyLabel": "Base Cards Block"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "base-cards",
+        "fields": [
+          {
+            "name": "Optional-Section-Title-Text",
+            "type": "text",
+            "label": "Section Title",
+            "defaultValue": "Sling TV Services"
+          },
+          {
+            "name": "Optional-Section-Subtitle-Text",
+            "type": "text",
+            "label": "Section Subtitle",
+            "defaultValue": "No annual contracts. Customize with extras."
+          },
+          {
+            "name": "Plan-Identifier",
+            "type": "select",
+            "label": "Plan Identifier",
+            "options": [
+              { "value": "one-month", "label": "One Month" },
+              { "value": "three-month", "label": "Three Month" },
+              { "value": "six-month", "label": "Six Month" }
+            ],
+            "defaultValue": "one-month"
+          },
+          {
+            "name": "Plan-Offer-Identifier",
+            "type": "text",
+            "label": "Plan Offer Identifier",
+            "defaultValue": "extra-stair-step-2"
+          },
+          {
+            "name": "Orange-Service-Title-Text",
+            "type": "text",
+            "label": "Orange Service Title",
+            "defaultValue": "Orange"
+          },
+          {
+            "name": "Blue-Service-Title-Text",
+            "type": "text",
+            "label": "Blue Service Title",
+            "defaultValue": "Blue"
+          },
+          {
+            "name": "Combo-Service-Title-Text",
+            "type": "text",
+            "label": "Combo Service Title",
+            "defaultValue": "Orange & Blue"
+          },
+          {
+            "name": "classes",
+            "type": "select",
+            "label": "Variant",
+            "options": [
+              { "value": "", "label": "Default" },
+              { "value": "wide", "label": "Wide" }
+            ]
+          }
+        ]
+      }
+    ],
+    "filters": []
+}

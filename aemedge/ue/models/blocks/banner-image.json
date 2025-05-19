@@ -1,0 +1,72 @@
+{
+    "definitions": [
+      {
+        "id": "banner-image",
+        "plugins": {
+          "da": {
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Image", "Content"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "banner-image",
+        "fields": [
+          {
+            "name": "image",
+            "type": "image",
+            "label": "Background Image",
+            "selector": ".banner-image > div:first-child > div:first-child img"
+          },
+          {
+            "name": "content",
+            "type": "richtext",
+            "label": "Content",
+            "selector": ".banner-image > div:first-child > div:nth-child(2)"
+          },
+          {
+            "name": "classes",
+            "type": "select",
+            "label": "Variant",
+            "multiSelect": true,
+            "options": [
+              { "value": "", "label": "Default" },
+              { "value": "dark", "label": "Dark" },
+              { "value": "light", "label": "Light" },
+              { "value": "full-width", "label": "Full Width" }
+            ]
+          },
+          {
+            "name": "classes_align",
+            "type": "select",
+            "label": "Content Alignment",
+            "options": [
+              { "value": "", "label": "Left" },
+              { "value": "center", "label": "Center" },
+              { "value": "right", "label": "Right" }
+            ]
+          },
+          {
+            "name": "classes_valign",
+            "type": "select",
+            "label": "Vertical Alignment",
+            "options": [
+              { "value": "top", "label": "Top" },
+              { "value": "middle", "label": "Middle" },
+              { "value": "bottom", "label": "Bottom" }
+            ],
+            "defaultValue": "middle"
+          }
+        ]
+      }
+    ],
+    "filters": []
+  }

@@ -1,0 +1,14 @@
+{
+    "componentModels": "/aemedge/ue/component-models.json",
+    "componentDefinitions": "/aemedge/ue/component-definitions.json",
+    "componentFilters": "/aemedge/ue/component-filters.json",
+    "pageTemplates": {
+      "default": "/ue-template.html"
+    },
+    "editorConfig": {
+      "features": {
+        "inlineEditing": true,
+        "dragAndDrop": true
+      }
+    }
+  }

@@ -760,6 +760,12 @@ async function loadPage() {
   // make the last button sticky on blog pages
   makeLastButtonSticky();
 }
+// UE Editor support
+if (window.location.hostname.includes('ue.da.live')) {
+  // eslint-disable-next-line import/no-unresolved
+  import(`${window.hlx.codeBasePath}/ue/scripts/ue.js`).then(({ default: ue }) => ue());
+}
+
 loadPage();
 // enable live preview in da.live
 (async function loadDa() {

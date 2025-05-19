@@ -1,0 +1,42 @@
+{
+    "/ue/models/blocks/marquee.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    },
+    "/ue/models/blocks/base-cards.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    },
+    "/ue/models/blocks/banner-image.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    },
+    "/ue/models/blocks/tabs.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    },
+    "/ue/models/blocks/columns.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    },
+    "/ue/models/blocks/carousel.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    },
+    "/ue/models/blocks/accordion.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    },
+    "/ue/models/section.json": {
+      "definitions": true,
+      "models": true,
+      "filters": true
+    }
+  }

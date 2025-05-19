@@ -1,0 +1,50 @@
+{
+    "definitions": [
+      {
+        "id": "columns",
+        "plugins": {
+          "da": {
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Column 1", "Column 2"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "columns",
+        "fields": [
+          {
+            "name": "column1",
+            "type": "richtext",
+            "label": "Column 1",
+            "selector": ".columns > div > div:first-child"
+          },
+          {
+            "name": "column2",
+            "type": "richtext",
+            "label": "Column 2",
+            "selector": ".columns > div > div:nth-child(2)"
+          },
+          {
+            "name": "classes",
+            "type": "select",
+            "label": "Variant",
+            "multiSelect": true,
+            "options": [
+              { "value": "", "label": "Default" },
+              { "value": "reverse", "label": "Reverse on Mobile" },
+              { "value": "wide", "label": "Wide" }
+            ]
+          }
+        ]
+      }
+    ],
+    "filters": []
+  }

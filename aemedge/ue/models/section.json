@@ -1,0 +1,57 @@
+{
+    "definitions": [
+      {
+        "title": "Section",
+        "id": "section",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div></div>"
+          }
+        },
+        "filter": "section",
+        "model": "section"
+      }
+    ],
+    "models": [
+      {
+        "id": "section",
+        "fields": [
+          {
+            "component": "text",
+            "name": "anchor",
+            "label": "Anchor"
+          },
+          {
+            "component": "multiselect",
+            "name": "style",
+            "label": "Style",
+            "options": [
+              {
+                "name": "Collapse",
+                "value": "collapse"
+              },
+              {
+                "name": "Light",
+                "value": "light"
+              },
+              {
+                "name": "Banner",
+                "value": "banner"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "filters": [
+      {
+        "id": "section",
+        "components": [
+          "hero",
+          "image",
+          "text",
+          "cards"
+        ]
+      }
+    ]
+  }

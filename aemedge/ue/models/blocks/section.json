@@ -1,0 +1,146 @@
+{
+    "definitions": [
+      {
+        "id": "section",
+        "plugins": {
+          "da": {
+            "decorators": [
+              {
+                "id": "container"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "section",
+        "fields": [
+          {
+            "name": "classes",
+            "type": "multifield",
+            "label": "Section Styles",
+            "items": {
+              "type": "select",
+              "options": [
+                { "value": "dark", "label": "Dark Background" },
+                { "value": "light", "label": "Light Background" },
+                { "value": "highlight", "label": "Highlight Background" },
+                { "value": "center", "label": "Center Content" },
+                { "value": "wide", "label": "Full Width" }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "filters": [
+      {
+        "id": "section",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "section"
+          },
+          {
+            "property": "tagName",
+            "operator": "equals",
+            "value": "DIV"
+          }
+        ]
+      },
+      {
+        "id": "marquee",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "marquee"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "base-cards",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "base-cards"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "banner-image",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "banner-image"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "tabs",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "tabs"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "columns",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "columns"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "carousel",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "carousel"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      },
+      {
+        "id": "accordion",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "accordion"
+          }
+        ],
+        "appliesTo": {
+          "components": ["section"]
+        }
+      }
+    ]
+  }

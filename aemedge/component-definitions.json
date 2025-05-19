@@ -1,0 +1,264 @@
+{
+    "version": 1,
+    "definitions": [
+      {
+        "id": "text",
+        "title": "Text",
+        "plugins": {
+          "da": {
+            "name": "text",
+            "type": "text"
+          }
+        }
+      },
+      {
+        "id": "image",
+        "title": "Image",
+        "plugins": {
+          "da": {
+            "name": "image",
+            "type": "image"
+          }
+        }
+      },
+      {
+        "id": "section",
+        "title": "Section",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div></div>",
+            "decorators": [
+              {
+                "id": "container"
+              }
+            ]
+          }
+        },
+        "filter": "section",
+        "model": "section"
+      },
+      {
+        "id": "cards",
+        "title": "Cards",
+        "plugins": {
+          "da": {
+            "name": "cards",
+            "rows": 1,
+            "columns": 2
+          }
+        },
+        "model": "cards",
+        "filter": "cards"
+      },
+      {
+        "id": "card",
+        "title": "Card",
+        "plugins": {
+          "da": {
+            "name": "card",
+            "rows": 2,
+            "columns": 0
+          }
+        },
+        "model": "card"
+      },
+      {
+        "id": "hero",
+        "title": "Hero",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"hero\"><div><div><p><a href=\"\">Hero Video</a></p><p></p><h1></h1><p><a href=\"\" >Learn More</a></p><p><em><sub></sub></em></p></div></div></div>"
+          }
+        }
+      },
+      {
+        "id": "marquee",
+        "title": "Marquee",
+        "description": "A marquee component for highlighting content",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"marquee\"><div><div><h2>Welcome to Sling</h2><p>Stream your favorite channels</p><p><a href=\"\" class=\"button primary\">Learn More</a></p></div></div></div>",
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Marquee Content"]
+                }
+              }
+            ]
+          }
+        },
+        "model": "marquee",
+        "filter": "marquee"
+      },
+      {
+        "id": "base-cards",
+        "title": "Base Cards",
+        "description": "Display service cards with pricing and features",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"base-cards\"><div><div><h2>Sling TV Services</h2><p>No annual contracts. Customize with extras.</p></div></div></div>",
+            "decorators": [
+              {
+                "id": "container",
+                "options": {
+                  "emptyLabel": "Base Cards Block"
+                }
+              }
+            ]
+          }
+        },
+        "model": "base-cards",
+        "filter": "base-cards"
+      },
+      {
+        "id": "banner-image",
+        "title": "Banner Image",
+        "description": "Banner with background image and content",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"banner-image\"><div><div><picture><img src=\"/placeholder-1200x600.png\" alt=\"Banner Image\"></picture></div><div><h2>Banner Title</h2><p>Banner description text goes here.</p><p><a href=\"\" class=\"button primary\">Call to Action</a></p></div></div></div>",
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Image", "Content"]
+                }
+              }
+            ]
+          }
+        },
+        "model": "banner-image",
+        "filter": "banner-image"
+      },
+      {
+        "id": "tabs",
+        "title": "Tabs",
+        "description": "Tabbed content for organizing information",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"tabs\"><div><div>Tab 1</div><div><h3>Tab 1 Content</h3><p>Content for the first tab goes here.</p></div></div><div><div>Tab 2</div><div><h3>Tab 2 Content</h3><p>Content for the second tab goes here.</p></div></div></div>",
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Tab Name", "Content", "Image"]
+                }
+              }
+            ]
+          }
+        },
+        "model": "tabs",
+        "filter": "tabs"
+      },
+      {
+        "id": "tabs-background",
+        "title": "Tabs with Background",
+        "description": "Tabbed content with background colors",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"tabs background\"><div><div>Tab 1</div><div>#171725</div><div><h3>Tab 1 Content</h3><p>Content for the first tab goes here.</p></div><div><picture><img src=\"/placeholder-600x400.png\" alt=\"Tab Image\"></picture></div></div><div><div>Tab 2</div><div>#171725</div><div><h3>Tab 2 Content</h3><p>Content for the second tab goes here.</p></div><div><picture><img src=\"/placeholder-600x400.png\" alt=\"Tab Image\"></picture></div></div></div>",
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Tab Name", "Background", "Content", "Image"]
+                }
+              }
+            ]
+          }
+        },
+        "model": "tabs",
+        "filter": "tabs"
+      },
+      {
+        "id": "columns",
+        "title": "Columns",
+        "description": "Content displayed in multiple columns",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"columns\"><div><div><h3>Column 1</h3><p>Content for the first column.</p></div><div><h3>Column 2</h3><p>Content for the second column.</p></div></div></div>",
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Column 1", "Column 2"]
+                }
+              }
+            ]
+          }
+        },
+        "model": "columns",
+        "filter": "columns"
+      },
+      {
+        "id": "carousel",
+        "title": "Carousel",
+        "description": "Rotating content slider",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"carousel\"><div><div><picture><img src=\"/placeholder-800x500.png\" alt=\"Slide 1\"></picture></div></div><div><div><picture><img src=\"/placeholder-800x500.png\" alt=\"Slide 2\"></picture></div></div><div><div><picture><img src=\"/placeholder-800x500.png\" alt=\"Slide 3\"></picture></div></div></div>",
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Slide Content"]
+                }
+              }
+            ]
+          }
+        },
+        "model": "carousel",
+        "filter": "carousel"
+      },
+      {
+        "id": "accordion",
+        "title": "Accordion",
+        "description": "Expandable content sections",
+        "plugins": {
+          "da": {
+            "unsafeHTML": "<div class=\"accordion\"><div><div><details><summary><p>Accordion Item 1</p></summary><div class=\"accordion-item-body\"><p>Content for accordion item 1.</p></div></details></div></div><div><div><details><summary><p>Accordion Item 2</p></summary><div class=\"accordion-item-body\"><p>Content for accordion item 2.</p></div></details></div></div></div>",
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Title", "Content"]
+                }
+              }
+            ]
+          }
+        },
+        "model": "accordion",
+        "filter": "accordion"
+      }
+    ],
+    "groups": [
+      {
+        "title": "Default Content",
+        "id": "default",
+        "components": ["text", "image"]
+      },
+      {
+        "title": "Sections",
+        "id": "sections",
+        "components": ["section"]
+      },
+      {
+        "title": "Blocks",
+        "id": "blocks",
+        "components": [
+          "cards", 
+          "card", 
+          "hero", 
+          "marquee", 
+          "base-cards", 
+          "banner-image", 
+          "tabs", 
+          "tabs-background", 
+          "columns", 
+          "carousel", 
+          "accordion"
+        ]
+      }
+    ]
+  }

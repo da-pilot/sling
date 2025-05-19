@@ -1,0 +1,81 @@
+{
+    "definitions": [
+      {
+        "id": "carousel",
+        "plugins": {
+          "da": {
+            "decorators": [
+              {
+                "id": "table",
+                "options": {
+                  "headings": ["Slide Content"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "models": [
+      {
+        "id": "carousel",
+        "fields": [
+          {
+            "name": "classes",
+            "type": "select",
+            "label": "Variant",
+            "options": [
+              { "value": "", "label": "Default" },
+              { "value": "wide", "label": "Wide" },
+              { "value": "dark", "label": "Dark Background" }
+            ]
+          },
+          {
+            "name": "autoplay",
+            "type": "checkbox",
+            "label": "Auto Rotation",
+            "defaultValue": true
+          },
+          {
+            "name": "interval",
+            "type": "number",
+            "label": "Rotation Interval (ms)",
+            "defaultValue": 5000,
+            "min": 1000,
+            "max": 10000,
+            "step": 500,
+            "visibilityCondition": {
+              "field": "autoplay",
+              "equals": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "carousel-slide",
+        "fields": [
+          {
+            "name": "content",
+            "type": "richtext",
+            "label": "Slide Content",
+            "selector": ".carousel-slide"
+          }
+        ]
+      }
+    ],
+    "filters": [
+      {
+        "id": "carousel-slide",
+        "rules": [
+          {
+            "property": "className",
+            "operator": "contains",
+            "value": "carousel-slide"
+          }
+        ],
+        "appliesTo": {
+          "components": ["carousel"]
+        }
+      }
+    ]
+  }
