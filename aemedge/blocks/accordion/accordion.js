@@ -86,11 +86,18 @@ export function rebindEvents(block) {
   const items = block.querySelectorAll('.details.accordion-items');
   items.forEach((item) => {
     const summary = item.querySelector('.summary.accordion-item-label');
-    if (summary) {
+    const answer = summary ? summary.nextSibling : null;
+    if (summary && answer) {
       summary.onclick = null;
       summary.addEventListener('click', () => {
-        const expanded = item.classList.toggle('expanded');
-        console.log('[DEBUG] Accordion item toggled:', item, 'Expanded:', expanded);
+        const faqitem = item;
+        faqitem.classList.toggle('open');
+        if (answer.style.maxHeight) {
+          answer.style.maxHeight = null;
+        } else {
+          answer.style.maxHeight = `${answer.scrollHeight}px`;
+        }
+        console.log('[DEBUG] Accordion item toggled:', item, 'Open:', faqitem.classList.contains('open'));
       });
     }
   });
