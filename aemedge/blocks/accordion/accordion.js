@@ -82,18 +82,16 @@ export default function decorate(block) {
 }
 
 export function rebindEvents(block) {
-  const questions = block.querySelectorAll('.accordion-items .summary');
-  questions.forEach((item) => {
-    item.onclick = null;
-    item.addEventListener('click', () => {
-      const answer = item.nextSibling;
-      const faqitem = item.parentElement;
-      faqitem.classList.toggle('open');
-      if (answer.style.maxHeight) {
-        answer.style.maxHeight = null;
-      } else {
-        answer.style.maxHeight = `${answer.scrollHeight}px`;
-      }
-    });
+  console.log('[DEBUG] ACCORDION rebindEvents called for block:', block);
+  const items = block.querySelectorAll('.details.accordion-items');
+  items.forEach((item) => {
+    const summary = item.querySelector('.summary.accordion-item-label');
+    if (summary) {
+      summary.onclick = null;
+      summary.addEventListener('click', () => {
+        const expanded = item.classList.toggle('expanded');
+        console.log('[DEBUG] Accordion item toggled:', item, 'Expanded:', expanded);
+      });
+    }
   });
 }

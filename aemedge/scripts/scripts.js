@@ -976,6 +976,7 @@ function setupBlockObserver() {
     const blocks = document.querySelectorAll(blocksToCheck);
 
     blocks.forEach((block) => {
+      console.log('[DEBUG] Periodic check block:', block, block.className);
       // Compute hash of current content
       const currentHash = hashString(block.innerHTML);
       const lastHash = blockContentHashes.get(block);
@@ -993,6 +994,7 @@ function setupBlockObserver() {
         || (block.classList.contains('block') && block.classList.contains(blockName)));
 
       if (blockType) {
+        console.log('[DEBUG] Periodic rebinding for block type:', blockType, block);
         // Import the block module and call rebindEvents
         const importPath = window.hlx?.codeBasePath
           ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
