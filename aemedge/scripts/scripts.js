@@ -10,6 +10,8 @@ import {
   rebindFlaggedBlocks,
   handleTargetSections,
   martechLoadedPromise,
+  setupPersonalizationEventRules,
+  setupAnalyticsEventRules,
 } from './martech-utils.js';
 
 import {
@@ -734,6 +736,11 @@ async function loadLazy(doc) {
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
   await martechLazy();
+
+  // --- Trigger pageview analytics event after all lazy content and personalization is done ---
+  // Register analytics event rules (if any)
+  setupAnalyticsEventRules();
+  document.dispatchEvent(new Event('pageview'));
 }
 
 /**
@@ -749,6 +756,7 @@ function loadDelayed() {
 
 async function loadPage() {
   window.adobeDataLayer = window.adobeDataLayer || [];
+  setupPersonalizationEventRules();
   setupBlockObserver();
   await loadEager(document);
   await loadLazy(document);

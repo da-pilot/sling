@@ -16,6 +16,8 @@ import {
   isPersonalizationEnabled,
   getPersonalizationForView,
   applyPersonalization,
+  pushToDataLayer,
+  pushEventToDataLayer,
 } from '../plugins/martech/src/index.js';
 
 // --- Martech Config ---
@@ -184,6 +186,153 @@ export function handleTargetSections(doc) {
   });
 }
 
+// Add XDM mapping utility for page load
+function mapPageLoadToXDM(params) {
+  return {
+    eventType: params.eventType || 'web.webpagedetails.pageViews',
+    web: {
+      webPageDetails: {
+        url: params.url,
+        name: params.pageName,
+        domain: params.server,
+        siteSection: params.siteSection,
+        type: params.siteSubSection,
+        language: params.language,
+        pName: params.pName,
+        pURL: params.pURL,
+      },
+      user: {
+        ecid: params.ecid,
+        guid: params.guid,
+        dma: params.dma,
+        accountStatus: params.accountStatus,
+        authState: params.authenticatedState,
+      },
+      platform: params.platform,
+      currentChannel: params.currentChannel,
+      _sling: {
+        appName: 'aem-marketing-site',
+        analyticsVersion: '7.0.38',
+      },
+    },
+    zipcode: params.zipcode,
+    selectedLanguage: params.selectedLanguage,
+    screenLoadFired: true,
+  };
+}
+
+// Utility to gather all page/user/environment info for analytics
+function getPageLoadParams() {
+  // Helper to get cookie value
+  const getCookieValue = (name) => {
+    const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+    return match ? match[2] : '';
+  };
+  // Helper to get localStorage value
+  const getLocalStorage = (key) => {
+    try {
+      return localStorage.getItem(key) || '';
+    } catch {
+      return '';
+    }
+  };
+  // Determine siteSection and siteSubSection from URL or other logic
+  let siteSection = '';
+  let siteSubSection = '';
+  const url = window.location.href;
+  if (url.includes('/whatson')) {
+    siteSection = 'domestic';
+    siteSubSection = 'blog';
+  } else if (url.includes('/help')) {
+    siteSection = 'domestic';
+    siteSubSection = 'help';
+  } else if (url === `${window.location.origin}/`) {
+    siteSection = 'domestic';
+    siteSubSection = 'home';
+  } else {
+    siteSection = 'domestic';
+    siteSubSection = 'generic';
+  }
+  return {
+    ecid: getCookieValue('AMCV_9425401053CD40810A490D4C@AdobeOrg'),
+    url,
+    pageName: document.title,
+    server: window.location.hostname,
+    siteSection,
+    siteSubSection,
+    language: document.documentElement.lang || 'en',
+    pName: getCookieValue('pPage'),
+    pURL: getCookieValue('pURL'),
+    guid: getLocalStorage('sling_user_guid'),
+    dma: getLocalStorage('user_dma'),
+    accountStatus: getLocalStorage('account_status'),
+    authenticatedState: 'logged_out', // Update if you have auth logic
+    platform: 'web', // or 'mobile' if you have logic for this
+    currentChannel: getCookieValue('aaMC'),
+    zipcode: getLocalStorage('user_zip'),
+    selectedLanguage: document.documentElement.lang || 'en',
+  };
+}
+
+// --- Personalization (Target) Event Rules ---
+export function setupPersonalizationEventRules() {
+  // Listen for zipcode updates and trigger Target event
+  document.addEventListener('zipupdate', (e) => {
+    const { zipcode } = e.detail;
+    pushEventToDataLayer(
+      'zipcode-update',
+      {
+        web: {
+          user: {
+            zipcode,
+          },
+        },
+      },
+      {
+        __adobe: {
+          target: {
+            zipcode,
+          },
+        },
+      },
+    );
+  });
+
+  // Listen for local channel availability (after API call)
+  document.addEventListener('localchannels-available', (e) => {
+    const { zipcode, channels } = e.detail;
+    pushEventToDataLayer(
+      'localchannels-available',
+      {
+        web: {
+          user: {
+            zipcode,
+          },
+        },
+        localChannels: channels, // XDM extension for local channel info
+      },
+      {
+        __adobe: {
+          target: {
+            zipcode,
+            localChannels: channels,
+          },
+        },
+      },
+    );
+  });
+}
+
+// --- Analytics Event Rules (scaffold for future expansion) ---
+export function setupAnalyticsEventRules() {
+  // Listen for a custom analytics event: pageview
+  document.addEventListener('pageview', () => {
+    const params = getPageLoadParams();
+    const xdm = mapPageLoadToXDM(params);
+    pushToDataLayer({ xdm });
+  });
+}
+
 export {
   martechEager,
   martechLazy,
@@ -192,4 +341,8 @@ export {
   getPersonalizationForView,
   applyPersonalization,
   updateUserConsent,
+  pushToDataLayer,
+  getPageLoadParams,
+  mapPageLoadToXDM,
+  pushEventToDataLayer,
 };
