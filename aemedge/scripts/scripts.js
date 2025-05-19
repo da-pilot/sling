@@ -1,22 +1,16 @@
 /* eslint-disable import/no-relative-packages */
 /* eslint-disable no-underscore-dangle */
 
-// import {
-//  martechLoadedPromise,
-//  martechEager,
-//  martechLazy,
-//  martechDelayed,
-// } from './martech-loader.js';
-
-// import { setDataLayer } from './datalayer-utils.js';
 /* eslint-disable no-underscore-dangle */
 import {
-  initMartech,
-  // updateUserConsent,
   martechEager,
   martechLazy,
   martechDelayed,
-} from '../plugins/martech/src/index.js';
+  setupBlockObserver,
+  rebindFlaggedBlocks,
+  handleTargetSections,
+  martechLoadedPromise,
+} from './martech-utils.js';
 
 import {
   buildBlock,
@@ -32,7 +26,6 @@ import {
   decorateBlock,
   loadBlock,
   toClassName,
-  // loadScript,
 } from './aem.js';
 
 import {
@@ -463,8 +456,6 @@ export function makeLastButtonSticky() {
   }
 }
 
-/* LOOKING FOR CURLY BRACES */
-
 /**
  * Extracts color + number information from text content in curly braces.
  * @returns {Object|null} - An object containing the extracted color
@@ -637,27 +628,11 @@ function decorateLinkedImages() {
   });
 }
 
-// async function loadLaunchEager() {
-//  const isTarget = getMetadata('target');
-//  if (isTarget && isTarget.toLowerCase() === 'true') {
-//    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
-//    if (window.location.host.startsWith('localhost')) {
-//      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
-//    } else if (window.location.host.startsWith('www.sling.com')
-// || window.location.host.endsWith('.live')) {
-//      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
-//    } else if (window.location.host.endsWith('.page')) {
-//      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
-//    }
-//  }
-// }
 /**
    * Decorates the main element.
    * @param {Element} main The main element
    */
-// eslint-disable-next-line import/prefer-default-export
 export function decorateMain(main) {
-  // hopefully forward compatible button decoration
   centerHeadlines();
   decorateIcons(main);
   buildAutoBlocks(main);
@@ -678,58 +653,6 @@ export function decorateMain(main) {
    * @param {Element} doc The container element
    */
 async function loadEager(doc) {
-  // const isConsentGiven = true;
-  const martechLoadedPromise = initMartech(
-    // The WebSDK config
-    // Documentation: https://experienceleague.adobe.com/en/docs/experience-platform/web-sdk/commands/configure/overview#configure-js
-    {
-      datastreamId: 'cce7e9e9-6e47-4b10-b74d-0e16cb8d3f01', // b854d2aa-518d-4a36-9ff1-856c71d83ce2
-      orgId: 'C8F3055362AB2C450A495E69@AdobeOrg', // ACS Sandbox
-      onBeforeEventSend: (payload) => {
-        // set custom Target params
-        // see doc at https://experienceleague.adobe.com/en/docs/platform-learn/migrate-target-to-websdk/send-parameters#parameter-mapping-summary
-        payload.data.__adobe.target ||= {};
-
-        // set custom Analytics params
-        // see doc at https://experienceleague.adobe.com/en/docs/analytics/implementation/aep-edge/data-var-mapping
-        payload.data.__adobe.analytics ||= {};
-      },
-
-      // set custom datastream overrides
-      // see doc at:
-      // - https://experienceleague.adobe.com/en/docs/experience-platform/web-sdk/commands/datastream-overrides
-      // - https://experienceleague.adobe.com/en/docs/experience-platform/datastreams/overrides
-      edgeConfigOverrides: {
-        // Override the datastream id
-        // datastreamId: '...'
-
-        // Override AEP event datasets
-        // com_adobe_experience_platform: {
-        //   datasets: {
-        //     event: {
-        //       datasetId: '...'
-        //     }
-        //   }
-        // },
-
-        // Override the Analytics report suites
-        // com_adobe_analytics: {
-        //   reportSuites: ['...']
-        // },
-
-        // Override the Target property token
-        // com_adobe_target: {
-        //   propertyToken: '...'
-        // }
-      },
-    },
-    // The library config
-    {
-      launchUrls: [/* your Launch script URLs here */],
-      // personalization: !!getMetadata('target') && isConsentGiven,
-      personalization: true,
-    },
-  );
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
@@ -744,12 +667,6 @@ async function loadEager(doc) {
       waitForLCP(LCP_BLOCKS),
     ]);
     document.body.classList.add('appear');
-    // await Promise.all([
-    //  martechLoadedPromise.then(martechEager),
-    //  waitForLCP(LCP_BLOCKS),
-    //  // loadSection(main.querySelector('.section'), waitForFirstImage),
-    // ]);
-    // await waitForLCP(LCP_BLOCKS);
   }
 
   try {
@@ -824,185 +741,21 @@ async function loadLazy(doc) {
    * without impacting the user experience.
    */
 function loadDelayed() {
-  // eslint-disable-next-line import/no-cycle
-  // window.setTimeout(() => import('./delayed.js'), 3000);
-  // load anything that can be postponed to the latest here
   window.setTimeout(async () => {
     await martechDelayed();
     return import('./delayed.js');
   }, 3000);
 }
 
-/**
- * Handles section nesting when sections have the same fragment-id
- * @param {Element} section The section element to check
- */
-function handleTargetSections(doc) {
-  const main = doc.querySelector('main');
-  main.querySelectorAll(':scope > div.section').forEach((section) => {
-    const childSection = section.querySelector('div.section');
-    if (childSection) {
-      const parentFragmentId = section.getAttribute('data-fragment-id');
-      const childFragmentId = childSection.getAttribute('data-fragment-id');
-      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
-        section.replaceWith(childSection);
-      }
-    }
-  });
-}
-
-// Define an array of block names to observe
-const blocksToObserve = [
-  'carousel', // Has slide navigation and auto-scroll
-  'accordion', // Has expand/collapse functionality
-  'tabs', // Has tab switching functionality
-  'modal', // Has dialog show/hide and close button events
-  'image-slider', // Has auto-scrolling functionality
-  'game-finder', // Has interactive React app elements
-  'channel-lookup', // Has form submission and API interactions
-  'chat', // Has interactive chat functionality
-  'marquee', // Has scroll CTA and resize handlers
-  'offer-cards', // Has resize event handlers
-  'channel-shopper', // Has IntersectionObserver and React app
-  'category', // Has media query listeners and author click handlers
-];
-
-// Set to collect blocks that need rebinding
-const blocksNeedingRebind = new Set();
-
-function isHeaderOrFooter(el) {
-  let parent = el.parentElement;
-  while (parent) {
-    if (parent.tagName === 'HEADER' || parent.tagName === 'FOOTER') return true;
-    parent = parent.parentElement;
-  }
-  return false;
-}
-
-function rebindFlaggedBlocks() {
-  blocksNeedingRebind.forEach((el) => {
-    // Use data-block-name as the primary block type, fallback to class matching
-    const blockType = el.getAttribute('data-block-name')
-      || blocksToObserve.find((blockName) => el.classList.contains(blockName)
-        || (el.classList.contains('block') && el.classList.contains(blockName)));
-    if (blockType) {
-      const importPath = window.hlx?.codeBasePath
-        ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
-        : `/aemedge/blocks/${blockType}/${blockType}.js`;
-      import(importPath)
-        .then((module) => {
-          if (module.rebindEvents) {
-            module.rebindEvents(el);
-            el.setAttribute('data-bound', 'true');
-            if (el.hasAttribute('data-rebind')) {
-              el.removeAttribute('data-rebind');
-            }
-          }
-        })
-        .catch(() => {
-          // Try alternative path resolution
-          const altImportPath = `../blocks/${blockType}/${blockType}.js`;
-          import(altImportPath)
-            .then((module) => {
-              if (module.rebindEvents) {
-                module.rebindEvents(el);
-                el.setAttribute('data-bound', 'true');
-                if (el.hasAttribute('data-rebind')) {
-                  el.removeAttribute('data-rebind');
-                }
-              }
-            })
-            .catch(() => {
-              // Handle error silently
-            });
-        });
-    }
-  });
-  blocksNeedingRebind.clear();
-}
-
-function setupBlockObserver() {
-  // Create a MutationObserver to watch for DOM changes
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        console.log('[DEBUG] Mutation observed:', mutation);
-        // Process each added node and its descendants
-        mutation.addedNodes.forEach((node) => {
-          // Skip text nodes and nodes that are directly in header or footer
-          if (node.nodeType !== Node.ELEMENT_NODE
-              || (node.parentElement
-               && (node.parentElement.tagName === 'HEADER'
-                || node.parentElement.tagName === 'FOOTER'))) {
-            return;
-          }
-
-          // Collect the node itself and all its descendants with class 'block'
-          const nodesToCheck = [node];
-          if (node.querySelectorAll) {
-            node.querySelectorAll('.block').forEach((descendant) => {
-              nodesToCheck.push(descendant);
-            });
-          }
-
-          nodesToCheck.forEach((el) => {
-            if (isHeaderOrFooter(el)) return;
-            console.log('[DEBUG] Checking node for observed block:', el);
-            // Check if the element is one of the blocks we want to observe
-            const isObservedBlock = el.classList
-              && blocksToObserve.some((blockName) => el.classList.contains(blockName)
-                || (el.classList.contains('block') && el.classList.contains(blockName)));
-            if (isObservedBlock) {
-              blocksNeedingRebind.add(el);
-            }
-          });
-        });
-      }
-    });
-  });
-
-  // Start observing the document body for changes
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
-
-  // Disconnect after 10 seconds for safety
-  setTimeout(() => {
-    observer.disconnect();
-    console.log('[DEBUG] MutationObserver disconnected after 10 seconds.');
-  }, 10000);
-}
-
-/**
- * Sets data-rebind="true" for all blocks of the given class (e.g., 'tabs', 'accordion').
- * Usage: setRebindForAllBlocks('tabs');
- */
-export function setRebindForAllBlocks(blockClass) {
-  document.querySelectorAll(`.${blockClass}.block`).forEach((el) => el.setAttribute('data-rebind', 'true'));
-}
-
 async function loadPage() {
   window.adobeDataLayer = window.adobeDataLayer || [];
-  // Set up observer for block DOM changes as early as possible
   setupBlockObserver();
-  // await setDataLayer();
-  // load everything that needs to be loaded eagerly
   await loadEager(document);
-  // load everything that needs to be loaded later
   await loadLazy(document);
-  // Rebind all flagged blocks after all content is loaded
   rebindFlaggedBlocks();
-  // Optionally disconnect observer here if you want
-  // observer.disconnect();
-  // Start observing for section changes after initial decoration
   handleTargetSections(document);
   configSideKick();
-  // load launch eagerly when target metadata is set to true
-  // await loadLaunchEager();
-  // load everything that needs to be loaded later
   loadDelayed();
-  // make the last button sticky on blog pages
   makeLastButtonSticky();
 }
 loadPage();

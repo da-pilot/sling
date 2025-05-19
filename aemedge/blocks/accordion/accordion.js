@@ -82,7 +82,6 @@ export default function decorate(block) {
 }
 
 export function rebindEvents(block) {
-  console.log('[DEBUG] ACCORDION rebindEvents called for block:', block);
   const items = block.querySelectorAll('.details.accordion-items');
   items.forEach((item) => {
     const summary = item.querySelector('.summary.accordion-item-label');
@@ -97,7 +96,6 @@ export function rebindEvents(block) {
         } else {
           answer.style.maxHeight = `${answer.scrollHeight}px`;
         }
-        console.log('[DEBUG] Accordion item toggled:', item, 'Open:', faqitem.classList.contains('open'));
       });
     }
   });
