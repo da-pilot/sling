@@ -180,7 +180,7 @@ export default async function decorate(block) {
         navSection.replaceChild(aTag, navheading);
       }
       if (navSection.querySelector('ul')) navSection.classList.add('nav-drop');
-      navSection.addEventListener('click', (event) => {        
+      navSection.addEventListener('click', (event) => {
         if (isDesktop.matches) {
           const expanded = navSection.getAttribute('aria-expanded') === 'true';
           toggleAllNavSections(navSections);
