@@ -1,3 +1,4 @@
+/* eslint-disable import/no-relative-packages */
 /* eslint-disable import/no-unresolved */
 /*
  * martech-personalization.js
@@ -15,7 +16,7 @@ import {
   isPersonalizationEnabled,
   getPersonalizationForView,
   applyPersonalization,
-} from '../plugins/martech/index.js';
+} from '../plugins/martech/src/index.js';
 
 // --- Martech Config ---
 const DEFAULT_ALLOY_CONFIG = {
