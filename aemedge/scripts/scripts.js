@@ -851,21 +851,6 @@ function handleTargetSections(doc) {
   });
 }
 
-// Helper to compute a simple hash of a string (djb2)
-// eslint-disable-next-line no-bitwise
-function hashString(str) {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i += 1) {
-    // eslint-disable-next-line no-bitwise
-    hash = ((hash << 5) + hash) + str.charCodeAt(i);
-  }
-  // eslint-disable-next-line no-bitwise
-  return hash >>> 0;
-}
-
-// Map to store last known hash for each block
-const blockContentHashes = new WeakMap();
-
 /**
  * Sets up a MutationObserver to watch for block replacements in the DOM
  * and reinitialize them when they are replaced.
@@ -918,6 +903,41 @@ function setupBlockObserver() {
               && blocksToObserve.some((blockName) => el.classList.contains(blockName)
                 || (el.classList.contains('block') && el.classList.contains(blockName)));
 
+            // If the block has data-rebind attribute, force rebind
+            if (isObservedBlock && el.hasAttribute('data-rebind')) {
+              const blockType = blocksToObserve.find((blockName) => el.classList.contains(blockName)
+                || (el.classList.contains('block') && el.classList.contains(blockName)));
+              if (blockType) {
+                console.log(`[DEBUG] Forced rebind for block type (data-rebind): ${blockType}`, el);
+                const importPath = window.hlx?.codeBasePath
+                  ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+                  : `/aemedge/blocks/${blockType}/${blockType}.js`;
+                import(importPath)
+                  .then((module) => {
+                    if (module.rebindEvents) {
+                      module.rebindEvents(el);
+                      el.setAttribute('data-bound', 'true');
+                      el.removeAttribute('data-rebind');
+                    }
+                  })
+                  .catch(() => {
+                    // Try alternative path resolution
+                    const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+                    import(altImportPath)
+                      .then((module) => {
+                        if (module.rebindEvents) {
+                          module.rebindEvents(el);
+                          el.setAttribute('data-bound', 'true');
+                          el.removeAttribute('data-rebind');
+                        }
+                      })
+                      .catch(() => {
+                        // Handle error silently
+                      });
+                  });
+              }
+            }
+
             if (isObservedBlock) {
               // Determine which block type this is
               const blockType = blocksToObserve.find((blockName) => el.classList.contains(blockName)
@@ -966,65 +986,21 @@ function setupBlockObserver() {
     subtree: true,
   });
 
-  // Also set up a periodic check for blocks that need rebinding
-  setInterval(() => {
-    // Find all blocks in the main content area that need rebinding
-    const blocksToCheck = blocksToObserve
-      .map((blockName) => `main .${blockName}, main .block.${blockName}`)
-      .join(', ');
+  // Remove the periodic check for blocks that need rebinding
 
-    const blocks = document.querySelectorAll(blocksToCheck);
+  // After 3 seconds, disconnect the observer
+  setTimeout(() => {
+    observer.disconnect();
+    console.log('[DEBUG] MutationObserver disconnected after 3 seconds.');
+  }, 3000);
+}
 
-    blocks.forEach((block) => {
-      console.log('[DEBUG] Periodic check block:', block, block.className);
-      // Compute hash of current content
-      const currentHash = hashString(block.innerHTML);
-      const lastHash = blockContentHashes.get(block);
-      // If hash changed or block is not bound, rebind
-      if (block.hasAttribute('data-bound') && lastHash === currentHash) {
-        return;
-      }
-      // Update hash
-      blockContentHashes.set(block, currentHash);
-      // Remove data-bound to force rebinding
-      block.removeAttribute('data-bound');
-
-      // Determine which block type this is
-      const blockType = blocksToObserve.find((blockName) => block.classList.contains(blockName)
-        || (block.classList.contains('block') && block.classList.contains(blockName)));
-
-      if (blockType) {
-        console.log('[DEBUG] Periodic rebinding for block type:', blockType, block);
-        // Import the block module and call rebindEvents
-        const importPath = window.hlx?.codeBasePath
-          ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
-          : `/aemedge/blocks/${blockType}/${blockType}.js`;
-
-        import(importPath)
-          .then((module) => {
-            if (module.rebindEvents) {
-              module.rebindEvents(block);
-              block.setAttribute('data-bound', 'true');
-            }
-          })
-          .catch(() => {
-            // Try alternative path resolution
-            const altImportPath = `../blocks/${blockType}/${blockType}.js`;
-
-            import(altImportPath)
-              .then((module) => {
-                if (module.rebindEvents) {
-                  module.rebindEvents(block);
-                  block.setAttribute('data-bound', 'true');
-                }
-              })
-              .catch(() => {
-                // Handle error silently
-              });
-          });
-      }
-    });
-  }, 2000); // Check every 2 seconds
+/**
+ * Sets data-rebind="true" for all blocks of the given class (e.g., 'tabs', 'accordion').
+ * Usage: setRebindForAllBlocks('tabs');
+ */
+export function setRebindForAllBlocks(blockClass) {
+  document.querySelectorAll(`.${blockClass}.block`).forEach((el) => el.setAttribute('data-rebind', 'true'));
 }
 
 async function loadPage() {
