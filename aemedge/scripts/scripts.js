@@ -892,7 +892,7 @@ function setupBlockObserver() {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        // Process each added node
+        // Process each added node and its descendants
         mutation.addedNodes.forEach((node) => {
           // Skip text nodes and nodes that are directly in header or footer
           if (node.nodeType !== Node.ELEMENT_NODE
@@ -902,46 +902,56 @@ function setupBlockObserver() {
             return;
           }
 
-          // Check if the added node is one of the blocks we want to observe
-          const isObservedBlock = node.classList
-          && blocksToObserve.some((blockName) => node.classList.contains(blockName)
-            || (node.classList.contains('block') && node.classList.contains(blockName)));
-
-          if (isObservedBlock) {
-            // Determine which block type this is
-            const blockType = blocksToObserve.find((blockName) => node.classList.contains(blockName)
-              || (node.classList.contains('block') && node.classList.contains(blockName)));
-
-            if (blockType) {
-              // Import the block module and call rebindEvents
-              const importPath = window.hlx?.codeBasePath
-                ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
-                : `/aemedge/blocks/${blockType}/${blockType}.js`;
-
-              import(importPath)
-                .then((module) => {
-                  if (module.rebindEvents) {
-                    module.rebindEvents(node);
-                    node.setAttribute('data-bound', 'true');
-                  }
-                })
-                .catch(() => {
-                  // Try alternative path resolution
-                  const altImportPath = `../blocks/${blockType}/${blockType}.js`;
-
-                  import(altImportPath)
-                    .then((module) => {
-                      if (module.rebindEvents) {
-                        module.rebindEvents(node);
-                        node.setAttribute('data-bound', 'true');
-                      }
-                    })
-                    .catch(() => {
-                      // Handle error silently
-                    });
-                });
-            }
+          // Collect the node itself and all its descendants with class 'block'
+          const nodesToCheck = [node];
+          if (node.querySelectorAll) {
+            node.querySelectorAll('.block').forEach((descendant) => {
+              nodesToCheck.push(descendant);
+            });
           }
+
+          nodesToCheck.forEach((el) => {
+            // Check if the element is one of the blocks we want to observe
+            const isObservedBlock = el.classList
+              && blocksToObserve.some((blockName) => el.classList.contains(blockName)
+                || (el.classList.contains('block') && el.classList.contains(blockName)));
+
+            if (isObservedBlock) {
+              // Determine which block type this is
+              const blockType = blocksToObserve.find((blockName) => el.classList.contains(blockName)
+                || (el.classList.contains('block') && el.classList.contains(blockName)));
+
+              if (blockType) {
+                // Import the block module and call rebindEvents
+                const importPath = window.hlx?.codeBasePath
+                  ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+                  : `/aemedge/blocks/${blockType}/${blockType}.js`;
+
+                import(importPath)
+                  .then((module) => {
+                    if (module.rebindEvents) {
+                      module.rebindEvents(el);
+                      el.setAttribute('data-bound', 'true');
+                    }
+                  })
+                  .catch(() => {
+                    // Try alternative path resolution
+                    const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+
+                    import(altImportPath)
+                      .then((module) => {
+                        if (module.rebindEvents) {
+                          module.rebindEvents(el);
+                          el.setAttribute('data-bound', 'true');
+                        }
+                      })
+                      .catch(() => {
+                        // Handle error silently
+                      });
+                  });
+              }
+            }
+          });
         });
       }
     });
