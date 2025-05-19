@@ -81,22 +81,27 @@
 
   &.bg-dark-rock-candy {
     background: var(--dark-rock-candy);
+    color: var(--clr-white);
   }
 
   &.bg-dark-tangerine {
     background-color: var(--dark-tangerine);
+    color: var(--clr-white);
   }
 
   &.bg-primary-dark {
     background: var(--primary-dark);
+    color: var(--clr-white);
   }
 
   &.bg-highlight-coal {
     background: var(--highlight-coal);
+    color: var(--clr-white);
   }
 
   &.bg-blueberry {
     background: var(--blueberry);
+    color: var(--clr-white);
   }
 
   &[class^="bg-"] { /* stylelint-disable no-descending-specificity */
@@ -113,10 +118,6 @@
        margin-left: 12px;
        margin-right: 12px;
      }
-
-    h1, h2, h3, h4, h5, h6, p, li, a {
-      color: var(--clr-white);
-    }
     }
 
   &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese {
