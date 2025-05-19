@@ -851,28 +851,70 @@ function handleTargetSections(doc) {
   });
 }
 
-/**
- * Sets up a MutationObserver to watch for block replacements in the DOM
- * and reinitialize them when they are replaced.
- */
-function setupBlockObserver() {
-  // Define an array of block names to observe
-  // These are blocks that have interactive elements and need rebinding
-  const blocksToObserve = [
-    'carousel', // Has slide navigation and auto-scroll
-    'accordion', // Has expand/collapse functionality
-    'tabs', // Has tab switching functionality
-    'modal', // Has dialog show/hide and close button events
-    'image-slider', // Has auto-scrolling functionality
-    'game-finder', // Has interactive React app elements
-    'channel-lookup', // Has form submission and API interactions
-    'chat', // Has interactive chat functionality
-    'marquee', // Has scroll CTA and resize handlers
-    'offer-cards', // Has resize event handlers
-    'channel-shopper', // Has IntersectionObserver and React app
-    'category', // Has media query listeners and author click handlers
-  ];
+// Define an array of block names to observe
+const blocksToObserve = [
+  'carousel', // Has slide navigation and auto-scroll
+  'accordion', // Has expand/collapse functionality
+  'tabs', // Has tab switching functionality
+  'modal', // Has dialog show/hide and close button events
+  'image-slider', // Has auto-scrolling functionality
+  'game-finder', // Has interactive React app elements
+  'channel-lookup', // Has form submission and API interactions
+  'chat', // Has interactive chat functionality
+  'marquee', // Has scroll CTA and resize handlers
+  'offer-cards', // Has resize event handlers
+  'channel-shopper', // Has IntersectionObserver and React app
+  'category', // Has media query listeners and author click handlers
+];
 
+// Set to collect blocks that need rebinding
+const blocksNeedingRebind = new Set();
+
+function isHeaderOrFooter(el) {
+  let parent = el.parentElement;
+  while (parent) {
+    if (parent.tagName === 'HEADER' || parent.tagName === 'FOOTER') return true;
+    parent = parent.parentElement;
+  }
+  return false;
+}
+
+function rebindFlaggedBlocks() {
+  blocksNeedingRebind.forEach((el) => {
+    // Determine which block type this is
+    const blockType = blocksToObserve.find((blockName) => el.classList.contains(blockName)
+      || (el.classList.contains('block') && el.classList.contains(blockName)));
+    if (blockType) {
+      const importPath = window.hlx?.codeBasePath
+        ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+        : `/aemedge/blocks/${blockType}/${blockType}.js`;
+      import(importPath)
+        .then((module) => {
+          if (module.rebindEvents) {
+            module.rebindEvents(el);
+            el.setAttribute('data-bound', 'true');
+          }
+        })
+        .catch(() => {
+          // Try alternative path resolution
+          const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+          import(altImportPath)
+            .then((module) => {
+              if (module.rebindEvents) {
+                module.rebindEvents(el);
+                el.setAttribute('data-bound', 'true');
+              }
+            })
+            .catch(() => {
+              // Handle error silently
+            });
+        });
+    }
+  });
+  blocksNeedingRebind.clear();
+}
+
+function setupBlockObserver() {
   // Create a MutationObserver to watch for DOM changes
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -897,82 +939,14 @@ function setupBlockObserver() {
           }
 
           nodesToCheck.forEach((el) => {
+            if (isHeaderOrFooter(el)) return;
             console.log('[DEBUG] Checking node for observed block:', el);
             // Check if the element is one of the blocks we want to observe
             const isObservedBlock = el.classList
               && blocksToObserve.some((blockName) => el.classList.contains(blockName)
                 || (el.classList.contains('block') && el.classList.contains(blockName)));
-
-            // If the block has data-rebind attribute, force rebind
-            if (isObservedBlock && el.hasAttribute('data-rebind')) {
-              const blockType = blocksToObserve.find((blockName) => el.classList.contains(blockName)
-                || (el.classList.contains('block') && el.classList.contains(blockName)));
-              if (blockType) {
-                console.log(`[DEBUG] Forced rebind for block type (data-rebind): ${blockType}`, el);
-                const importPath = window.hlx?.codeBasePath
-                  ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
-                  : `/aemedge/blocks/${blockType}/${blockType}.js`;
-                import(importPath)
-                  .then((module) => {
-                    if (module.rebindEvents) {
-                      module.rebindEvents(el);
-                      el.setAttribute('data-bound', 'true');
-                      el.removeAttribute('data-rebind');
-                    }
-                  })
-                  .catch(() => {
-                    // Try alternative path resolution
-                    const altImportPath = `../blocks/${blockType}/${blockType}.js`;
-                    import(altImportPath)
-                      .then((module) => {
-                        if (module.rebindEvents) {
-                          module.rebindEvents(el);
-                          el.setAttribute('data-bound', 'true');
-                          el.removeAttribute('data-rebind');
-                        }
-                      })
-                      .catch(() => {
-                        // Handle error silently
-                      });
-                  });
-              }
-            }
-
             if (isObservedBlock) {
-              // Determine which block type this is
-              const blockType = blocksToObserve.find((blockName) => el.classList.contains(blockName)
-                || (el.classList.contains('block') && el.classList.contains(blockName)));
-
-              if (blockType) {
-                console.log(`[DEBUG] Calling rebindEvents for block type: ${blockType}`, el);
-                // Import the block module and call rebindEvents
-                const importPath = window.hlx?.codeBasePath
-                  ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
-                  : `/aemedge/blocks/${blockType}/${blockType}.js`;
-
-                import(importPath)
-                  .then((module) => {
-                    if (module.rebindEvents) {
-                      module.rebindEvents(el);
-                      el.setAttribute('data-bound', 'true');
-                    }
-                  })
-                  .catch(() => {
-                    // Try alternative path resolution
-                    const altImportPath = `../blocks/${blockType}/${blockType}.js`;
-
-                    import(altImportPath)
-                      .then((module) => {
-                        if (module.rebindEvents) {
-                          module.rebindEvents(el);
-                          el.setAttribute('data-bound', 'true');
-                        }
-                      })
-                      .catch(() => {
-                        // Handle error silently
-                      });
-                  });
-              }
+              blocksNeedingRebind.add(el);
             }
           });
         });
@@ -986,13 +960,11 @@ function setupBlockObserver() {
     subtree: true,
   });
 
-  // Remove the periodic check for blocks that need rebinding
-
-  // After 3 seconds, disconnect the observer
+  // Disconnect after 10 seconds for safety
   setTimeout(() => {
     observer.disconnect();
-    console.log('[DEBUG] MutationObserver disconnected after 3 seconds.');
-  }, 3000);
+    console.log('[DEBUG] MutationObserver disconnected after 10 seconds.');
+  }, 10000);
 }
 
 /**
@@ -1005,16 +977,19 @@ export function setRebindForAllBlocks(blockClass) {
 
 async function loadPage() {
   window.adobeDataLayer = window.adobeDataLayer || [];
+  // Set up observer for block DOM changes as early as possible
+  setupBlockObserver();
   // await setDataLayer();
   // load everything that needs to be loaded eagerly
   await loadEager(document);
   // load everything that needs to be loaded later
   await loadLazy(document);
-
+  // Rebind all flagged blocks after all content is loaded
+  rebindFlaggedBlocks();
+  // Optionally disconnect observer here if you want
+  // observer.disconnect();
   // Start observing for section changes after initial decoration
   handleTargetSections(document);
-  // Set up observer for block DOM changes
-  setupBlockObserver();
   configSideKick();
   // load launch eagerly when target metadata is set to true
   // await loadLaunchEager();
