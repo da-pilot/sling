@@ -105,7 +105,6 @@ function processBlockConfig(block) {
         cols[0].classList.add('config-property');
         col.classList.add(name);
         if (name.trim() === 'scroll-cta-into-header') {
-          // Skip this config property entirely
           return;
         }
         if (name !== 'foreground') {
