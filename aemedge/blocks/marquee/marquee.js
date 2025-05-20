@@ -104,15 +104,14 @@ function processBlockConfig(block) {
         const name = toClassName(cols[0].textContent);
         cols[0].classList.add('config-property');
         col.classList.add(name);
+        if (name.trim() === 'scroll-cta-into-header') {
+          // Skip this config property entirely
+          return;
+        }
         if (name !== 'foreground') {
           if (name.trim() === 'cta' || name.trim() === 'offer-details') {
             btnsDIV.append(col);
             nonMediaDIV.append(btnsDIV);
-          } else if (name.trim() === 'scroll-cta-into-header') {
-            if (col.textContent.trim().toLowerCase() === 'true') {
-              const scrollCtaDiv = createTag('div', { class: 'scroll-cta-into-header' });
-              nonMediaDIV.append(scrollCtaDiv);
-            }
           } else {
             nonMediaDIV.append(col);
           }
