@@ -278,6 +278,7 @@ function getPageLoadParams() {
 export function setupPersonalizationEventRules() {
   // Listen for zipcode updates and trigger Target event
   document.addEventListener('zipupdate', (e) => {
+    console.log('[DEBUG]setupPersonalizationEventRules: zipupdate received', e.detail);
     const { zipcode } = e.detail;
     pushEventToDataLayer(
       'zipcode-update',
@@ -296,10 +297,12 @@ export function setupPersonalizationEventRules() {
         },
       },
     );
+    console.log('pushEventToDataLayer called for zipcode', zipcode);
   });
 
   // Listen for local channel availability (after API call)
   document.addEventListener('localchannels-available', (e) => {
+    console.log('setupPersonalizationEventRules: localchannels-available received', e.detail);
     const { zipcode, channels } = e.detail;
     pushEventToDataLayer(
       'localchannels-available',
@@ -320,6 +323,7 @@ export function setupPersonalizationEventRules() {
         },
       },
     );
+    console.log('pushEventToDataLayer called for localchannels', zipcode, channels);
   });
 }
 
