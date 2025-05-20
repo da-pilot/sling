@@ -108,8 +108,17 @@ function processBlockConfig(block) {
           if (name.trim() === 'cta' || name.trim() === 'offer-details') {
             btnsDIV.append(col);
             nonMediaDIV.append(btnsDIV);
-          } else nonMediaDIV.append(col);
-        } else mediaDIV.append(col);
+          } else if (name.trim() === 'scroll-cta-into-header') {
+            if (col.textContent.trim().toLowerCase() === 'true') {
+              const scrollCtaDiv = createTag('div', { class: 'scroll-cta-into-header' });
+              nonMediaDIV.append(scrollCtaDiv);
+            }
+          } else {
+            nonMediaDIV.append(col);
+          }
+        } else {
+          mediaDIV.append(col);
+        }
       }
     }
   });
@@ -128,7 +137,7 @@ export default function decorate(block) {
   processBlockConfig(block);
   const background = block.querySelector('.background');
   const bgColor = block.querySelector('.background-color');
-  
+
   let bgMediaType;
   if (background) {
     if (background.querySelector('picture')) {
