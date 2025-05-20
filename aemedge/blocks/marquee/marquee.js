@@ -104,12 +104,19 @@ function processBlockConfig(block) {
         const name = toClassName(cols[0].textContent);
         cols[0].classList.add('config-property');
         col.classList.add(name);
+        if (name.trim() === 'scroll-cta-into-header') {
+          return;
+        }
         if (name !== 'foreground') {
           if (name.trim() === 'cta' || name.trim() === 'offer-details') {
             btnsDIV.append(col);
             nonMediaDIV.append(btnsDIV);
-          } else nonMediaDIV.append(col);
-        } else mediaDIV.append(col);
+          } else {
+            nonMediaDIV.append(col);
+          }
+        } else {
+          mediaDIV.append(col);
+        }
       }
     }
   });
@@ -128,7 +135,7 @@ export default function decorate(block) {
   processBlockConfig(block);
   const background = block.querySelector('.background');
   const bgColor = block.querySelector('.background-color');
-  
+
   let bgMediaType;
   if (background) {
     if (background.querySelector('picture')) {
