@@ -340,15 +340,31 @@ async function setNavType() {
   }
 }
 
+/*  BUTTONS DECORATION */
+
 export function replaceTildesWithDel() {
   // Only process block-level elements where tildes might wrap HTML
-  const blocks = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, div');
+  const elements = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, a');
   const tildeRegex = /~~([\s\S]*?)~~/g; // [\s\S] allows matching across tags and newlines
 
-  blocks.forEach((block) => {
+  // First, handle <a> tags whose inner text begins and ends with double tildes
+  document.querySelectorAll('a').forEach((a) => {
+    if (/^~~[\s\S]*~~$/.test(a.textContent)) {
+      // Remove the tildes from the textContent
+      a.textContent = a.textContent.replace(/^~~([\s\S]*)~~$/, '$1');
+      // Wrap the <a> in a <del> if not already wrapped
+      if (a.parentElement && a.parentElement.tagName !== 'DEL') {
+        const del = document.createElement('del');
+        a.parentElement.insertBefore(del, a);
+        del.appendChild(a);
+      }
+    }
+  });
+
+  elements.forEach((element) => {
     // Only replace if there are tildes present
-    if (block.innerHTML.includes('~~')) {
-      block.innerHTML = block.innerHTML.replace(tildeRegex, '<del>$1</del>');
+    if (element.innerHTML.includes('~~')) {
+      element.innerHTML = element.innerHTML.replace(tildeRegex, '<del>$1</del>');
     }
   });
 }
@@ -357,7 +373,10 @@ export function replaceTildesWithDel() {
  * Decorates paragraphs containing a single link as buttons.
  * @param {Element} element container element
  */
+// let buttonsDecorated = false;
 export function decorateButtons(element) {
+  // if (buttonsDecorated) return;
+  // buttonsDecorated = true;
   replaceTildesWithDel();
   element.querySelectorAll('a').forEach((a) => {
     a.title = a.title || a.textContent;
@@ -646,9 +665,9 @@ export function decorateMain(main) {
   makeTwoColumns(main);
   decorateStyledSections(main);
   buildSpacer(main);
-  extractStyleVariables(main);
   decorateExtImage(main);
   decorateLinkedImages();
+  extractStyleVariables(main);
   buildVideoBlocks(main);
 }
 

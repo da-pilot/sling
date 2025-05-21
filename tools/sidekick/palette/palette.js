@@ -78,8 +78,9 @@ class PaletteElement extends LitElement {
   async handleItemClick(brandName) {
     this.brandName = brandName;
     const { actions } = await DA_SDK;
-    if (actions?.sendHTML) {
-      actions.sendHTML(brandName);
+    if (actions?.sendText) {
+      actions.sendText(brandName);
+      actions.closeLibrary();
     }
   }
 

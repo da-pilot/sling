@@ -377,6 +377,11 @@ button.primary {
             box-shadow: none;
         }
     }
+
+    &.bg-steam, &.bg-light {
+      background: var(--background-color);
+      color: var(--text-color);
+    }
 }
 
 a.button.dark,
@@ -436,6 +441,10 @@ button:disabled:hover {
         margin-top: 6px;
     }
 
+    a sub:hover, a sup:hover {
+      text-decoration: underline;
+    }
+
     a.button {
         margin-bottom: 0;
     }
@@ -458,6 +467,7 @@ button.text {
   color: var(--link-color);
 }
 
+/* text link color overrides */
 a:not(.button),
 button.text,
 a.button.text {
