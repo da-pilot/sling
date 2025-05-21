@@ -695,7 +695,6 @@ export function decorateMain(main) {
   decorateExtImage(main);
   decorateLinkedImages();
   extractStyleVariables(main);
-
   buildVideoBlocks(main);
 }
 
