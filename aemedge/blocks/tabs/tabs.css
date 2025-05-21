@@ -26,6 +26,7 @@
   white-space: nowrap;
   justify-content: center;
   line-height: normal;
+  margin-bottom: 0px;
 }
 
 .tabs.columns p {
@@ -53,7 +54,7 @@
   max-width: fit-content;
   color: rgb(23 23 37);
   opacity: 0.6;
-  padding-bottom: 4px;
+  padding-bottom: 16px;
   border-bottom: 3px transparent;
 }
 
@@ -83,7 +84,7 @@
 }
 
 .tabs .tabs-panel {
-  padding: 16px 16px 0;
+  padding: 0 16px;
   overflow: auto;
 }
 
