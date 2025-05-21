@@ -41,12 +41,22 @@
     width: 60px;
 }
 
+.section.columns-2:has(.channel-shopper-wrapper) {
+    padding: 14px 8%;
+}
+
 @media (width >= 768px) {
     .section.columns-2.channel-shopper-container {
         display: flex;
+        align-items: center;
     }
 
     .channel-shopper-container {
         text-align: unset;
     }
+
+    .section.columns-2:has(.channel-shopper-wrapper) .column-2 {
+        text-align:right;
+    }
+    
 }
