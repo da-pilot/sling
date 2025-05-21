@@ -1,11 +1,12 @@
-name: Check PR Base Repository
+name: base-repo-check(da-pilot/sling)
 
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
 jobs:
-  check-base-repo:
+  base-repo-check:
+    name: base-repo-check(da-pilot/sling)
     runs-on: ubuntu-latest
     steps:
       - name: Check base repository
