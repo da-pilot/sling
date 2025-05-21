@@ -6,7 +6,6 @@ on:
 
 jobs:
   base-repo-check:
-    name: base-repo-check(da-pilot/sling)
     runs-on: ubuntu-latest
     steps:
       - name: Check base repository
