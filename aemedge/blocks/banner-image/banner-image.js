@@ -49,6 +49,9 @@ function processBlockConfig(block) {
         if (name === 'background-fit') {
           block.style.backgroundSize = col.textContent;
         }
+        if (name === 'background-position') {
+          block.style.backgroundPosition = col.textContent;
+        }
         if (name !== 'foreground') {
           if (name.trim() === 'cta' || name.trim() === 'offer-details') {
             btnsDIV.append(col);

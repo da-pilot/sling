@@ -858,6 +858,31 @@ a.black {
   color: black;
 }
 
+
+.section[data-background-position="center"] {
+  background-position: center;
+}
+
+.section[data-background-position="left"] {
+  background-position: left;
+}
+
+.section[data-background-position="right"] {
+  background-position: right;
+}
+
+.section[data-background-position="top"] {
+  background-position: top;
+}
+
+.section[data-background-position="bottom"] {
+  background-position: bottom;
+}
+
+.section.wide-columns .columns-wrapper {
+    max-width: 100%;
+}
+
 @media (width >=768px) {
     main .section {
         padding: 0 48px;
@@ -884,10 +909,6 @@ a.black {
         align-items: center;
         width: 100%;
         margin: 0 auto;
-    }
-
-    .section.wide-columns .columns-wrapper {
-        max-width: 100%;
     }
 
     .section.wide-columns .columns > div > div:nth-of-type(1) {
