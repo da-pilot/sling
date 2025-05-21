@@ -890,6 +890,9 @@ a.black {
     .section.dark {
         padding: 64px 32px;
     }
+    .section.dark.supported-devices {
+      padding: 64px 32px;
+    }
 
     .section.columns-2.dark {
         padding: 64px 8%;
