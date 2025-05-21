@@ -787,8 +787,8 @@ margin-bottom:10px;
 }
 
 .section.dark.center.columns-container span.icon:first-of-type {
-  height: 103px;
-  width: 180px;
+  height: 80px;
+  width: 150px;
 }
 
 .main > .columns-2.banner {
@@ -904,6 +904,10 @@ a.black {
 
     .section.dark.supported-devices {
       padding: 64px 32px;
+    }
+
+    .section.dark.supported-devices h2 {
+      font-size: 2.25rem;
     }
 
     .section.columns-2.dark {
