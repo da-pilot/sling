@@ -178,7 +178,6 @@
 
    .promo-code-content {
      padding: 80px 128px 6%;
-     min-height: 736px;
    }
 
    .promo-code .input-container {
@@ -186,11 +185,6 @@
      min-width: 228px;
      margin-right: 1rem;
      margin-bottom: unset;
-   }
-
-   .promo-code.block {
-     height: 73vh;
-     min-height: 736px;
    }
 }
 
