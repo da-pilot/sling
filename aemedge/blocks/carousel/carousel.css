@@ -4,6 +4,33 @@
 
 .carousel .carousel-slides-container {
   position: relative;
+  /* Add a subtle box shadow for depth */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Add shadow effect during slide transitions */
+.carousel .carousel-slides-container.slide-transition::before,
+.carousel .carousel-slides-container.slide-transition::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 15px;
+  z-index: 2;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.carousel .carousel-slides-container.slide-transition::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.1), transparent);
+}
+
+.carousel .carousel-slides-container.slide-transition::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.1), transparent);
 }
 
 .rewards .carousel .carousel-slides-container {
@@ -23,6 +50,8 @@
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   overflow: scroll clip;
+  /* Increase transition time for smoother slides */
+  transition: transform 0.8s ease-in-out;
 }
 
 .carousel .carousel-slides::-webkit-scrollbar {
@@ -154,8 +183,8 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  left: -10px;
-  right: -10px;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -183,7 +212,6 @@
   border-radius: 50%;
   background: rgb(245 245 246 / 80%);
   cursor: pointer;
-  filter: drop-shadow(0 2px 10px rgb(0 0 0 / 30%));
   backdrop-filter: blur(5px);
 }
 
@@ -215,6 +243,23 @@
   left: calc(50% - 3px);
 }
 
+/* Hide navigation buttons by default */
+.carousel .carousel-navigation-buttons button {
+  opacity: 0;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+/* Show navigation buttons on hover */
+.carousel.hovered .carousel-navigation-buttons button,
+.carousel:hover .carousel-navigation-buttons button {
+  opacity: 1;
+}
+
+/* Enhance button hover effect */
+.carousel .carousel-navigation-buttons button:hover {
+  background-color: rgba(245, 245, 246, 0.95) !important;
+  transform: scale(1.05);
+}
 
 @media (width >= 768px) {
   .carousel {
@@ -359,7 +404,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid white;
+  border: 20px solid white;
   background: transparent;
   padding: 0;
   cursor: pointer;
@@ -403,4 +448,20 @@
 
 .carousel.full .carousel-navigation-buttons .slide-next::after {
   transform: translate(-75%, -50%) rotate(-45deg);
+}
+
+.tabs.wide .carousel .carousel-slide {
+  min-width: 16.66%;  /* Default for desktop: 6 slides */
+}
+
+@media (width >= 768px) and (width < 1024px) {
+  .tabs.wide .carousel .carousel-slide {
+    min-width: 50%;  /* Tablet: 2 slides */
+  }
+}
+
+@media (width < 768px) {
+  .tabs.wide .carousel .carousel-slide {
+    min-width: 100%;  /* Mobile: 1 slide */
+  }
 }
