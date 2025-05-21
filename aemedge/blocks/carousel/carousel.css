@@ -449,3 +449,19 @@
 .carousel.full .carousel-navigation-buttons .slide-next::after {
   transform: translate(-75%, -50%) rotate(-45deg);
 }
+
+.tabs.wide .carousel .carousel-slide {
+  min-width: 16.66%;  /* Default for desktop: 6 slides */
+}
+
+@media (width >= 768px) and (width < 1024px) {
+  .tabs.wide .carousel .carousel-slide {
+    min-width: 50%;  /* Tablet: 2 slides */
+  }
+}
+
+@media (width < 768px) {
+  .tabs.wide .carousel .carousel-slide {
+    min-width: 100%;  /* Mobile: 1 slide */
+  }
+}
