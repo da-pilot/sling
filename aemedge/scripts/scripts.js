@@ -587,8 +587,15 @@ export function decorateExtImage() {
       const picture = document.createElement('picture');
       const img = document.createElement('img');
       img.classList.add('svg');
-      // this alt is a cop out, but it's better than nothing
-      img.alt = 'Sling TV image';
+
+      // Use the title attribute from Dynamic Media images as alt text if available
+      if (a.title) {
+        img.alt = a.title;
+      } else {
+        // Fallback to a default alt text if title is not available
+        img.alt = 'Sling TV image';
+      }
+
       // making assumption it is not LCP
       img.loading = 'lazy';
       img.src = extImageSrc;
