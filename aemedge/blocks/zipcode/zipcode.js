@@ -15,6 +15,7 @@ const updateZip = (e, block) => {
   // create custom event and dispatch it
   const options = { bubbles: true, detail: { zipcode: zipinput } };
   const zipUpdateEvent = new CustomEvent('zipupdate', options);
+  console.log('[DEBUG]dispatching zipUpdateEvent', zipUpdateEvent);
   document.dispatchEvent(zipUpdateEvent);
 };
 

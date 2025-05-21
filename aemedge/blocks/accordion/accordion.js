@@ -80,3 +80,23 @@ export default function decorate(block) {
     });
   });
 }
+
+export function rebindEvents(block) {
+  const items = block.querySelectorAll('.details.accordion-items');
+  items.forEach((item) => {
+    const summary = item.querySelector('.summary.accordion-item-label');
+    const answer = summary ? summary.nextSibling : null;
+    if (summary && answer) {
+      summary.onclick = null;
+      summary.addEventListener('click', () => {
+        const faqitem = item;
+        faqitem.classList.toggle('open');
+        if (answer.style.maxHeight) {
+          answer.style.maxHeight = null;
+        } else {
+          answer.style.maxHeight = `${answer.scrollHeight}px`;
+        }
+      });
+    }
+  });
+}

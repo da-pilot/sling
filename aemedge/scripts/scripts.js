@@ -1,3 +1,19 @@
+/* eslint-disable import/no-relative-packages */
+/* eslint-disable no-underscore-dangle */
+
+/* eslint-disable no-underscore-dangle */
+import {
+  martechEager,
+  martechLazy,
+  martechDelayed,
+  setupBlockObserver,
+  rebindFlaggedBlocks,
+  handleTargetSections,
+  martechLoadedPromise,
+  setupPersonalizationEventRules,
+  setupAnalyticsEventRules,
+} from './martech-utils.js';
+
 import {
   buildBlock,
   loadFooter,
@@ -12,7 +28,6 @@ import {
   decorateBlock,
   loadBlock,
   toClassName,
-  loadScript,
 } from './aem.js';
 
 import {
@@ -462,8 +477,6 @@ export function makeLastButtonSticky() {
   }
 }
 
-/* LOOKING FOR CURLY BRACES */
-
 /**
  * Extracts color + number information from text content in curly braces.
  * @returns {Object|null} - An object containing the extracted color
@@ -636,26 +649,11 @@ function decorateLinkedImages() {
   });
 }
 
-async function loadLaunchEager() {
-  const isTarget = getMetadata('target');
-  if (isTarget && isTarget.toLowerCase() === 'true') {
-    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
-    if (window.location.host.startsWith('localhost')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
-    } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
-    } else if (window.location.host.endsWith('.page')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
-    }
-  }
-}
 /**
    * Decorates the main element.
    * @param {Element} main The main element
    */
-// eslint-disable-next-line import/prefer-default-export
 export function decorateMain(main) {
-  // hopefully forward compatible button decoration
   centerHeadlines();
   decorateIcons(main);
   buildAutoBlocks(main);
@@ -685,8 +683,11 @@ async function loadEager(doc) {
     }
     decorateMain(main);
     await loadTemplate(main);
+    await Promise.all([
+      martechLoadedPromise.then(martechEager),
+      waitForLCP(LCP_BLOCKS),
+    ]);
     document.body.classList.add('appear');
-    await waitForLCP(LCP_BLOCKS);
   }
 
   try {
@@ -700,10 +701,10 @@ async function loadEager(doc) {
 }
 
 /**
-   * Loads a block named 'header' into header
-   * @param {Element} header header element
-   * @returns {Promise}
-   */
+ * Loads a block named 'header' into header
+ * @param {Element} header header element
+ * @returns {Promise}
+ */
 async function loadHeader(header) {
   let block = 'header';
   const template = getMetadata('template');
@@ -753,6 +754,12 @@ async function loadLazy(doc) {
   buildGlobalBanner(main);
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
+  await martechLazy();
+
+  // --- Trigger pageview analytics event after all lazy content and personalization is done ---
+  // Register analytics event rules (if any)
+  setupAnalyticsEventRules();
+  document.dispatchEvent(new Event('pageview'));
 }
 
 /**
@@ -760,23 +767,22 @@ async function loadLazy(doc) {
    * without impacting the user experience.
    */
 function loadDelayed() {
-  // eslint-disable-next-line import/no-cycle
-  window.setTimeout(() => import('./delayed.js'), 3000);
-  // load anything that can be postponed to the latest here
+  window.setTimeout(async () => {
+    await martechDelayed();
+    return import('./delayed.js');
+  }, 3000);
 }
 
 async function loadPage() {
-  // load everything that needs to be loaded eagerly
+  window.adobeDataLayer = window.adobeDataLayer || [];
+  setupPersonalizationEventRules();
+  setupBlockObserver();
   await loadEager(document);
-
-  // load everything that can be postponed to the latest here
   await loadLazy(document);
+  rebindFlaggedBlocks();
+  handleTargetSections(document);
   configSideKick();
-  // load launch eagerly when target metadata is set to true
-  await loadLaunchEager();
-  // load everything that needs to be loaded later
   loadDelayed();
-  // make the last button sticky on blog pages
   makeLastButtonSticky();
 }
 loadPage();
