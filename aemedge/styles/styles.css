@@ -879,10 +879,6 @@ a.black {
   background-position: bottom;
 }
 
-.section.wide-columns .columns-wrapper {
-    max-width: 100%;
-}
-
 @media (width >=768px) {
     main .section {
         padding: 0 48px;
@@ -910,6 +906,10 @@ a.black {
         width: 100%;
         margin: 0 auto;
     }
+
+    .section.wide-columns .columns-wrapper {
+      max-width: 100%;
+  }
 
     .section.wide-columns .columns > div > div:nth-of-type(1) {
         width: 50%;
