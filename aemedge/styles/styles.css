@@ -741,20 +741,20 @@ main .icon-still-have-questions img {
     line-height: 1.2;
 }
 
-.section.dark-grey {
-  background: #202230;
+.section.watch-live-sports {
+  background: var(--highlight-coal);
   color: var(--light-color);
   padding:50px 0;
   margin: 0;
 }
 
-.section.dark-grey > * {
+.section.watch-live-sports > * {
   width: 80%;
   margin:0 auto;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.section.dark-grey > .default-content-wrapper h2:first-of-type {
+.section.watch-live-sports > .default-content-wrapper h2:first-of-type {
   margin-top:0;
   text-align: center;
   font-size: 2rem;
@@ -762,20 +762,21 @@ main .icon-still-have-questions img {
   margin-bottom:50px;
 }
 
-.section.section.dark-grey .columns.block a {
+.section.section.watch-live-sports .columns.block a {
   color: var(--dark-rock-candy);
+  text-decoration: none;
 }
 
-.section.section.dark-grey .columns.block a:hover {
+.section.section.watch-live-sports .columns.block a:hover {
   color: #3abfed;
   text-decoration: none;
   cursor: pointer;
   transition: color .3s ease;
 }
 
-.section.dark-grey .columns.block h2,
-.section.dark-grey .columns.block h3,
-.section.dark-grey .columns.block p
+.section.watch-live-sports .columns.block h2,
+.section.watch-live-sports .columns.block h3,
+.section.watch-live-sports .columns.block p
 {
 margin-bottom:10px;
 }
@@ -786,8 +787,8 @@ margin-bottom:10px;
 }
 
 .section.dark.center.columns-container span.icon:first-of-type {
-  height: 103px;
-  width: 180px;
+  height: 80px;
+  width: 150px;
 }
 
 .main > .columns-2.banner {
@@ -900,8 +901,13 @@ a.black {
     .section.dark {
         padding: 64px 32px;
     }
+
     .section.dark.supported-devices {
       padding: 64px 32px;
+    }
+
+    .section.dark.supported-devices h2 {
+      font-size: 2.25rem;
     }
 
     .section.columns-2.dark {
@@ -926,7 +932,7 @@ a.black {
         text-align: center;
     }
 
-    .section.dark-grey .columns.block div {
+    .section.watch-live-sports .columns.block div {
         margin-bottom: 0;
     }
 
@@ -934,12 +940,12 @@ a.black {
         flex-direction: column;
     }
 
-    .section.dark-grey > * {
+    .section.watch-live-sports > * {
         width: unset;
     }
 
-    .section.dark-grey.columns-container .columns.block {
-        width: 80%;
+    .section.watch-live-sports.columns-container .columns.block {
+        width: 50%;
         margin: 0 auto;
     }
 
