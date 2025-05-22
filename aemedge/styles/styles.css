@@ -33,27 +33,37 @@
   --link-color: #298ef7; /* #0569d1 4.88;  #126bca; 4.84  006cdf don't change unless it is passing accessibility everywhere */
   --link-hover-color: #3abfed;
   --background-color: #f5f5f6;
+  --sling-blue: #00b9ff;
+  --pearl: #eee;
+  --smoke: #484848;
+  --charcoal: #292928;
+  --white: #fff;
+  --black: #000;
+  --accessible-blue: #0072EC;
+  --clr-fire: #ff6b00;
+  --cobalt: #0085ff;
+  --turquoise: #0ff;
+  --sling-orange: #ffa300; /* aka mac and cheese */
+  --gold: #ffb800;
   --steam: #f5f5f6;
   --primary-light: #f5f5f6;
   --header-background-color: #0f101f;
   --coal: #171725;
   --primary-dark: #171725; /* aka coal, ghost-light */
-  --header-hover-background-color: var(--coal);
-  --header-text-color: #f5f5f6;
+  --header-hover-background-color: var(--charcoal);
+  --header-text-color: var(--white);
   --light-color: #eee;
   --light-grey-color: rgb(235 235 235);
   --dark-color: #ccc;
   --text-color: #333;
   --primary-button-color: linear-gradient(108.93deg, #0072ec 37.23%, #00b9ff 112.13%);
-  --dark-button-color: rgb(72 72 72);
+  --dark-button-color: var(--charcoal);
   --invalid-red: #e90000; /* aka cherry-red */
+  --cherry-red: #e90000;
   --input-background-color: #eaeaec;
   --dark-background-color: rgb(23 23 37);
   --clr-white: #fff;
-  --white: #fff;
   --clr-black: #000;
-  --black: #000;
-  --clr-fire: #faa21b; /* aka orange */
   --mac-and-cheese: #ffa300;
   --dark-tangerine: #ce4c00;
   --dark-rock-candy: #0078ad; /* AKA water, blue */
@@ -61,7 +71,6 @@
   --highlight-coal: #202230;
   --blueberry: #001e60;
   --dark-grey-color: #706f6f;
-  --charcoal: #454550;
   --dark-green: #007f1d;
   --shadow-blue: #112e51;
   --steel: #9fa0a7;
@@ -161,6 +170,8 @@ blockquote {
   margin: 0 0 10px;
 }
 
+/* span colors for text links */
+
 span {
     &.dark-rock-candy {
         color: var(--dark-rock-candy);
@@ -176,10 +187,6 @@ span {
 
     &.fire {
         color: var(--clr-fire);
-    }
-
-    &.charcoal {
-        color: var(--charcoal);
     }
 
     &.cherry-red {
@@ -204,6 +211,34 @@ span {
 
     &.steel {
         color: var(--steel);
+    }
+
+    &.sling-blue {
+        color: var(--sling-blue);
+    }
+
+    &.accessible-blue {
+      color: var(--accessible-blue);
+  }
+
+    &.pearl {
+        color: var(--pearl);
+    }
+
+    &.smoke {
+        color: var(--smoke);
+    }
+
+    &.charcoal {
+        color: var(--charcoal);
+    }
+
+    &.white {
+        color: var(--white);
+    }
+
+    &.black {
+        color: var(--black);
     }
 }
 
@@ -354,6 +389,11 @@ button.primary {
         color: var(--clr-white);
     }
 
+    &.bg-sling-blue {
+      background: var(--sling-blue);
+      color: var(--clr-white);
+  }
+
     &.bg-skeleton {
         background: transparent;
         color: var(--text-color);
@@ -382,6 +422,32 @@ button.primary {
       background: var(--background-color);
       color: var(--text-color);
     }
+
+    &.bg-pearl {
+      background: var(--pearl);
+      color: var(--text-color);
+    }
+
+    &.bg-smoke {
+      background: var(--smoke);
+      color: var(--white);
+    }
+
+    &.bg-charcoal {
+      background: var(--charcoal);
+      color: var(--white);
+    }
+
+    &.bg-accessible-blue {
+      background: var(--accessible-blue);
+      color: var(--white);
+    }
+
+    &.bg-white {
+      background: var(--white);
+      color: var(--text-color);
+    }
+    
 }
 
 a.button.dark,
@@ -521,6 +587,26 @@ a.button.text {
 
   &.bg-cherry-red {
     color: var(--cherry-red) !important;
+  }
+
+  &.bg-black {
+    color: var(--black) !important;
+  }
+
+  &.bg-accessible-blue {
+    color: var(--accessible-blue) !important;
+  }
+
+  &.bg-sling-blue {
+    color: var(--sling-blue) !important;
+  }
+
+  &.bg-pearl {
+    color: var(--pearl) !important;
+  }
+
+  &.bg-smoke {
+    color: var(--smoke) !important;
   }
 }
 

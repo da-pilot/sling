@@ -104,6 +104,40 @@
     color: var(--clr-white);
   }
 
+  &.bg-sling-blue {
+    background: var(--sling-blue);
+    color: var(--clr-white);
+  }
+
+  &.bg-accessible-blue {
+    background: var(--accessible-blue);
+    color: var(--clr-white);
+  }
+
+  &.bg-pearl {
+    background: var(--pearl);
+  }
+
+  &.bg-charcoal {
+    background: var(--charcoal);
+    color: var(--clr-white);
+  }
+
+  &.bg-smoke {
+    background: var(--smoke);
+    color: var(--clr-white);
+  }
+
+  &.bg-black {
+    background: var(--black);
+    color: var(--clr-white);
+  }
+
+  &.bg-cherry-red {
+    background: var(--cherry-red);
+    color: var(--clr-white);
+  }
+
   &[class^="bg-"] { /* stylelint-disable no-descending-specificity */
     padding-top: 12px;
     padding-bottom: 12px;
@@ -120,7 +154,7 @@
      }
     }
 
-  &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese {
+  &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese, &.bg-pearl {
     h1, h2, h3, h4, h5, h6, p, li {
       color: inherit;
     }
