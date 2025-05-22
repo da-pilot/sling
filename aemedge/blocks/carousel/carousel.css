@@ -91,7 +91,6 @@
 
 .carousel .carousel-slide .carousel-slide-image {
   display: flex;
-  aspect-ratio: 2 / 3;
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -309,6 +308,13 @@
   .rewards .carousel-navigation-buttons{
     display: none;
   }
+  .carousel.slides-1 .carousel-slide { min-width: 100% !important; }
+  .carousel.slides-2 .carousel-slide { min-width: 50% !important; }
+  .carousel.slides-3 .carousel-slide { min-width: 33.3333% !important; }
+  .carousel.slides-4 .carousel-slide { min-width: 25% !important; }
+  .carousel.slides-5 .carousel-slide { min-width: 20% !important; }
+  .carousel.slides-6 .carousel-slide { min-width: 16.6667% !important; }
+
 }
 
 /* full carousel variant */
