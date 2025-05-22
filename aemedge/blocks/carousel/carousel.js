@@ -1,5 +1,16 @@
 import { fetchPlaceholders } from '../../scripts/aem.js';
 
+function hasAutoscrollClass(element) {
+  let current = element;
+  while (current) {
+    if (current.classList && current.classList.contains('autoscroll')) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
 function showSlide(block, slideIndex = 0) {
   const slides = block.querySelectorAll('.carousel-slide');
   const totalSlides = slides.length;
@@ -40,11 +51,11 @@ function showSlide(block, slideIndex = 0) {
       button.setAttribute('disabled', 'true');
     }
   });
-  
+
   // Add shadow effect when slides change
   const slidesContainer = block.querySelector('.carousel-slides-container');
   slidesContainer.classList.add('slide-transition');
-  
+
   // Remove the effect after animation completes
   setTimeout(() => {
     slidesContainer.classList.remove('slide-transition');
@@ -112,7 +123,6 @@ function updateSlideArrows(rows, slideNavButtons) {
 
 let carouselId = 0;
 export default async function decorate(block) {
-  const variant = block.classList.value;
   carouselId += 1;
   block.setAttribute('id', `carousel-${carouselId}`);
   const rows = block.querySelectorAll(':scope > div');
@@ -169,11 +179,11 @@ export default async function decorate(block) {
   if (!isSingleSlide) {
     bindEvents(block);
   }
-  
+
   // Auto-scrolling functionality that's always enabled
   let slideIndex = parseInt(block.dataset.activeSlide, 10) || 0;
   let autoScrollInterval = null;
-  
+
   function autoScroll() {
     slideIndex += 1;
     if (slideIndex >= rows.length) {
@@ -183,31 +193,30 @@ export default async function decorate(block) {
   }
 
   // Start auto-scroll immediately if it has the autoscroll class
-  if (variant.includes('autoscroll') && rows.length > 1) {
+  if (hasAutoscrollClass(block) && rows.length > 1) {
     // Start auto-scrolling
-    autoScrollInterval = setInterval(autoScroll, 4000);  // Increased to 4s for smoother experience
+    autoScrollInterval = setInterval(autoScroll, 4000);// Increased to 4s for smoother experience
   }
-  
+
   // Add hover class for navigation button visibility
   block.addEventListener('mouseenter', () => {
     block.classList.add('hovered');
   });
-  
+
   block.addEventListener('mouseleave', () => {
     block.classList.remove('hovered');
   });
-  
+
   // Pause auto-scroll when hovering over navigation buttons
   const navButtons = block.querySelectorAll('.carousel-navigation-buttons button');
-  navButtons.forEach(button => {
+  navButtons.forEach((button) => {
     button.addEventListener('mouseenter', () => {
       if (autoScrollInterval) {
         clearInterval(autoScrollInterval);
       }
     });
-    
     button.addEventListener('mouseleave', () => {
-      if (variant.includes('autoscroll') && rows.length > 1) {
+      if (hasAutoscrollClass(block) && rows.length > 1) {
         autoScrollInterval = setInterval(autoScroll, 4000);
       }
     });
