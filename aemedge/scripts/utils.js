@@ -724,6 +724,7 @@ export async function getZipcode() {
 
 export function configSideKick() {
   const showBlocks = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     console.log('a custom event happened', payload);
     const blocks = document.querySelectorAll('div.block');
     const excludedBlockList = ['header', 'zipcode', 'footer'];
@@ -764,6 +765,7 @@ export function configSideKick() {
   };
 
   const showSections = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     console.log('a custom event happened', payload);
     const sections = document.querySelectorAll('div.section');
     sections.forEach((section) => section.classList.toggle('highlight'));
@@ -777,6 +779,7 @@ export function configSideKick() {
     // sidekick now loaded
     document.querySelector('aem-sidekick')
       .addEventListener('custom:eventdetials', (e) => {
+        // eslint-disable-next-line no-console
         console.log(e.detail);
       });
   } else {
@@ -784,6 +787,7 @@ export function configSideKick() {
     document.addEventListener('sidekick-ready', () => {
       // sidekick now loaded
       document.querySelector('aem-sidekick')
+        // eslint-disable-next-line no-console
         .addEventListener('custom:eventdetials', (e) => console.log(e.detail));
       // sidekick now loaded
       document.querySelector('aem-sidekick')
