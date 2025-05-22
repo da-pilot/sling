@@ -4,8 +4,9 @@
 
 .carousel .carousel-slides-container {
   position: relative;
+  
   /* Add a subtle box shadow for depth */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 8px rgb(0 0 0 / 5%);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -25,12 +26,12 @@
 
 .carousel .carousel-slides-container.slide-transition::before {
   left: 0;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.1), transparent);
+  background: linear-gradient(to right, rgb(0 0 0 / 10%), transparent);
 }
 
 .carousel .carousel-slides-container.slide-transition::after {
   right: 0;
-  background: linear-gradient(to left, rgba(0, 0, 0, 0.1), transparent);
+  background: linear-gradient(to left, rgb(0 0 0 / 10%), transparent);
 }
 
 .rewards .carousel .carousel-slides-container {
@@ -50,6 +51,7 @@
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   overflow: scroll clip;
+
   /* Increase transition time for smoother slides */
   transition: transform 0.8s ease-in-out;
 }
@@ -200,6 +202,8 @@
 }
 /* stylelint-disable-next-line no-descending-specificity */
 .carousel:not(.full) .carousel-navigation-buttons button {
+  opacity: 0;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
   backface-visibility: hidden;
   top: calc(50% - 1.25rem);
   left: 0.625rem;
@@ -213,6 +217,16 @@
   background: rgb(245 245 246 / 80%);
   cursor: pointer;
   backdrop-filter: blur(5px);
+}
+
+.carousel .carousel-navigation-buttons button:hover {
+  background-color: rgb(245 245 246 / 95%) !important;
+  transform: scale(1.05);
+}
+
+.carousel.hovered .carousel-navigation-buttons button,
+.carousel:hover .carousel-navigation-buttons button {
+  opacity: 1;
 }
 
 .carousel.medium .carousel-navigation-buttons button {
@@ -241,24 +255,6 @@
 .carousel .carousel-navigation-buttons button.slide-next::after {
   transform: translate(-50%, -50%)  rotate(45deg);
   left: calc(50% - 3px);
-}
-
-/* Hide navigation buttons by default */
-.carousel .carousel-navigation-buttons button {
-  opacity: 0;
-  transition: opacity 0.3s ease, background-color 0.3s ease;
-}
-
-/* Show navigation buttons on hover */
-.carousel.hovered .carousel-navigation-buttons button,
-.carousel:hover .carousel-navigation-buttons button {
-  opacity: 1;
-}
-
-/* Enhance button hover effect */
-.carousel .carousel-navigation-buttons button:hover {
-  background-color: rgba(245, 245, 246, 0.95) !important;
-  transform: scale(1.05);
 }
 
 @media (width >= 768px) {
