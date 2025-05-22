@@ -41,14 +41,19 @@
     width: 60px;
 }
 
-.section.columns-2:has(.channel-shopper-wrapper) {
-    padding: 14px 8%;
+.section.dark .section.columns-2:has(.channel-shopper-wrapper) {
+    padding: 0 8%;
 }
+
+.section.channel-shopper-container > div {
+    width: 100%;
+  }
 
 @media (width >= 768px) {
     .section.columns-2.channel-shopper-container {
         display: flex;
         align-items: center;
+        padding: 0;
     }
 
     .channel-shopper-container {
