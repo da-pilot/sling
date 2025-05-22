@@ -175,6 +175,7 @@ export default async function decorate(block) {
   });
 
   block.prepend(container);
+  block.classList.add(`slides-${rows.length}`);
 
   if (!isSingleSlide) {
     bindEvents(block);
