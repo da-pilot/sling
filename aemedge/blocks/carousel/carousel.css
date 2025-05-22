@@ -91,7 +91,6 @@
 
 .carousel .carousel-slide .carousel-slide-image {
   display: flex;
-  aspect-ratio: 2 / 3;
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -467,10 +466,4 @@
   .tabs.wide .carousel .carousel-slide {
     min-width: 100%;  /* Mobile: 1 slide */
   }
-}
-
-.carousel.slides-2 .carousel-slide .carousel-slide-image,
-.carousel.slides-3 .carousel-slide .carousel-slide-image,
-.carousel.slides-4 .carousel-slide .carousel-slide-image {
-  aspect-ratio: 16 / 9;
 }
