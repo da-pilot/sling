@@ -609,6 +609,32 @@ export function decorateExtImage() {
   });
 }
 
+export function decorateExternalLinks(main) {
+  main.querySelectorAll('a').forEach((a) => {
+    const href = a.getAttribute('href');
+    if (href) {
+      const extension = href.split('.').pop().trim();
+      if (!href.startsWith('/') && !href.startsWith('#')) {
+        const url = new URL(href, window.location.href);
+        const host = url.hostname;
+
+        // Open in new tab if:
+        // 1. It's a PDF
+        // 2. It's not sling.com
+        // 3. It is specifically watch.sling.com
+        if (
+          extension === 'pdf' ||
+          (!host.endsWith('sling.com') || host === 'watch.sling.com')
+        ) {
+          a.setAttribute('target', '_blank');
+        } else {
+          a.removeAttribute('target');
+        }
+      }
+    }
+  });
+}
+
 /**
    * Builds all synthetic blocks in a container element.
    * @param {Element} main The container element
@@ -662,6 +688,7 @@ export function decorateMain(main) {
   decorateSections(main);
   decorateBlocks(main);
   decorateButtons(main);
+  decorateExternalLinks(main);
   makeTwoColumns(main);
   decorateStyledSections(main);
   buildSpacer(main);
