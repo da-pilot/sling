@@ -132,6 +132,7 @@ async function init() {
       repositoryId,
       aemTierType,
       handleSelection: (assets) => {
+        let scene7ErrorShown = false;
         assets.forEach((asset) => {
           if (asset.type === 'folder') {
             return;
@@ -139,7 +140,18 @@ async function init() {
 
           const assetUrl = asset.path || asset.href || asset.downloadUrl || asset.url;
           const scene7Url = asset['repo:dmScene7Url'];
-
+          if (!scene7Url) {
+            if (!scene7ErrorShown) {
+              if (actions?.sendHTML) {
+                actions.sendHTML(`DM url is not available for the asset <b>"${assetUrl}" </b>. Please cross check DM renditions at <a href="https://${repositoryId}/${assetUrl}">${repositoryId}</a> and retry once DM url is available.`);
+              }
+              if (actions?.closeLibrary) {
+                actions.closeLibrary();
+              }
+              scene7ErrorShown = true;
+            }
+            return;
+          }
           if (!assetUrl) {
             return;
           }
