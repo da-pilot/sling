@@ -92,10 +92,15 @@ function setupBGPictures(block) {
 
 // read the config and construct the DOM
 function processBlockConfig(block) {
-  const marqueContent = createTag('div', { class: 'marquee-content' });
   const mediaDIV = createTag('div', { class: 'foreground-container' });
   const nonMediaDIV = createTag('div', { class: 'text-cta-container' });
   const btnsDIV = createTag('div', { class: 'buttons-container' });
+  const addGradient = true;
+  const classes = ['marquee-content', 'config-property'];
+  if (addGradient === true || addGradient === 'true') {
+    classes.push('gradient');
+  }
+  const marqueContent = createTag('div', { class: classes.join(' ') });
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
       const cols = [...row.children];
@@ -131,6 +136,9 @@ function processBlockConfig(block) {
   block.querySelectorAll('.config-property').forEach((prop) => prop.remove()); // remove config property divs from dom
 }
 
+
+
+const marqueContent = createTag('div', { class: classes.join(' ') });
 export default function decorate(block) {
   processBlockConfig(block);
   const background = block.querySelector('.background');
