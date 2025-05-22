@@ -623,8 +623,8 @@ export function decorateExternalLinks(main) {
         // 2. It's not sling.com
         // 3. It is specifically watch.sling.com
         if (
-          extension === 'pdf' ||
-          (!host.endsWith('sling.com') || host === 'watch.sling.com')
+          extension === 'pdf'
+          || (!host.endsWith('sling.com') || host === 'watch.sling.com')
         ) {
           a.setAttribute('target', '_blank');
         } else {
