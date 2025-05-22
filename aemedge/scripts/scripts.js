@@ -605,6 +605,19 @@ export function decorateExtImage() {
 
       fragment.append(picture);
       a.replaceWith(fragment);
+
+      // After replacing the <a> with the <picture>, check for <br> and <a> sibling pattern
+      // (i.e., <picture> (just inserted), <br>, <a>)
+      if (picture.nextSibling && picture.nextSibling.nodeName === 'BR' && picture.nextSibling.nextSibling && picture.nextSibling.nextSibling.nodeName === 'A') {
+        const br = picture.nextSibling;
+        const nextA = br.nextSibling;
+        const up = nextA.parentElement;
+        const picClone = picture.cloneNode(true);
+        nextA.replaceChildren(picClone);
+        up.insertAdjacentHTML('beforeend', nextA.outerHTML);
+        br.remove();
+        // TODO remove empty <a> tags
+      }
     }
   });
 }
@@ -650,14 +663,15 @@ function buildAutoBlocks(main) {
 }
 
 function decorateLinkedImages() {
-  const pictures = document.querySelectorAll('.section.columns-container picture');
+  const pictures = document.querySelectorAll('main picture');
   pictures.forEach((picture) => {
-    const pictureParent = picture.parentElement;
-    const nextSibling = pictureParent.nextElementSibling;
-    if (nextSibling && nextSibling.tagName === 'P' && nextSibling.querySelector('a')) {
-      const anchor = nextSibling.querySelector('a');
-      anchor.innerHTML = '';
-      anchor.appendChild(picture);
+    const next = picture.nextElementSibling;
+    if (next && next.tagName === 'A') {
+      const a = next;
+      a.replaceChildren(picture);
+    } else if (next && next.tagName === 'BR' && next.nextElementSibling && next.nextElementSibling.tagName === 'A') {
+      const a = next.nextElementSibling;
+      a.replaceChildren(picture);
     }
   });
 }
