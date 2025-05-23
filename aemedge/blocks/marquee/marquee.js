@@ -92,14 +92,10 @@ function setupBGPictures(block) {
 
 // read the config and construct the DOM
 function processBlockConfig(block) {
+  const marqueContent = createTag('div', { class: 'marquee-content' });
   const mediaDIV = createTag('div', { class: 'foreground-container' });
   const nonMediaDIV = createTag('div', { class: 'text-cta-container' });
   const btnsDIV = createTag('div', { class: 'buttons-container' });
-  const shouldAddGradient = true; // or 'true'
-
-  const marqueContent = createTag('div', {
-    class: `marquee-content${shouldAddGradient === true || shouldAddGradient === 'true' ? ' gradient' : ''}`,
-  });
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
       const cols = [...row.children];
@@ -107,6 +103,14 @@ function processBlockConfig(block) {
         const col = cols[1];
         const name = toClassName(cols[0].textContent);
         cols[0].classList.add('config-property');
+        // Special handling for gradient
+        if (name === 'gradient') {
+          if (col.textContent.trim().toLowerCase() === 'true') {
+            marqueContent.classList.add('gradient');
+          }
+          col.remove(); // Prevent the gradient configuration from being loaded into the DOM
+          return;
+        }
         col.classList.add(name);
         if (name.trim() === 'scroll-cta-into-header') {
           return;
