@@ -92,10 +92,14 @@ function setupBGPictures(block) {
 
 // read the config and construct the DOM
 function processBlockConfig(block) {
-  const marqueContent = createTag('div', { class: 'marquee-content' });
   const mediaDIV = createTag('div', { class: 'foreground-container' });
   const nonMediaDIV = createTag('div', { class: 'text-cta-container' });
   const btnsDIV = createTag('div', { class: 'buttons-container' });
+  const shouldAddGradient = true; // or 'true'
+
+  const marqueContent = createTag('div', {
+    class: `marquee-content${shouldAddGradient === true || shouldAddGradient === 'true' ? ' gradient' : ''}`
+  });
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
       const cols = [...row.children];
