@@ -98,7 +98,7 @@ function processBlockConfig(block) {
   const shouldAddGradient = true; // or 'true'
 
   const marqueContent = createTag('div', {
-    class: `marquee-content${shouldAddGradient === true || shouldAddGradient === 'true' ? ' gradient' : ''}`
+    class: `marquee-content${shouldAddGradient === true || shouldAddGradient === 'true' ? ' gradient' : ''}`,
   });
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
