@@ -1,18 +1,6 @@
 import { createTag, readBlockConfig } from '../../scripts/utils.js';
 
 export default async function decorate(block) {
-  const wrapperDivs = block.querySelectorAll('div > div');
-  wrapperDivs.forEach((innerDiv) => {
-    const parent = innerDiv.parentElement;
-    // Check if the inner div has only one child and it's a <p>
-    if (
-      innerDiv.children.length === 1
-      && innerDiv.firstElementChild.tagName === 'P'
-    ) {
-      parent.insertBefore(innerDiv.firstElementChild, innerDiv);
-      innerDiv.remove();
-    }
-  });
   const defultProps = {
     showFilter: false,
     channelsLogoPath: '/aemedge/icons/channels/AllLOBLogos/color',
@@ -47,4 +35,7 @@ export default async function decorate(block) {
   const slingProps = { ...defultProps, ...cleanedConfig };
   const container = createTag('div', { id: 'gmfinder-app', 'data-sling-props': JSON.stringify(slingProps) });
   block.append(container);
+  // Clean up any divs without IDs first
+  const divsWithoutId = block.querySelectorAll('div:not([id])');
+  divsWithoutId.forEach((div) => div.remove());
 }

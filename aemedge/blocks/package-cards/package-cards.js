@@ -22,18 +22,6 @@ function createLogoObject(logo) {
 }
 
 export default async function decorate(block) {
-  const wrapperDivs = block.querySelectorAll('div > div');
-  wrapperDivs.forEach((innerDiv) => {
-    const parent = innerDiv.parentElement;
-    // Check if the inner div has only one child and it's a <p>
-    if (
-      innerDiv.children.length === 1
-    && innerDiv.firstElementChild.tagName === 'P'
-    ) {
-      parent.insertBefore(innerDiv.firstElementChild, innerDiv);
-      innerDiv.remove();
-    }
-  });
   const config = await readBlockConfig(block);
   const c1logos = [];
   const c2logos = [];
@@ -105,4 +93,7 @@ export default async function decorate(block) {
   );
   block.append(container);
   // observer.observe(block);
+  // Clean up any divs without IDs first
+  const divsWithoutId = block.querySelectorAll('div:not([id])');
+  divsWithoutId.forEach((div) => div.remove());
 }
