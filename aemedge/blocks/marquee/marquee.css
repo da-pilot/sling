@@ -14,8 +14,6 @@
   -webkit-box-pack: justify;
   flex-flow: column;
   inset: 0;
-
-  /* background: linear-gradient(#33334c00 50%, 85%, #171725 100%), radial-gradient(110% 100% at 75% 25%, #20203200 0%, #171725 100%); */
   box-sizing: border-box;
   width: 100%;
   -webkit-box-align: start;
@@ -29,10 +27,16 @@
     margin-top: 1rem;
   }
 
+  &.gradient {
+    background: linear-gradient(#33334c00 50%, 85%, #171725 100%), radial-gradient(110% 100% at 75% 25%, #20203200 0%, #171725 100%);
+  }
+
   .headline p {
     font-size: var(--heading-font-size-l);
     line-height: 30px;
 }
+
+
 
 .sub-headline picture img {
   width: auto;
