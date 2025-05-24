@@ -21,6 +21,9 @@ function createLogoObject(logo) {
   return logoObject;
 }
 export default async function decorate(block) {
+  // Clean up any divs without IDs first
+  const divsWithoutId = block.querySelectorAll('div:not([id])');
+  divsWithoutId.forEach((div) => div.remove());
   const config = await readBlockConfig(block);
   const c1logos = [];
   const c2logos = [];
