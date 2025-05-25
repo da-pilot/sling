@@ -242,8 +242,9 @@ span {
     }
 }
 
-.button-container p,del{
+.button-container p, .button-container del {
   margin: 0;
+  line-height: 1em;
 }
 
 pre {
@@ -271,11 +272,6 @@ picture {
   text-decoration: unset;
   line-height: 0; /* this and display:block removes extra space */
   display: block;
-}
-
-.button-container del {
-    line-height: 0;
-    display: block;
 }
 
 .center, [data-align="center"] {
