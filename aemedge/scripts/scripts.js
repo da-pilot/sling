@@ -341,25 +341,10 @@ async function setNavType() {
 }
 
 /*  BUTTONS DECORATION */
-
 export function replaceTildesWithDel() {
   // Only process block-level elements where tildes might wrap HTML
-  const elements = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, a');
+  const elements = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6');
   const tildeRegex = /~~([\s\S]*?)~~/g; // [\s\S] allows matching across tags and newlines
-
-  // First, handle <a> tags whose inner text begins and ends with double tildes
-  document.querySelectorAll('a').forEach((a) => {
-    if (/^~~[\s\S]*~~$/.test(a.textContent)) {
-      // Remove the tildes from the textContent
-      a.textContent = a.textContent.replace(/^~~([\s\S]*)~~$/, '$1');
-      // Wrap the <a> in a <del> if not already wrapped
-      if (a.parentElement && a.parentElement.tagName !== 'DEL') {
-        const del = document.createElement('del');
-        a.parentElement.insertBefore(del, a);
-        del.appendChild(a);
-      }
-    }
-  });
 
   elements.forEach((element) => {
     // Only replace if there are tildes present
@@ -373,11 +358,8 @@ export function replaceTildesWithDel() {
  * Decorates paragraphs containing a single link as buttons.
  * @param {Element} element container element
  */
-// let buttonsDecorated = false;
+
 export function decorateButtons(element) {
-  // if (buttonsDecorated) return;
-  // buttonsDecorated = true;
-  replaceTildesWithDel();
   element.querySelectorAll('a').forEach((a) => {
     a.title = a.title || a.textContent;
     if (a.href !== a.textContent && !a.href.includes('/fragments/') && !EXT_IMAGE_URL.test(a.href)) {
@@ -408,11 +390,47 @@ export function decorateButtons(element) {
         linkTextEl.textContent = linkText;
         a.setAttribute('aria-label', linkText);
 
+        // Check for tilde-wrapped content in different contexts
+        const checkAndRemoveTildes = (nodes) => Array.from(nodes).some((node, index, arr) => {
+          if (node === a) {
+            const prevNode = arr[index - 1];
+            const nextNode = arr[index + 1];
+            if (prevNode?.textContent === '~~' && nextNode?.textContent === '~~') {
+              prevNode.remove();
+              nextNode.remove();
+              return true;
+            }
+          }
+          return false;
+        });
+
         if (up.childNodes.length === 1 && (up.tagName === 'P' || up.tagName === 'DIV')) {
+          // Fragment Case 1: Link text is wrapped in tildes
+          const linkTextHasTildes = /^~~[\s\S]*~~$/.test(a.textContent);
+
+          // Remove tildes if they exist
+          if (linkTextHasTildes) {
+            const cleanText = linkTextEl.textContent.replace(/^~~([\s\S]*)~~$/, '$1');
+            linkTextEl.textContent = cleanText;
+            a.title = cleanText;
+            a.setAttribute('aria-label', cleanText);
+          }
+
           a.textContent = '';
-          a.className = 'button text';
+          a.className = linkTextHasTildes ? 'button primary' : 'button text';
           up.classList.add('button-container');
           a.append(linkTextEl);
+        } else if (up.childNodes.length === 3) {
+          if (up.tagName === 'P' && checkAndRemoveTildes(up.childNodes)) {
+            a.className = 'button primary';
+            up.classList.add('button-container');
+          } else if (up.tagName === 'EM' && checkAndRemoveTildes(up.childNodes)) {
+            a.className = 'button secondary';
+            up.classList.add('button-container');
+          }
+        } else if (up.childNodes.length === 1 && up.tagName === 'EM' && threeup.childNodes.length === 1 && twoup.tagName === 'DEL' && (threeup.tagName === 'P' || threeup.tagName === 'DIV')) {
+          a.className = 'button secondary';
+          threeup.classList.add('button-container');
         }
 
         const pageType = getPageType();
@@ -432,19 +450,10 @@ export function decorateButtons(element) {
             a.className = 'button primary';
             twoup.classList.add('button-container');
           }
-          // special IF added after removing tildes. Delete when we remove replaceTildesWithDel
-          if (up.childNodes.length === 3 && up.tagName === 'P' && twoup.childNodes.length === 1 && (twoup.tagName === 'P' || twoup.tagName === 'DIV')) {
-            a.className = 'button primary';
-            twoup.classList.add('button-container');
-          }
-          // end delete
+
           if (up.childNodes.length === 1 && up.tagName === 'EM' && threeup.childNodes.length === 1 && twoup.tagName === 'DEL' && (threeup.tagName === 'P' || threeup.tagName === 'DIV')) {
             a.className = 'button secondary';
             threeup.classList.add('button-container');
-          }
-          if (up.childNodes.length === 1 && up.tagName === 'EM' && twoup.tagName === 'STRONG' && threeup.tagName === 'DEL' && (threeup.parentElement.tagName === 'P' || threeup.parentElement.tagName === 'DIV')) {
-            a.className = 'button dark';
-            threeup.parentElement.classList.add('button-container');
           }
         }
       }
@@ -702,6 +711,7 @@ export function decorateMain(main) {
   decorateSections(main);
   decorateBlocks(main);
   decorateButtons(main);
+  replaceTildesWithDel(main);
   decorateExternalLinks(main);
   makeTwoColumns(main);
   decorateStyledSections(main);
