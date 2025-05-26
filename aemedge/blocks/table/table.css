@@ -1,9 +1,106 @@
+/* table cell color overrides, same as columns.css */
+.table td {
+  &.bg-primary-light {
+    background: var(--primary-light);
+  }
+
+  &.bg-white {
+    background: var(--clr-white);
+  }
+
+  &.bg-dark-rock-candy {
+    background: var(--dark-rock-candy);
+    color: var(--clr-white);
+  }
+
+  &.bg-dark-tangerine {
+    background-color: var(--dark-tangerine);
+    color: var(--clr-white);
+  }
+
+  &.bg-primary-dark {
+    background: var(--primary-dark);
+    color: var(--clr-white);
+  }
+
+  &.bg-highlight-coal {
+    background: var(--highlight-coal);
+    color: var(--clr-white);
+  }
+
+  &.bg-blueberry {
+    background: var(--blueberry);
+    color: var(--clr-white);
+  }
+
+  &.bg-sling-blue {
+    background: var(--sling-blue);
+    color: var(--clr-white);
+  }
+
+  &.bg-accessible-blue {
+    background: var(--accessible-blue);
+    color: var(--clr-white);
+  }
+
+  &.bg-pearl {
+    background: var(--pearl);
+  }
+
+  &.bg-charcoal {
+    background: var(--charcoal);
+    color: var(--clr-white);
+  }
+
+  &.bg-smoke {
+    background: var(--smoke);
+    color: var(--clr-white);
+  }
+
+  &.bg-black {
+    background: var(--black);
+    color: var(--clr-white);
+  }
+
+  &.bg-cherry-red {
+    background: var(--cherry-red);
+    color: var(--clr-white);
+  }
+
+  &[class^="bg-"] { /* stylelint-disable no-descending-specificity */
+    padding-top: 12px;
+    padding-bottom: 12px;
+      width: calc(100% - 24px);
+      margin-left: auto;
+      margin-right: auto;
+
+     > .button-container {
+       margin-left: 12px;
+       margin-right: 12px;
+     }
+    }
+
+  &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese, &.bg-pearl {
+    h1, h2, h3, h4, h5, h6, p, li {
+      color: inherit;
+    }
+
+    a:not(.button, .blue) {
+      color: var(--link-color);
+    }
+  }
+
+    a:not(.button, .blue, .black, .white) {
+      text-decoration: underline;
+    }
+  }
+
+
 .table {
   width: 100%;
   overflow-x: auto;
-}
 
-.table table {
+table {
   width: 100%;
   max-width: 100%;
   border-collapse: collapse;
@@ -21,8 +118,8 @@
   td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
     text-align: center;
   }
+ }
 }
-
 
 /* bordered variant */
 .table.bordered table th,
