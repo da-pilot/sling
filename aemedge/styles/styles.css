@@ -137,6 +137,74 @@ h6 {
   scroll-margin: calc(var(--nav-height) + 1em);
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li {
+  &.size-huge {
+    font-size:3rem;line-height:3.5rem;font-weight:700
+  }
+
+  &.size-4xl {
+    font-size: 2.5rem;
+    line-height: 3.5rem;
+    font-weight: 700;
+  }
+
+  &.size-3xl {
+    font-size: 2.25rem;
+    line-height: 2.688rem;
+    font-weight: 700;
+  }
+
+  &.size-2xl {
+    font-size: 1.75rem;
+    line-height: 2.125rem;
+    font-weight: 700;
+  }
+
+  &.size-xl {
+    font-size: 1.5rem;
+    line-height: 2.125rem;
+    font-weight: 700;
+  }
+
+  &.size-l {
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+    font-weight: 700;
+  }
+
+  &.size-m {
+    font-size: 1.125rem;
+    line-height: 1.125rem;
+    font-weight: 400;
+  }
+
+  &.size-s {
+    font-size: .875rem;
+    line-height: 1.125rem;
+    font-weight: 300;
+  }
+
+  &.size-xs {
+    font-size: .75rem;
+    line-height: 1.125rem;
+    font-weight: 300;
+  }  
+}
+
+p.size-xs a {
+    font-size: .75rem !important;
+    line-height: 1.125rem !important;
+    font-weight: 500 !important;
+    text-decoration: underline !important;
+  }
+  
 h1 {
   font-size: var(--heading-font-size-xxl)
 }
