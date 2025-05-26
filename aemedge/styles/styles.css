@@ -253,21 +253,6 @@ pre {
   overflow: scroll;
 }
 
-code {
-  font-family: inherit;
-  color: var(--clr-fire);
-  font-size: inherit;
-  font-weight: bold;
-}
-
-code.spacer2 {
-  line-height: 3em;
-}
-
-code.spacer3 {
-  line-height: 4.5em;
-}
-
 picture {
   text-decoration: unset;
   line-height: 0; /* this and display:block removes extra space */
