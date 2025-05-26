@@ -485,13 +485,22 @@ export function extractStyleVariables() {
     const isParagraph = node.tagName === 'P';
     const text = node.textContent;
     const colorRegex = text && /{([a-zA-Z-\s]+)?}/; // color must be letters or dashes
-    const numberRegex = text && /\{(\d{1,2})?}/;
+    const numberRegex = text && /\{(\d{1,2})?}/; // numbers are 2 digits or less (width %)
+    const sizeRegex = text && /\{size-([^}]*)\}/; // size-xl etc.
+
     const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`);
 
     const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
     const colorMatches = text.match(colorRegex);
     const numberMatches = text.match(numberRegex);
     const spanMatches = text.match(spanRegex);
+    const sizeMatches = text.match(sizeRegex);
+
+    if (sizeMatches) {
+      const size = sizeMatches[1];
+      node.classList.add(`size-${size}`);
+      node.innerHTML = node.innerHTML.replace(sizeRegex, '');
+    }
 
     if (isParagraph && spacerMatch) {
       const spacerHeight = parseInt(spacerMatch[1], 10);
