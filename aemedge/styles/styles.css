@@ -327,7 +327,7 @@ picture {
   display: block;
 }
 
-.center, [data-align="center"] {
+.center, .align-center {
   text-align: center;
     background-position-x: center;
 
@@ -337,22 +337,12 @@ picture {
     }
 }
 
-[data-valign="bottom"] {
+.valign-bottom {
     align-content: end;
     background-position-y: bottom;
 }
 
-[data-valign="middle"] {
-    align-content: center;
-    background-position-y: center;
-}
-
-[data-valign="top"] {
-    align-content: start;
-    background-position-y: top;
-}
-
-[data-align="right"] {
+.align-right {
     text-align: right;
     background-position-x: right;
 
@@ -361,9 +351,19 @@ picture {
     }
 }
 
-[data-align="left"], [data-align="justify"] {
-    text-align: left;
-    background-position-x: left;
+.align-left {
+    text-align: left !important;
+    background-position-x: left !important;
+}
+
+.valign-middle {
+  align-content: center;
+  background-position-y: center;
+}
+
+.valign-top {
+  align-content: start;
+  background-position-y: top;
 }
 
 main pre {
@@ -538,6 +538,21 @@ button:disabled:hover {
     a.button {
         margin: 8px 0 0;
     }
+}
+
+.button-container.combined:has(> .button-container.align-center) {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.button-container.combined:has(> .button-container.align-right) {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.button-container.combined:has(> .button-container.align-left) {
+  margin-left: 0;
+  margin-right: auto;
 }
 
 .button-subtext-container {

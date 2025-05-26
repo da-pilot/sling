@@ -484,22 +484,31 @@ export function extractStyleVariables() {
     const up = node.parentElement;
     const isParagraph = node.tagName === 'P';
     const text = node.textContent;
-    const colorRegex = text && /{([a-zA-Z-\s]+)?}/; // color must be letters or dashes
-    const numberRegex = text && /\{(\d{1,2})?}/; // numbers are 2 digits or less (width %)
-    const sizeRegex = text && /\{size-([^}]*)\}/; // size-xl etc.
-
+    const numberRegex = text && /\{width-(\d{1,2})?}/; // numbers are 2 digits or less (width %)
+    const sizeRegex = text && /\{size-([^}]*)\}/; // size-xl, size-40 etc.
+    const alignRegex = text && /\{align-([^}]*)\}/; // align-right, align-center, align-left
+    const valignRegex = text && /\{valign-([^}]*)\}/; // valign-top, valign-middle, valign-bottom
+    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-)([a-zA-Z-\s]+)?\}/;
     const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`);
 
     const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
-    const colorMatches = text.match(colorRegex);
     const numberMatches = text.match(numberRegex);
     const spanMatches = text.match(spanRegex);
     const sizeMatches = text.match(sizeRegex);
-
-    if (sizeMatches) {
+    const alignMatches = text.match(alignRegex);
+    const valignMatches = text.match(valignRegex);
+    const colorMatches = text.match(colorRegex);
+    if (sizeMatches && sizeMatches[1] !== undefined) {
       const size = sizeMatches[1];
+      console.log('size', size);
       node.classList.add(`size-${size}`);
       node.innerHTML = node.innerHTML.replace(sizeRegex, '');
+    }
+
+    if (alignMatches && alignMatches[1] !== undefined) {
+      const align = alignMatches[1];
+      node.classList.add(`align-${align}`);
+      node.innerHTML = node.innerHTML.replace(alignRegex, '');
     }
 
     if (isParagraph && spacerMatch) {
@@ -509,14 +518,19 @@ export function extractStyleVariables() {
       node.innerHTML = '';
     } else
       // case where only the color or width is in the first cell
-      if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.trim().startsWith('{') && text.trim().endsWith('}')) {
-        if (colorMatches) {
-          const backgroundColor = colorMatches[1];
-          up.classList.add(`bg-${toClassName(backgroundColor)}`);
-        }
+      if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.startsWith('{') && text.endsWith('}')) {
         if (numberMatches) {
           const percentWidth = numberMatches[1];
           up.style.maxWidth = `${percentWidth}%`;
+        }
+        if (valignMatches) {
+          const valign = valignMatches[1];
+          up.classList.add(`valign-${valign}`);
+        }
+        if (colorMatches) {
+          // Only runs if none of the other matches are true, but colorMatches is true
+          const backgroundColor = colorMatches[1];
+          up.classList.add(`bg-${toClassName(backgroundColor)}`);
         }
         node.remove();
       }
@@ -596,7 +610,6 @@ function buildSpacer(main) {
 export function decorateExtImage() {
   // dynamic media link or images in /svg folder
   // not for bitmap images because we're not doing renditions here
-  const numberRegex = /\{(\d{1,2})?}/;
   const fragment = document.createDocumentFragment();
 
   document.querySelectorAll('a[href]').forEach((a) => {
@@ -604,6 +617,7 @@ export function decorateExtImage() {
       const extImageSrc = a.href;
       const picture = document.createElement('picture');
       const img = document.createElement('img');
+
       img.classList.add('svg');
       // if the link title to an external image was authored, assign as alt text, else use a default
       img.alt = a.title || 'Sling TV image';
@@ -612,13 +626,18 @@ export function decorateExtImage() {
       img.src = extImageSrc;
       picture.append(img);
 
-      // Check if the link's text content matches numberRegex
-      const numberMatches = a.textContent.match(numberRegex);
+      // Check if the link's text content matches width or align
+      const alignRegex = a.textContent.match(/\{align-([^}]*)\}/);
+      if (alignRegex) {
+        const align = alignRegex[1];
+        picture.classList.add(`align-${align}`);
+      }
+      const numberMatches = a.textContent.match(/\{width-(\d{1,2})?}/);
       if (numberMatches) {
         const percentWidth = numberMatches[1];
         img.style.maxWidth = `${percentWidth}%`;
-        // Remove the text content matching numberRegex
-        a.textContent = a.textContent.replace(numberRegex, '');
+        a.textContent = a.textContent.replace(numberMatches[0], '');
+        a.title = a.title.replace(numberMatches[0], '');
       }
 
       fragment.append(picture);
@@ -728,6 +747,7 @@ export function decorateMain(main) {
   decorateExtImage(main);
   decorateLinkedImages();
   extractStyleVariables(main);
+  decorateExtImage(main);
   buildVideoBlocks(main);
 }
 
