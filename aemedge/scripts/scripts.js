@@ -516,6 +516,7 @@ export function extractStyleVariables() {
     // case where id is in the P tag, replace the P with an A id=.
     if (isParagraph && idMatches && idMatches[1] !== undefined) {
       const id = idMatches[1];
+      // Create a new <a> element
       const a = document.createElement('a');
       a.id = id;
       a.innerHTML = '';

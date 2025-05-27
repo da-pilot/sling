@@ -380,6 +380,10 @@ a:any-link {
   text-decoration: none;
 }
 
+a[id] {
+  scroll-margin-top: calc(var(--nav-height) + 1em);
+}
+
 a:hover {
   text-decoration: none;
   color: var(--link-hover-color);
