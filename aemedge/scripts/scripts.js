@@ -484,12 +484,13 @@ export function extractStyleVariables() {
     const up = node.parentElement;
     const isParagraph = node.tagName === 'P';
     const text = node.textContent;
-    const numberRegex = text && /\{width-(\d{1,2})?}/; // numbers are 2 digits or less (width %)
-    const sizeRegex = text && /\{size-([^}]*)\}/; // size-xl, size-40 etc.
+    const numberRegex = text && /\{width-(\d{1,2})?}/; // width-60, etc. 2 digits or less (percentage)
+    const sizeRegex = text && /\{size-([^}]*)\}/; // size-xl, etc.
     const alignRegex = text && /\{align-([^}]*)\}/; // align-right, align-center, align-left
     const valignRegex = text && /\{valign-([^}]*)\}/; // valign-top, valign-middle, valign-bottom
-    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-)([a-zA-Z-\s]+)?\}/;
-    const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`);
+    const targetRegex = text && /\{target-([^}]*)\}/; // target-blank, target-self
+    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-)([a-zA-Z-\s]+)?\}/;
+    const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`); // [plain text]{color}
 
     const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
     const numberMatches = text.match(numberRegex);
@@ -498,26 +499,28 @@ export function extractStyleVariables() {
     const alignMatches = text.match(alignRegex);
     const valignMatches = text.match(valignRegex);
     const colorMatches = text.match(colorRegex);
+    const targetMatches = text.match(targetRegex);
+
+    // case where size, align are to be added to the node
     if (sizeMatches && sizeMatches[1] !== undefined) {
       const size = sizeMatches[1];
-      console.log('size', size);
       node.classList.add(`size-${size}`);
       node.innerHTML = node.innerHTML.replace(sizeRegex, '');
     }
-
     if (alignMatches && alignMatches[1] !== undefined) {
       const align = alignMatches[1];
       node.classList.add(`align-${align}`);
       node.innerHTML = node.innerHTML.replace(alignRegex, '');
     }
 
+    // case where new spacer node is created
     if (isParagraph && spacerMatch) {
       const spacerHeight = parseInt(spacerMatch[1], 10);
       node.style.height = `${spacerHeight * 10}px`;
       node.className = 'spacer';
       node.innerHTML = '';
     } else
-      // case where only the color or width is in the first cell
+      // case where width, valign and/or color are in the first P of a column or table cell
       if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.startsWith('{') && text.endsWith('}')) {
         if (numberMatches) {
           const percentWidth = numberMatches[1];
@@ -528,14 +531,13 @@ export function extractStyleVariables() {
           up.classList.add(`valign-${valign}`);
         }
         if (colorMatches) {
-          // Only runs if none of the other matches are true, but colorMatches is true
           const backgroundColor = colorMatches[1];
           up.classList.add(`bg-${toClassName(backgroundColor)}`);
         }
         node.remove();
       }
-    const anchor = node.querySelector('a');
-    // First handle span wrapping
+
+    // handle span wrapping for plain text
     if (spanMatches) {
       const currentHTML = node.innerHTML;
       node.innerHTML = currentHTML.replace(new RegExp(spanRegex, 'g'), (match, spanText, color) => {
@@ -544,13 +546,18 @@ export function extractStyleVariables() {
       });
     }
 
-    // Then handle anchor tag coloring
+    // Then handle anchor tag color and target
+    const anchor = node.querySelector('a');
     if (anchor) {
-      if (colorMatches && anchor.textContent.endsWith(colorMatches[0])) {
+      if (colorMatches && colorMatches[1] !== undefined) {
         anchor.classList.add(`bg-${toClassName(colorMatches[1])}`);
-        anchor.textContent = anchor.textContent.replace(colorMatches[0], '');
-        anchor.title = anchor.title.replace(colorMatches[0], '');
+        [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(colorMatches[0], ''));
       }
+      if (targetMatches && targetMatches[1] !== undefined) {
+        anchor.setAttribute('target', targetMatches[1]);
+        [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(targetMatches[0], ''));
+      }
+      anchor.setAttribute('aria-label', anchor.textContent);
     }
   });
 }
