@@ -552,12 +552,13 @@ export function extractStyleVariables() {
       if (colorMatches && colorMatches[1] !== undefined) {
         anchor.classList.add(`bg-${toClassName(colorMatches[1])}`);
         [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(colorMatches[0], ''));
+        anchor.setAttribute('aria-label', anchor.textContent);
       }
       if (targetMatches && targetMatches[1] !== undefined) {
         anchor.setAttribute('target', targetMatches[1]);
         [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(targetMatches[0], ''));
+        anchor.setAttribute('aria-label', anchor.textContent);
       }
-      anchor.setAttribute('aria-label', anchor.textContent);
     }
   });
 }
