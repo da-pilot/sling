@@ -111,19 +111,25 @@ function createSlide(row, slideIndex, carouselId) {
   return slide;
 }
 
-function getVisibleSlidesCount() {
-  if (window.matchMedia('(max-width: 767px)').matches) {
-    return 1; // Mobile
+function getVisibleSlidesCount(block) {
+  // Look for a slides-X class on the block or its ancestors
+  let parent = block;
+  while (parent && parent !== document.body) {
+    const match = Array.from(parent.classList).find((cls) => /^slides-(\d+)$/.test(cls));
+    if (match) {
+      return parseInt(match.replace('slides-', ''), 10);
+    }
+    parent = parent.parentElement;
   }
-  if (window.matchMedia('(max-width: 1023px)').matches) {
-    return 2; // Tablet
-  }
-  return 6; // Desktop (default for your carousel)
+  // Fallback to default responsive logic
+  if (window.matchMedia('(max-width: 767px)').matches) return 1;
+  if (window.matchMedia('(max-width: 1023px)').matches) return 2;
+  return 6;
 }
 
-function updateSlideArrows(rows, slideNavButtons) {
+function updateSlideArrows(block, rows, slideNavButtons) {
   const imageCount = rows.length;
-  const visibleSlides = getVisibleSlidesCount();
+  const visibleSlides = getVisibleSlidesCount(block);
   if (imageCount <= visibleSlides) {
     slideNavButtons.classList.add('hide');
   } else {
@@ -166,8 +172,8 @@ export default async function decorate(block) {
     `;
 
     container.append(slideNavButtons);
-    updateSlideArrows(rows, slideNavButtons);
-    window.addEventListener('resize', () => updateSlideArrows(rows, slideNavButtons));
+    updateSlideArrows(block, rows, slideNavButtons);
+    window.addEventListener('resize', () => updateSlideArrows(block, rows, slideNavButtons));
   }
 
   rows.forEach((row, idx) => {
@@ -185,7 +191,25 @@ export default async function decorate(block) {
   });
 
   block.prepend(container);
-  block.classList.add(`slides-${rows.length}`);
+
+  // Find a parent with a class matching /slides-\d+/
+  let parent = block.parentElement;
+  let slideClass = null;
+  while (parent && parent !== document.body) {
+    const match = Array.from(parent.classList).find((cls) => /^slides-\d+$/.test(cls));
+    if (match) {
+      slideClass = match;
+      break;
+    }
+    parent = parent.parentElement;
+  }
+
+  // Add the found class, or fallback to rows.length
+  if (slideClass) {
+    block.classList.add(slideClass);
+  } else {
+    block.classList.add(`slides-${rows.length}`);
+  }
 
   if (!isSingleSlide) {
     bindEvents(block);
