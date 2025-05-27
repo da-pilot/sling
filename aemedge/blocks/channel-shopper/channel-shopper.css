@@ -57,6 +57,7 @@
     .section.columns-2.channel-shopper-container {
         display: flex;
         align-items: center;
+        padding: 0 8%;
     }
 
     .channel-shopper-container {
