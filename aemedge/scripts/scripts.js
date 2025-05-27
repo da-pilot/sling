@@ -606,24 +606,6 @@ async function loadTemplate(main) {
   }
 }
 
-/**
-   * Builds a spacer out of a code block with the text 'spacer'.
-   * add up to 3 spacers with 'spacer1', 'spacer2', 'spacer3'
-   */
-function buildSpacer(main) {
-  const codeElements = main.querySelectorAll('code');
-  codeElements.forEach((code) => {
-    const spacerMatch = code.textContent.match(/spacer-(\d+)/);
-    if (spacerMatch) {
-      const spacerHeight = parseInt(spacerMatch[1], 10);
-      const spacerDiv = document.createElement('div');
-      spacerDiv.style.height = `${spacerHeight * 10}px`;
-      code.insertAdjacentElement('afterend', spacerDiv);
-      code.remove();
-    }
-  });
-}
-
 export function decorateExtImage() {
   // dynamic media link or images in /svg folder
   // not for bitmap images because we're not doing renditions here
@@ -760,7 +742,6 @@ export function decorateMain(main) {
   decorateExternalLinks(main);
   makeTwoColumns(main);
   decorateStyledSections(main);
-  buildSpacer(main);
   decorateExtImage(main);
   decorateLinkedImages();
   extractStyleVariables(main);
