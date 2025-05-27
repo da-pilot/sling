@@ -489,7 +489,8 @@ export function extractStyleVariables() {
     const alignRegex = text && /\{align-([^}]*)\}/; // align-right, align-center, align-left
     const valignRegex = text && /\{valign-([^}]*)\}/; // valign-top, valign-middle, valign-bottom
     const targetRegex = text && /\{target-([^}]*)\}/; // target-blank, target-self
-    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-)([a-zA-Z-\s]+)?\}/;
+    const idRegex = text && /\{id-([^}]*)\}/; // id-coolsection, etc
+    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-|id-)([a-zA-Z-\s]+)?\}/;
     const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`); // [plain text]{color}
 
     const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
@@ -500,7 +501,7 @@ export function extractStyleVariables() {
     const valignMatches = text.match(valignRegex);
     const colorMatches = text.match(colorRegex);
     const targetMatches = text.match(targetRegex);
-
+    const idMatches = text.match(idRegex);
     // case where size, align are to be added to the node
     if (sizeMatches && sizeMatches[1] !== undefined) {
       const size = sizeMatches[1];
@@ -512,7 +513,15 @@ export function extractStyleVariables() {
       node.classList.add(`align-${align}`);
       node.innerHTML = node.innerHTML.replace(alignRegex, '');
     }
-
+    // case where id is in the P tag, replace the P with an A id=.
+    if (isParagraph && idMatches && idMatches[1] !== undefined) {
+      const id = idMatches[1];
+      // Create a new <a> element
+      const a = document.createElement('a');
+      a.id = id;
+      a.innerHTML = '';
+      node.parentNode.replaceChild(a, node);
+    }
     // case where new spacer node is created
     if (isParagraph && spacerMatch) {
       const spacerHeight = parseInt(spacerMatch[1], 10);
