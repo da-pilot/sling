@@ -111,10 +111,20 @@ function createSlide(row, slideIndex, carouselId) {
   return slide;
 }
 
+function getVisibleSlidesCount() {
+  if (window.matchMedia('(max-width: 767px)').matches) {
+    return 1; // Mobile
+  }
+  if (window.matchMedia('(max-width: 1023px)').matches) {
+    return 2; // Tablet
+  }
+  return 6; // Desktop (default for your carousel)
+}
+
 function updateSlideArrows(rows, slideNavButtons) {
-  const isMobile = window.matchMedia('(max-width: 767px)').matches;
   const imageCount = rows.length;
-  if ((isMobile && imageCount <= 2) || (!isMobile && imageCount <= 3)) {
+  const visibleSlides = getVisibleSlidesCount();
+  if (imageCount <= visibleSlides) {
     slideNavButtons.classList.add('hide');
   } else {
     slideNavButtons.classList.remove('hide');
