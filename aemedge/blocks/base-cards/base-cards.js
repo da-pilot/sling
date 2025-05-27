@@ -4,13 +4,41 @@ const options = {
   threshold: 0,
 };// eslint-disable-next-line no-use-before-define
 const observer = new IntersectionObserver(await loadReactLib, options);
-async function loadReactLib(entries) {
-  if (entries.some(async (entry) => {
-    if (entry.isIntersecting) {
-      await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, entry.target);
-      observer.unobserve(entry.target);
+
+function lowercaseSVGFileNames(node) {
+  node.querySelectorAll('img[src$=".svg"]').forEach((img) => {
+    const url = new URL(img.src, window.location.origin);
+    const parts = url.pathname.split('/');
+    const filename = parts.pop();
+    const [name, ext] = filename.split('.');
+    if (name !== name.toLowerCase()) {
+      parts.push(`${name.toLowerCase()}.${ext}`);
+      url.pathname = parts.join('/');
+      img.src = url.toString();
     }
-  }));
+  });
+}
+
+function observeBaseCardsApp() {
+  const container = document.querySelector('.base-cards.block #base-cards-app');
+  if (!container) return;
+  // Initial run
+  lowercaseSVGFileNames(container);
+  // Observe for future changes
+  const mo = new MutationObserver(() => {
+    lowercaseSVGFileNames(container);
+  });
+  mo.observe(container, { childList: true, subtree: true });
+  // Disconnect after 5 seconds
+  setTimeout(() => mo.disconnect(), 5000);
+}
+
+async function loadReactLib(entries) {
+  if (entries.some((entry) => entry.isIntersecting)) {
+    await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, entries.find((entry) => entry.isIntersecting).target);
+    observer.unobserve(entries.find((entry) => entry.isIntersecting).target);
+    observeBaseCardsApp();
+  }
 }
 
 export default async function decorate(block) {
@@ -102,5 +130,6 @@ export default async function decorate(block) {
   // listen to zipcode changes and redecorate
   document.addEventListener('zipupdate', async () => {
     await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, block);
-  }, { once: true });
+    observeBaseCardsApp();
+  });
 }
