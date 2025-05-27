@@ -30,8 +30,15 @@ function observeBaseCardsApp() {
     lowercaseSVGFileNames(container);
   });
   mo.observe(container, { childList: true, subtree: true });
-  // Disconnect after 5 seconds
-  setTimeout(() => mo.disconnect(), 5000);
+
+  // Disconnect observers when the container is removed from the DOM
+  const removalObserver = new MutationObserver(() => {
+    if (!document.body.contains(container)) {
+      mo.disconnect();
+      removalObserver.disconnect();
+    }
+  });
+  removalObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 async function loadReactLib(entries) {
