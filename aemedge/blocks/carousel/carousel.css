@@ -199,6 +199,20 @@
 .carousel.medium .carousel-navigation-buttons {
   top: 45%;
 }
+
+.carousel.hovered .carousel-navigation-buttons button,
+.carousel:hover .carousel-navigation-buttons button {
+  opacity: 1;
+}
+
+.carousel.medium .carousel-navigation-buttons button {
+  opacity: 0; /* Add this line to hide the buttons by default */
+  transition: opacity 0.5s;
+}
+
+.carousel.medium:hover .carousel-navigation-buttons button {
+  opacity: 1; /* Add this line to show the buttons on hover */
+}
 /* stylelint-disable-next-line no-descending-specificity */
 .carousel:not(.full) .carousel-navigation-buttons button {
   opacity: 0;
@@ -218,23 +232,10 @@
   backdrop-filter: blur(5px);
 }
 
-.carousel .carousel-navigation-buttons button:hover {
+.carousel:not(.full):hover .carousel-navigation-buttons button {
+  opacity: 1;
   background-color: rgb(245 245 246 / 95%) !important;
   transform: scale(1.05);
-}
-
-.carousel.hovered .carousel-navigation-buttons button,
-.carousel:hover .carousel-navigation-buttons button {
-  opacity: 1;
-}
-
-.carousel.medium .carousel-navigation-buttons button {
-  opacity: 0; /* Add this line to hide the buttons by default */
-  transition: opacity 0.5s;
-}
-
-.carousel.medium:hover .carousel-navigation-buttons button {
-  opacity: 1; /* Add this line to show the buttons on hover */
 }
 
 .carousel .carousel-navigation-buttons button::after {
@@ -308,13 +309,13 @@
   .rewards .carousel-navigation-buttons{
     display: none;
   }
+
   .carousel.slides-1 .carousel-slide { min-width: 100% !important; }
   .carousel.slides-2 .carousel-slide { min-width: 50% !important; }
   .carousel.slides-3 .carousel-slide { min-width: 33.3333% !important; }
   .carousel.slides-4 .carousel-slide { min-width: 25% !important; }
   .carousel.slides-5 .carousel-slide { min-width: 20% !important; }
   .carousel.slides-6 .carousel-slide { min-width: 16.6667% !important; }
-
 }
 
 /* full carousel variant */
@@ -377,7 +378,7 @@
 
 /* stylelint-disable-next-line no-descending-specificity */
 .carousel.full .carousel-navigation-buttons button {
-  background-color: #9e9b9b;
+  background-color: #333;
   border: none;
   border-radius: 50%;
   width: 32px;
@@ -389,7 +390,7 @@
 }
 
 .carousel.full .carousel-navigation-buttons button:hover {
-  background: rgb(252 191 56);
+  background: #fcbf38;
 }
 
 .carousel.full .carousel-slide-indicators {
@@ -406,7 +407,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 20px solid white;
+  border: 2px solid white;
   background: transparent;
   padding: 0;
   cursor: pointer;
@@ -414,7 +415,7 @@
 }
 
 .carousel.full .carousel-slide-indicators button[disabled] {
-  background: #dbc76a;
+  background: #fcbf38;
 }
 
 /* Hide the text inside indicators */
