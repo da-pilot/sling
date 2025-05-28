@@ -44,15 +44,6 @@
     border-radius: 1600px;
 }
 
-
-
-
-
-@media (width >= 768px) {
-/* .base-cards.block #base-cards-app .fIvgai {
-    right: 12px;
-    top: 28px;
-} */
 .base-cards.block #base-cards-app div.eMQgdL > *{
     height: 488px;
 }
@@ -60,4 +51,3 @@
 .base-cards.block #base-cards-app .kSIqUD {
     margin: -8px;
 } 
-}
