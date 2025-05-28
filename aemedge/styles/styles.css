@@ -703,6 +703,7 @@ button.text:hover {
 .offer-details a.button.text {
   color: white;
   text-align: center;
+  margin-top: 0;
 }
 
 .offer-details a.button.text .link-button-text {
