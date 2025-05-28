@@ -137,6 +137,74 @@ h6 {
   scroll-margin: calc(var(--nav-height) + 1em);
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li {
+  &.size-huge {
+    font-size:3rem;line-height:3.5rem;font-weight:700
+  }
+
+  &.size-4xl {
+    font-size: 2.5rem;
+    line-height: 3.5rem;
+    font-weight: 700;
+  }
+
+  &.size-3xl {
+    font-size: 2.25rem;
+    line-height: 2.688rem;
+    font-weight: 700;
+  }
+
+  &.size-2xl {
+    font-size: 1.75rem;
+    line-height: 2.125rem;
+    font-weight: 700;
+  }
+
+  &.size-xl {
+    font-size: 1.5rem;
+    line-height: 2.125rem;
+    font-weight: 700;
+  }
+
+  &.size-l {
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+    font-weight: 700;
+  }
+
+  &.size-m {
+    font-size: 1.125rem;
+    line-height: 1.125rem;
+    font-weight: 400;
+  }
+
+  &.size-s {
+    font-size: .875rem;
+    line-height: 1.125rem;
+    font-weight: 300;
+  }
+
+  &.size-xs {
+    font-size: .75rem;
+    line-height: 1.125rem;
+    font-weight: 300;
+  }  
+}
+
+p.size-xs a {
+    font-size: .75rem !important;
+    line-height: 1.125rem !important;
+    font-weight: 500 !important;
+    text-decoration: underline !important;
+  }
+  
 h1 {
   font-size: var(--heading-font-size-xxl)
 }
@@ -242,8 +310,9 @@ span {
     }
 }
 
-.button-container p,del{
+.button-container p, .button-container del {
   margin: 0;
+  line-height: 1em;
 }
 
 pre {
@@ -252,33 +321,13 @@ pre {
   overflow: scroll;
 }
 
-code {
-  font-family: inherit;
-  color: var(--clr-fire);
-  font-size: inherit;
-  font-weight: bold;
-}
-
-code.spacer2 {
-  line-height: 3em;
-}
-
-code.spacer3 {
-  line-height: 4.5em;
-}
-
 picture {
   text-decoration: unset;
   line-height: 0; /* this and display:block removes extra space */
   display: block;
 }
 
-.button-container del {
-    line-height: 0;
-    display: block;
-}
-
-.center, [data-align="center"] {
+.center, .align-center {
   text-align: center;
     background-position-x: center;
 
@@ -288,22 +337,12 @@ picture {
     }
 }
 
-[data-valign="bottom"] {
+.valign-bottom {
     align-content: end;
     background-position-y: bottom;
 }
 
-[data-valign="middle"] {
-    align-content: center;
-    background-position-y: center;
-}
-
-[data-valign="top"] {
-    align-content: start;
-    background-position-y: top;
-}
-
-[data-align="right"] {
+.align-right {
     text-align: right;
     background-position-x: right;
 
@@ -312,9 +351,19 @@ picture {
     }
 }
 
-[data-align="left"], [data-align="justify"] {
-    text-align: left;
-    background-position-x: left;
+.align-left {
+    text-align: left !important;
+    background-position-x: left !important;
+}
+
+.valign-middle {
+  align-content: center;
+  background-position-y: center;
+}
+
+.valign-top {
+  align-content: start;
+  background-position-y: top;
 }
 
 main pre {
@@ -329,6 +378,10 @@ main pre {
 a:any-link {
   color: var(--link-color);
   text-decoration: none;
+}
+
+a[id] {
+  scroll-margin-top: calc(var(--nav-height) + 1em);
 }
 
 a:hover {
@@ -489,6 +542,21 @@ button:disabled:hover {
     a.button {
         margin: 8px 0 0;
     }
+}
+
+.button-container.combined:has(> .button-container.align-center) {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.button-container.combined:has(> .button-container.align-right) {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.button-container.combined:has(> .button-container.align-left) {
+  margin-left: 0;
+  margin-right: auto;
 }
 
 .button-subtext-container {

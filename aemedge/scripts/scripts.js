@@ -341,25 +341,10 @@ async function setNavType() {
 }
 
 /*  BUTTONS DECORATION */
-
 export function replaceTildesWithDel() {
   // Only process block-level elements where tildes might wrap HTML
-  const elements = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, a');
+  const elements = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6');
   const tildeRegex = /~~([\s\S]*?)~~/g; // [\s\S] allows matching across tags and newlines
-
-  // First, handle <a> tags whose inner text begins and ends with double tildes
-  document.querySelectorAll('a').forEach((a) => {
-    if (/^~~[\s\S]*~~$/.test(a.textContent)) {
-      // Remove the tildes from the textContent
-      a.textContent = a.textContent.replace(/^~~([\s\S]*)~~$/, '$1');
-      // Wrap the <a> in a <del> if not already wrapped
-      if (a.parentElement && a.parentElement.tagName !== 'DEL') {
-        const del = document.createElement('del');
-        a.parentElement.insertBefore(del, a);
-        del.appendChild(a);
-      }
-    }
-  });
 
   elements.forEach((element) => {
     // Only replace if there are tildes present
@@ -373,11 +358,8 @@ export function replaceTildesWithDel() {
  * Decorates paragraphs containing a single link as buttons.
  * @param {Element} element container element
  */
-// let buttonsDecorated = false;
+
 export function decorateButtons(element) {
-  // if (buttonsDecorated) return;
-  // buttonsDecorated = true;
-  replaceTildesWithDel();
   element.querySelectorAll('a').forEach((a) => {
     a.title = a.title || a.textContent;
     if (a.href !== a.textContent && !a.href.includes('/fragments/') && !EXT_IMAGE_URL.test(a.href)) {
@@ -408,11 +390,47 @@ export function decorateButtons(element) {
         linkTextEl.textContent = linkText;
         a.setAttribute('aria-label', linkText);
 
+        // Check for tilde-wrapped content in different contexts
+        const checkAndRemoveTildes = (nodes) => Array.from(nodes).some((node, index, arr) => {
+          if (node === a) {
+            const prevNode = arr[index - 1];
+            const nextNode = arr[index + 1];
+            if (prevNode?.textContent === '~~' && nextNode?.textContent === '~~') {
+              prevNode.remove();
+              nextNode.remove();
+              return true;
+            }
+          }
+          return false;
+        });
+
         if (up.childNodes.length === 1 && (up.tagName === 'P' || up.tagName === 'DIV')) {
+          // Fragment Case 1: Link text is wrapped in tildes
+          const linkTextHasTildes = /^~~[\s\S]*~~$/.test(a.textContent);
+
+          // Remove tildes if they exist
+          if (linkTextHasTildes) {
+            const cleanText = linkTextEl.textContent.replace(/^~~([\s\S]*)~~$/, '$1');
+            linkTextEl.textContent = cleanText;
+            a.title = cleanText;
+            a.setAttribute('aria-label', cleanText);
+          }
+
           a.textContent = '';
-          a.className = 'button text';
+          a.className = linkTextHasTildes ? 'button primary' : 'button text';
           up.classList.add('button-container');
           a.append(linkTextEl);
+        } else if (up.childNodes.length === 3) {
+          if (up.tagName === 'P' && checkAndRemoveTildes(up.childNodes)) {
+            a.className = 'button primary';
+            up.classList.add('button-container');
+          } else if (up.tagName === 'EM' && checkAndRemoveTildes(up.childNodes)) {
+            a.className = 'button secondary';
+            up.classList.add('button-container');
+          }
+        } else if (up.childNodes.length === 1 && up.tagName === 'EM' && threeup.childNodes.length === 1 && twoup.tagName === 'DEL' && (threeup.tagName === 'P' || threeup.tagName === 'DIV')) {
+          a.className = 'button secondary';
+          threeup.classList.add('button-container');
         }
 
         const pageType = getPageType();
@@ -432,19 +450,10 @@ export function decorateButtons(element) {
             a.className = 'button primary';
             twoup.classList.add('button-container');
           }
-          // special IF added after removing tildes. Delete when we remove replaceTildesWithDel
-          if (up.childNodes.length === 3 && up.tagName === 'P' && twoup.childNodes.length === 1 && (twoup.tagName === 'P' || twoup.tagName === 'DIV')) {
-            a.className = 'button primary';
-            twoup.classList.add('button-container');
-          }
-          // end delete
+
           if (up.childNodes.length === 1 && up.tagName === 'EM' && threeup.childNodes.length === 1 && twoup.tagName === 'DEL' && (threeup.tagName === 'P' || threeup.tagName === 'DIV')) {
             a.className = 'button secondary';
             threeup.classList.add('button-container');
-          }
-          if (up.childNodes.length === 1 && up.tagName === 'EM' && twoup.tagName === 'STRONG' && threeup.tagName === 'DEL' && (threeup.parentElement.tagName === 'P' || threeup.parentElement.tagName === 'DIV')) {
-            a.className = 'button dark';
-            threeup.parentElement.classList.add('button-container');
           }
         }
       }
@@ -475,35 +484,69 @@ export function extractStyleVariables() {
     const up = node.parentElement;
     const isParagraph = node.tagName === 'P';
     const text = node.textContent;
-    const colorRegex = text && /{([a-zA-Z-\s]+)?}/; // color must be letters or dashes
-    const numberRegex = text && /\{(\d{1,2})?}/;
-    const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`);
+    const numberRegex = text && /\{width-(\d{1,2})?}/; // width-60, etc. 2 digits or less (percentage)
+    const sizeRegex = text && /\{size-([^}]*)\}/; // size-xl, etc.
+    const alignRegex = text && /\{align-([^}]*)\}/; // align-right, align-center, align-left
+    const valignRegex = text && /\{valign-([^}]*)\}/; // valign-top, valign-middle, valign-bottom
+    const targetRegex = text && /\{target-([^}]*)\}/; // target-blank, target-self
+    const idRegex = text && /\{id-([^}]*)\}/; // id-coolsection, etc
+    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-|id-)([a-zA-Z-\s]+)?\}/;
+    const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`); // [plain text]{color}
 
     const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
-    const colorMatches = text.match(colorRegex);
     const numberMatches = text.match(numberRegex);
     const spanMatches = text.match(spanRegex);
-
+    const sizeMatches = text.match(sizeRegex);
+    const alignMatches = text.match(alignRegex);
+    const valignMatches = text.match(valignRegex);
+    const colorMatches = text.match(colorRegex);
+    const targetMatches = text.match(targetRegex);
+    const idMatches = text.match(idRegex);
+    // case where size, align are to be added to the node
+    if (sizeMatches && sizeMatches[1] !== undefined) {
+      const size = sizeMatches[1];
+      node.classList.add(`size-${size}`);
+      node.innerHTML = node.innerHTML.replace(sizeRegex, '');
+    }
+    if (alignMatches && alignMatches[1] !== undefined) {
+      const align = alignMatches[1];
+      node.classList.add(`align-${align}`);
+      node.innerHTML = node.innerHTML.replace(alignRegex, '');
+    }
+    // case where id is in the P tag, replace the P with an A id=.
+    if (isParagraph && idMatches && idMatches[1] !== undefined) {
+      const id = idMatches[1];
+      // Create a new <a> element
+      const a = document.createElement('a');
+      a.id = id;
+      a.innerHTML = '';
+      node.parentNode.replaceChild(a, node);
+    }
+    // case where new spacer node is created
     if (isParagraph && spacerMatch) {
       const spacerHeight = parseInt(spacerMatch[1], 10);
       node.style.height = `${spacerHeight * 10}px`;
       node.className = 'spacer';
       node.innerHTML = '';
     } else
-      // case where only the color or width is in the first cell
-      if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.trim().startsWith('{') && text.trim().endsWith('}')) {
-        if (colorMatches) {
-          const backgroundColor = colorMatches[1];
-          up.classList.add(`bg-${toClassName(backgroundColor)}`);
-        }
+      // case where width, valign and/or color are in the first P of a column or table cell
+      if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.startsWith('{') && text.endsWith('}')) {
         if (numberMatches) {
           const percentWidth = numberMatches[1];
           up.style.maxWidth = `${percentWidth}%`;
         }
+        if (valignMatches) {
+          const valign = valignMatches[1];
+          up.classList.add(`valign-${valign}`);
+        }
+        if (colorMatches) {
+          const backgroundColor = colorMatches[1];
+          up.classList.add(`bg-${toClassName(backgroundColor)}`);
+        }
         node.remove();
       }
-    const anchor = node.querySelector('a');
-    // First handle span wrapping
+
+    // handle span wrapping for plain text
     if (spanMatches) {
       const currentHTML = node.innerHTML;
       node.innerHTML = currentHTML.replace(new RegExp(spanRegex, 'g'), (match, spanText, color) => {
@@ -512,12 +555,18 @@ export function extractStyleVariables() {
       });
     }
 
-    // Then handle anchor tag coloring
+    // Then handle anchor tag color and target
+    const anchor = node.querySelector('a');
     if (anchor) {
-      if (colorMatches && anchor.textContent.endsWith(colorMatches[0])) {
+      if (colorMatches && colorMatches[1] !== undefined) {
         anchor.classList.add(`bg-${toClassName(colorMatches[1])}`);
-        anchor.textContent = anchor.textContent.replace(colorMatches[0], '');
-        anchor.title = anchor.title.replace(colorMatches[0], '');
+        [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(colorMatches[0], ''));
+        anchor.setAttribute('aria-label', anchor.textContent);
+      }
+      if (targetMatches && targetMatches[1] !== undefined) {
+        anchor.setAttribute('target', targetMatches[1]);
+        [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(targetMatches[0], ''));
+        anchor.setAttribute('aria-label', anchor.textContent);
       }
     }
   });
@@ -557,28 +606,9 @@ async function loadTemplate(main) {
   }
 }
 
-/**
-   * Builds a spacer out of a code block with the text 'spacer'.
-   * add up to 3 spacers with 'spacer1', 'spacer2', 'spacer3'
-   */
-function buildSpacer(main) {
-  const codeElements = main.querySelectorAll('code');
-  codeElements.forEach((code) => {
-    const spacerMatch = code.textContent.match(/spacer-(\d+)/);
-    if (spacerMatch) {
-      const spacerHeight = parseInt(spacerMatch[1], 10);
-      const spacerDiv = document.createElement('div');
-      spacerDiv.style.height = `${spacerHeight * 10}px`;
-      code.insertAdjacentElement('afterend', spacerDiv);
-      code.remove();
-    }
-  });
-}
-
 export function decorateExtImage() {
   // dynamic media link or images in /svg folder
   // not for bitmap images because we're not doing renditions here
-  const numberRegex = /\{(\d{1,2})?}/;
   const fragment = document.createDocumentFragment();
 
   document.querySelectorAll('a[href]').forEach((a) => {
@@ -586,6 +616,7 @@ export function decorateExtImage() {
       const extImageSrc = a.href;
       const picture = document.createElement('picture');
       const img = document.createElement('img');
+
       img.classList.add('svg');
       // if the link title to an external image was authored, assign as alt text, else use a default
       img.alt = a.title || 'Sling TV image';
@@ -594,13 +625,18 @@ export function decorateExtImage() {
       img.src = extImageSrc;
       picture.append(img);
 
-      // Check if the link's text content matches numberRegex
-      const numberMatches = a.textContent.match(numberRegex);
+      // Check if the link's text content matches width or align
+      const alignRegex = a.textContent.match(/\{align-([^}]*)\}/);
+      if (alignRegex) {
+        const align = alignRegex[1];
+        picture.classList.add(`align-${align}`);
+      }
+      const numberMatches = a.textContent.match(/\{width-(\d{1,2})?}/);
       if (numberMatches) {
         const percentWidth = numberMatches[1];
         img.style.maxWidth = `${percentWidth}%`;
-        // Remove the text content matching numberRegex
-        a.textContent = a.textContent.replace(numberRegex, '');
+        a.textContent = a.textContent.replace(numberMatches[0], '');
+        a.title = a.title.replace(numberMatches[0], '');
       }
 
       fragment.append(picture);
@@ -702,13 +738,14 @@ export function decorateMain(main) {
   decorateSections(main);
   decorateBlocks(main);
   decorateButtons(main);
+  replaceTildesWithDel(main);
   decorateExternalLinks(main);
   makeTwoColumns(main);
   decorateStyledSections(main);
-  buildSpacer(main);
   decorateExtImage(main);
   decorateLinkedImages();
   extractStyleVariables(main);
+  decorateExtImage(main);
   buildVideoBlocks(main);
 }
 

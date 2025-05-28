@@ -103,6 +103,14 @@ function processBlockConfig(block) {
         const col = cols[1];
         const name = toClassName(cols[0].textContent);
         cols[0].classList.add('config-property');
+        // Special handling for gradient
+        if (name === 'gradient') {
+          if (col.textContent.trim().toLowerCase() === 'true') {
+            marqueContent.classList.add('gradient');
+          }
+          col.remove(); // Prevent the gradient configuration from being loaded into the DOM
+          return;
+        }
         col.classList.add(name);
         if (name.trim() === 'scroll-cta-into-header') {
           return;

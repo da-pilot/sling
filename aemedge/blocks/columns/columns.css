@@ -138,7 +138,7 @@
     color: var(--clr-white);
   }
 
-  &[class^="bg-"] { /* stylelint-disable no-descending-specificity */
+  &[class*="bg-"] { /* stylelint-disable no-descending-specificity */
     padding-top: 12px;
     padding-bottom: 12px;
 
@@ -169,6 +169,20 @@
     }
   }
 
+.columns > div > div > .button-container.combined:has(> .align-center) {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.columns > div > div > .button-container.combined:has(> .align-right) {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.columns > div > div > .button-container.combined:has(> .align-left) {
+  margin-left: 0;
+  margin-right: auto;
+}
 
 
 .banner .columns {

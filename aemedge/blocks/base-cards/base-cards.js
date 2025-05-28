@@ -47,6 +47,9 @@ async function loadReactLib(entries) {
 }
 
 export default async function decorate(block) {
+  // Clean up any divs without IDs first
+  const divsWithoutId = block.querySelectorAll('div:not([id])');
+  divsWithoutId.forEach((div) => div.remove());
   const config = await readBlockConfig(block);
   const slingProps = {
     optionalSectionTitleText: config['Optional-Section-Title-Text']?.trim() ? config['Optional-Section-Title-Text'] : 'Sling TV Services',
