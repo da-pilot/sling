@@ -112,12 +112,12 @@ function createSlide(row, slideIndex, carouselId) {
 }
 
 function getVisibleSlidesCount(block) {
-  // Look for a slides-X class on the block or its ancestors
+  // Look for a X-slides class on the block or its ancestors
   let parent = block;
   while (parent && parent !== document.body) {
-    const match = Array.from(parent.classList).find((cls) => /^slides-(\d+)$/.test(cls));
+    const match = Array.from(parent.classList).find((cls) => /^(\d+)-slides$/.test(cls));
     if (match) {
-      return parseInt(match.replace('slides-', ''), 10);
+      return parseInt(match.replace('-slides', ''), 10);
     }
     parent = parent.parentElement;
   }
@@ -127,13 +127,16 @@ function getVisibleSlidesCount(block) {
   return 6;
 }
 
-function updateSlideArrows(block, rows, slideNavButtons) {
+function updateSlideArrows(block, rows) {
   const imageCount = rows.length;
   const visibleSlides = getVisibleSlidesCount(block);
-  if (imageCount <= visibleSlides && !block.classList.contains('full')) {
-    slideNavButtons.classList.add('hide');
-  } else {
-    slideNavButtons.classList.remove('hide');
+  const navButtons = document.getElementById(`carousel-nav-${block.id}`);
+  if (navButtons) {
+    if (imageCount <= visibleSlides && !block.classList.contains('full')) {
+      navButtons.classList.add('hide');
+    } else {
+      navButtons.classList.remove('hide');
+    }
   }
 }
 
@@ -167,13 +170,11 @@ export default async function decorate(block) {
     const slideNavButtons = document.createElement('div');
     slideNavButtons.classList.add('carousel-navigation-buttons');
     slideNavButtons.innerHTML = `
-      <button type="button" class= "slide-prev" aria-label="${placeholders.previousSlide || 'Previous Slide'}"></button>
+      <button type="button" class="slide-prev" aria-label="${placeholders.previousSlide || 'Previous Slide'}"></button>
       <button type="button" class="slide-next" aria-label="${placeholders.nextSlide || 'Next Slide'}"></button>
     `;
-
+    slideNavButtons.setAttribute('id', `carousel-nav-${block.id}`);
     container.append(slideNavButtons);
-    updateSlideArrows(block, rows, slideNavButtons);
-    window.addEventListener('resize', () => updateSlideArrows(block, rows, slideNavButtons));
   }
 
   rows.forEach((row, idx) => {
@@ -227,33 +228,17 @@ export default async function decorate(block) {
     showSlide(block, slideIndex);
   }
 
+  updateSlideArrows(block, rows);
+  window.addEventListener('resize', () => updateSlideArrows(block, rows));
+
   // Start auto-scroll immediately if it has the autoscroll class
   if (hasAutoscrollClass(block) && rows.length > 1) {
     // Start auto-scrolling
     autoScrollInterval = setInterval(autoScroll, 4000);// Increased to 4s for smoother experience
   }
 
-  // Add hover class for navigation button visibility
-  block.addEventListener('mouseenter', () => {
-    block.classList.add('hovered');
-  });
-
-  block.addEventListener('mouseleave', () => {
-    block.classList.remove('hovered');
-  });
-
   // Pause auto-scroll when hovering over navigation buttons
-  const navButtons = block.querySelectorAll('.carousel-navigation-buttons button');
-  navButtons.forEach((button) => {
-    button.addEventListener('mouseenter', () => {
-      if (autoScrollInterval) {
-        clearInterval(autoScrollInterval);
-      }
-    });
-    button.addEventListener('mouseleave', () => {
-      if (hasAutoscrollClass(block) && rows.length > 1) {
-        autoScrollInterval = setInterval(autoScroll, 4000);
-      }
-    });
-  });
+  const navButtons = document.getElementById(`carousel-nav-${block.id}`);
+  navButtons.classList.add('hide');
+  navButtons.classList.remove('hide');
 }

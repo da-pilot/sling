@@ -232,7 +232,8 @@
   backdrop-filter: blur(5px);
 }
 
-.carousel:not(.full) .carousel-navigation-buttons button:hover {
+.carousel:not(.full):hover .carousel-navigation-buttons button {
+  opacity: 1;
   background-color: rgb(245 245 246 / 95%) !important;
   transform: scale(1.05);
 }
