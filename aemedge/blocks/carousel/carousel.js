@@ -193,7 +193,7 @@ export default async function decorate(block) {
   block.prepend(container);
 
   // Find a parent with a class matching /slides-\d+/
-  let parent = block.parentElement;
+  let parent = block;
   let slideClass = null;
   while (parent && parent !== document.body) {
     const match = Array.from(parent.classList).find((cls) => /^slides-\d+$/.test(cls));
