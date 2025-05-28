@@ -74,7 +74,7 @@ export default async function decorate(block) {
     showLocalsBanners: typeof config['Show-locals-banner-on-blue-and-combo-card'] === 'boolean' ? config['Show-locals-banner-on-blue-and-combo-card'] : true,
     classification: 'us',
     iconURLBase: config['Icons-Root-Path']?.trim() ? config['Icons-Root-Path'] : '/aemedge/icons/channels/AllLOBLogos/color',
-    grayIconURLBase: config['Gray-Icons-Root-Path']?.trim() ? config['Gray-Icons-Root-Path'] : '/aemedge/icons/channels/AllLOBLogos/gray',
+    grayIconURLBase: config['Gray-Icons-Root-Path']?.trim() ? config['Gray-Icons-Root-Path'] : '/aemedge/icons/channels/AllLOBLogos/color',
     ctaStyle: 'primary',
     ctaTheme: 'light',
     ctaSubText: 'Offer Details',
