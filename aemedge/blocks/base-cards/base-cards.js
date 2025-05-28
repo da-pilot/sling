@@ -1,14 +1,12 @@
 import { createTag, readBlockConfig, loadScript } from '../../scripts/utils.js';
 
 const options = {
-  threshold: 0,
+  threshold: 0.25,
 };// eslint-disable-next-line no-use-before-define
 const observer = new IntersectionObserver(await loadReactLib, options);
 
 function lowercaseSVGFileNames(node) {
-  console.log('lowercaseSVGFileNames', node);
   node.querySelectorAll('img[src$=".svg"]').forEach((img) => {
-    console.log('img', img);
     const url = new URL(img.src, window.location.origin);
     const parts = url.pathname.split('/');
     const filename = parts.pop();
@@ -23,7 +21,6 @@ function lowercaseSVGFileNames(node) {
 
 function observeBaseCardsApp() {
   const container = document.querySelector('.base-cards.block #base-cards-app');
-  console.log('container', container);
   if (!container) return;
   lowercaseSVGFileNames(container);
   const mo = new MutationObserver(() => {
