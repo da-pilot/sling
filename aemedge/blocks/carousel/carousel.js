@@ -130,7 +130,7 @@ function getVisibleSlidesCount(block) {
 function updateSlideArrows(block, rows, slideNavButtons) {
   const imageCount = rows.length;
   const visibleSlides = getVisibleSlidesCount(block);
-  if (imageCount <= visibleSlides) {
+  if (imageCount <= visibleSlides && !block.classList.contains('full')) {
     slideNavButtons.classList.add('hide');
   } else {
     slideNavButtons.classList.remove('hide');
