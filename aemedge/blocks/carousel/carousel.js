@@ -236,9 +236,17 @@ export default async function decorate(block) {
     // Start auto-scrolling
     autoScrollInterval = setInterval(autoScroll, 4000);// Increased to 4s for smoother experience
   }
-
-  // Pause auto-scroll when hovering over navigation buttons
-  const navButtons = document.getElementById(`carousel-nav-${block.id}`);
-  navButtons.classList.add('hide');
-  navButtons.classList.remove('hide');
+  const navButtons = block.querySelectorAll('.carousel-navigation-buttons button');
+  navButtons.forEach((button) => {
+    button.addEventListener('mouseenter', () => {
+      if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+      }
+    });
+    button.addEventListener('mouseleave', () => {
+      if (hasAutoscrollClass(block) && rows.length > 1) {
+        autoScrollInterval = setInterval(autoScroll, 4000);
+      }
+    });
+  });
 }
