@@ -59,6 +59,94 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
   font-size: 1em;
 }
 
+.global-banner.turquoise-center{
+  background: linear-gradient(to right, #00B9FF 0%, #00FFFF 50%, #00B9FF 100%); 
+
+  & a, >*{ 
+  color: #000000;
+}
+}
+
+.global-banner.sling-blue{
+  background: #00B9FF; 
+  
+  & a, >*{ 
+  color: #000000;
+}
+}
+
+.global-banner.orange-gradient {
+  background: linear-gradient(to right, #FF6C01 0%, #FFAB01 70%, #FFED01 100%);
+  
+  & a, >*{ 
+  color: #000000;
+}
+}
+
+.global-banner.turquoise-left{
+  background: linear-gradient(to right, #00FFFF 0%, #00B9FF 100%);
+
+  & a, >*{ 
+  color: #000000;
+}
+}
+
+.global-banner.turquoise-left-vibrant{
+  background: linear-gradient(to right, #00FFFF 0%, #00B9FF 50%, #0085FF 100%);
+
+  & a, >*{ 
+  color: #000000;
+}
+}
+
+.global-banner.white{
+  background: #FFFFFF;
+
+  & a, >*{ 
+  color: #000000;
+}
+}
+
+.global-banner.black{
+  background: #000000;
+
+  & a, >*{ 
+  color: #FFFFFF;
+}
+}
+
+.global-banner.accessible-blue-gradient {
+  background: linear-gradient(to right, #00B9FF 0%, #0072EC 50%, #00B9FF 100%);
+
+  & span.close {
+    color: #000000;
+  }
+
+  & p, a{ 
+  color: #FFFFFF;
+}
+}
+
+.global-banner.accessible-turquoise-gradient  {
+  background: linear-gradient(to right, #00FFFF 0%, #0072EC 30.33%, #0072EC 66.66%, #00FFFF 100%);
+
+  & span.close {
+    color: #000000;
+  }
+  
+  & p, a{ 
+  color: #FFFFFF;
+}
+}
+
+.global-banner.accessible-blue  {
+  background: #0072EC;
+
+  & a, >*{ 
+    color: #000000;
+  }
+  }
+
 main .block.global-banner[data-block-status="loaded"].cyan-black a{ 
   color: var(--clr-black);
 } 
@@ -75,3 +163,5 @@ main .block.global-banner[data-block-status="loaded"].cyan-black a{
 .global-banner.blue-orange {
   background: var(--blue-to-orange);
 }
+
+
