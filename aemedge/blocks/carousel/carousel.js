@@ -193,11 +193,11 @@ export default async function decorate(block) {
 
   block.prepend(container);
 
-  // Find a parent with a class matching /slides-\d+/
+  // Find a parent with a class matching /n-slides/
   let parent = block;
   let slideClass = null;
   while (parent && parent !== document.body) {
-    const match = Array.from(parent.classList).find((cls) => /^slides-\d+$/.test(cls));
+    const match = Array.from(parent.classList).find((cls) => /^(\d+)-slides$/.test(cls));
     if (match) {
       slideClass = match;
       break;
@@ -207,7 +207,11 @@ export default async function decorate(block) {
 
   // Add the found class, or fallback to rows.length
   if (slideClass) {
-    block.classList.add(slideClass);
+    // Convert 'n-slides' to 'slides-n'
+    const nSlidesMatch = slideClass.match(/^(\d+)-slides$/);
+    if (nSlidesMatch) {
+      block.classList.add(`slides-${nSlidesMatch[1]}`);
+    }
   } else {
     block.classList.add(`slides-${rows.length}`);
   }
