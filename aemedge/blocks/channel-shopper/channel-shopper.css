@@ -21,12 +21,12 @@
     margin-top: 40px;
 }
 
-.channel-shopper.block #channel-shopper-app svg {
+/* .channel-shopper.block #channel-shopper-app svg {
     width: 15px;
     height: 20px;
-}
+} */
 
-.channel-shopper.block #channel-shopper-app button {
+/* .channel-shopper.block #channel-shopper-app button {
     min-width: unset;
     margin-top: unset;
     margin-bottom: unset;
@@ -35,11 +35,11 @@
     border: transparent;
     font-size: 18px;
     line-height: inherit;
-}
+} */
 
-#channel-shopper-app img {
+/* #channel-shopper-app img {
     width: 60px;
-}
+} */
 
 .section.channel-shopper-container > div {
     width: 100%;
