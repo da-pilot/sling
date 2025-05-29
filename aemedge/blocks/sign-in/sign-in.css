@@ -1,0 +1,175 @@
+.signin-title {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+.sign-in .signin-frm {
+  display: flex;
+  flex-direction: column;
+  max-width: 450px;
+  margin: 0 auto;
+  background: none;
+  padding: 0;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  background: #f3f3f5;
+  border-radius: 16px;
+  padding: 0.5rem 0;
+}
+
+.input-group input {
+  background-color: rgb(234 234 236) !important;
+  border: none;
+  outline: none;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #444;
+  padding: 0.25rem 0.75rem 0.75rem;
+  margin: 0;
+  height: 2.5rem;
+}
+
+.input-label-inside {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #222;
+  margin-left: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.password-group {
+  position: relative;
+}
+
+.password-group .toggle-password {
+  position: absolute;
+  right: 1.25rem;
+  top: 56%;
+  transform: translateY(-10%);
+  cursor: pointer;
+  font-size: 1.25rem;
+  color: #888;
+}
+
+/* Remove old label styling */
+.input-label {
+  display: none;
+}
+
+/* Placeholder styling */
+.sign-in .signin-frm .input::placeholder {
+  color: #888;
+  font-weight: 400;
+  opacity: 1;
+  font-size: 1.125rem;
+}
+
+.sign-in .signin-frm button.primary {
+  width: 100%;
+  background: linear-gradient(90deg, #0072ff 0%, #00c6ff 100%);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 2rem;
+  padding: 1rem 0;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s;
+}
+
+.sign-in .signin-frm .btn-text {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.signin-links {
+  text-align: left;
+  font-size: 1rem;
+  color: #444;
+  margin-bottom: 0.5rem;
+}
+
+.signin-links a {
+  color: #0072ff;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.signin-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #888;
+  margin: 1.5rem 0 1rem;
+  font-size: 1rem;
+}
+
+.signin-divider span {
+  flex: 1;
+  border-bottom: 1px solid #ccc;
+  margin: 0 0.5rem;
+  line-height: 0.1em;
+  font-size: 1rem;
+  color: #888;
+  position: relative;
+}
+
+.google-signin-btn {
+  width: 100%;
+  background: #fff;
+  color: #444;
+  border: 1px solid #ccc;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s, border 0.2s;
+}
+
+.google-signin-btn:hover {
+  background: #f3f3f5;
+  border-color: #0072ff;
+}
+
+.google-icon {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+@media (width >=1024px) {
+  .sign-in .signin-frm .input {
+    height: 4rem;
+  }
+}
+
+.input.username.error,
+.input.password.error {
+  border: 2px solid #e53935 !important;
+  border-radius: 16px;
+  background-clip: padding-box;
+}
+
+.input-group.error {
+  border: none;
+}
+
+.input-group .error-message {
+  color: #e53935;
+  font-size: 1rem;
+  margin: 0.25rem 0 0 0.25rem;
+  font-weight: 500;
+}
