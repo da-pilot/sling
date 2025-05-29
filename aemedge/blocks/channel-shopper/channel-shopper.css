@@ -19,7 +19,7 @@
 .channel-shopper.block #channel-shopper-app > * {
     z-index: 3;
     margin-top: 40px;
-    position: fixed;
+    position: relative;
 }
 
 /* .channel-shopper.block #channel-shopper-app svg {
