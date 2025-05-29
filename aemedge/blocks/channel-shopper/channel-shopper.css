@@ -17,8 +17,9 @@
 
 .channel-shopper.block #channel-shopper-app,
 .channel-shopper.block #channel-shopper-app > * {
-    z-index: 0;
+    z-index: 3;
     margin-top: 40px;
+    position: fixed;
 }
 
 /* .channel-shopper.block #channel-shopper-app svg {
@@ -26,7 +27,7 @@
     height: 20px;
 } */
 
-/* .channel-shopper.block #channel-shopper-app button {
+.channel-shopper.block #channel-shopper-app button {
     min-width: unset;
     margin-top: unset;
     margin-bottom: unset;
@@ -35,7 +36,7 @@
     border: transparent;
     font-size: 18px;
     line-height: inherit;
-} */
+}
 
 /* #channel-shopper-app img {
     width: 60px;
