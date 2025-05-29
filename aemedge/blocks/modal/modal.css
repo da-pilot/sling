@@ -8,9 +8,8 @@ body.modal-open {
     overscroll-behavior: none;
     border: 1px solid var(--dark-color);
     border-radius: var(--dialog-border-radius);
-    width: 100vw;
     max-width: 100%;
-    margin: 0 auto;
+    margin: 20px auto;
 
       p, li {
         font-size: 1em;
@@ -29,11 +28,15 @@ body.modal-open {
     max-height: calc(100dvh - 60px);
   }
 
+  .modal dialog .modal-content .default-content-wrapper {
+    padding: 0 16px;
+  }
+
     .modal dialog .modal-content .table-container .default-content-wrapper{
     position: sticky;
     top: 0;
     padding-top:42px;
-    height: 150px;
+    min-height: 150px;
     text-align: center;
     background: canvas;
     }
