@@ -3,7 +3,7 @@ body.modal-open {
   }
 
   .modal dialog {
-    --dialog-border-radius: 0px; /* Allow later border radius adjustment for dialog modals */
+    --dialog-border-radius: 16px; /* Allow later border radius adjustment for dialog modals */
 
     overscroll-behavior: none;
     border: 1px solid var(--dark-color);
