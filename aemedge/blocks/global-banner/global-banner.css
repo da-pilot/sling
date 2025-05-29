@@ -137,7 +137,7 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
 }
 
 .global-banner.accessible-turquoise-gradient  {
-  background: linear-gradient(to right, F 0%, #0072EC 30.33%, #0072EC 66.66%, var(--turquoise) 100%);
+  background: linear-gradient(to right, var(--turquoise) 0%, #0072EC 30.33%, #0072EC 66.66%, var(--turquoise) 100%);
 
   & span.close {
     color: var(--black)
