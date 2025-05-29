@@ -88,6 +88,11 @@
   text-align: center;
 }
 
+.section.tabs-container.accordion-container {
+    padding-left: 5%;
+    padding-right: 0;
+}
+
 /* width greater than 768px */
 @media (width >= 768px) {
   .accordion .details .accordion-item-body ul li {
