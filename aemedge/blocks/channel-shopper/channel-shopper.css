@@ -37,6 +37,10 @@
     line-height: inherit;
 }
 
+.channel-shopper.block #channel-shopper-app .channel-shopper__modal button:has(svg) {
+    background: white;
+}
+
 #channel-shopper-app img {
     width: 60px;
 }
