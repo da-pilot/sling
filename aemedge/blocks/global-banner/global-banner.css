@@ -68,6 +68,13 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
   z-index: 11;
 }
 
+.static span.close {display: none}
+
+main .block.global-banner[data-block-status="loaded"].static {
+  justify-content: center;
+  padding-top: 22px;
+}
+
 .global-banner.turquoise-center{
   background: linear-gradient(to right, #00B9FF 0%, var(--turquoise) 50%, #00B9FF 100%); 
 
@@ -158,7 +165,7 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
 
 main .block.global-banner[data-block-status="loaded"].cyan-black a{ 
   color: var(--clr-black);
-} 
+}
 
 .global-banner.blue-orange {
   background: var(--blue-to-orange);
