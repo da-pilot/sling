@@ -28,7 +28,7 @@ export default async function decorate(block) {
     recommendationText: config.recommendationText?.trim() ? config.recommendationText : 'Choose a channel to view a recommendation',
     localBadgeText: config.localBadgeText?.trim() ? config.localBadgeText : 'Local',
     checkoutButtonText: config.checkoutButtonText?.trim() ? config.checkoutButtonText : 'Checkout',
-    channelIconUrl: '/aemedge/icons/channels/AllLOBLogos/color',
+    channelIconUrl: '/aemedge/icons/channels/allloblogos/color',
     ctaUrl: config.ctaUrl?.trim() ? config.ctaUrl : '/cart/magento/account',
     maxChannelsSelected: typeof config.maxChannelsSelected === 'number' ? config.maxChannelsSelected : 5,
     limitHitErrorText: config.limitHitErrorText?.trim() ? config.limitHitErrorText : 'Unselect a channel to add another. To view all channels in your recommended plan, click the \'more\' button(s).',
