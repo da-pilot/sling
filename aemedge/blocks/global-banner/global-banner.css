@@ -76,7 +76,7 @@ main .block.global-banner[data-block-status="loaded"].cyan-black a{
 
 main .block.global-banner[data-block-status="loaded"].static {
   justify-content: center;
-  margin-left: -11px;
+  margin-left: -40px;
 }
 
 .global-banner.blue-orange {
