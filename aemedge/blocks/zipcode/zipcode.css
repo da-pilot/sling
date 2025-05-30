@@ -180,11 +180,11 @@ header nav[aria-expanded="true"] .zipcode-wrapper.selected{
 @media (width >=1380px) {
     header nav .zipcode-wrapper {
         left: 115px;
-        height: 70px;
+        height: var(--nav-height);
     }
 
     header nav[aria-expanded="true"] .zipcode-wrapper {
-        height: 70px;
+        height: var(--nav-height);
     }
 
     .geo-form-container {

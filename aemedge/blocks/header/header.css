@@ -295,11 +295,11 @@ header nav[aria-expanded='true'] .nav-sections {
   header nav[aria-expanded='true'] {
     min-height: 0;
     overflow: visible;
-    height: 72px;
+    height: var(--nav-height);
   }
 
   header .nav-brand {
-    height: 70px;
+    height: var(--nav-height);
   }
 
   header nav .nav-sections ul {
@@ -313,7 +313,6 @@ header nav[aria-expanded='true'] .nav-sections {
 
   header .profile .icon.icon-sign-in {
     position: absolute;
-    top: 25px;
     right: 160px;
     width: 32px;
     height: 32px;
