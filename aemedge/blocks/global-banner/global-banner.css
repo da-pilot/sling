@@ -72,6 +72,7 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
 
 main .block.global-banner[data-block-status="loaded"].static {
   justify-content: center;
+  padding-top: 22px;
 }
 
 .global-banner.turquoise-center{
