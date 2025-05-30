@@ -283,7 +283,11 @@ header nav[aria-expanded='true'] .nav-sections {
 }
 
 @media (width >= 1380px) {
-  header nav {
+  :root {
+--nav-height: 60px;
+}
+
+header nav {
     display: flex;
     justify-content: space-between;
     gap: 0 32px;
