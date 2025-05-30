@@ -19,6 +19,7 @@
 
 .game-finder.block #gmfinder-app button {
     min-width: unset;
+    border: none;
 }
 
 /* stylelint-disable-next-line selector-class-pattern */

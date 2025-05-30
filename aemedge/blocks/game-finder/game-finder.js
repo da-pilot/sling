@@ -1,5 +1,16 @@
 import { createTag, readBlockConfig } from '../../scripts/utils.js';
 
+/**
+ * Adds "button" and "primary" classes to all <button> elements within the given root element.
+ * @param {HTMLElement} root - The root element to search within.
+ */
+function addButtonClassesToChildren(root) {
+  const buttons = root.querySelectorAll('button');
+  buttons.forEach((btn) => {
+    btn.classList.add('button', 'primary');
+  });
+}
+
 export default async function decorate(block) {
   const defultProps = {
     showFilter: false,
@@ -38,4 +49,7 @@ export default async function decorate(block) {
   // Clean up any divs without IDs first
   const divsWithoutId = block.querySelectorAll('div:not([id])');
   divsWithoutId.forEach((div) => div.remove());
+
+  // Add button classes to all child button elements
+  addButtonClassesToChildren(block);
 }
