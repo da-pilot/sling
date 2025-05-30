@@ -9,6 +9,7 @@ function addButtonClassesToChildren(root) {
   buttons.forEach((btn) => {
     btn.classList.add('button', 'primary');
   });
+  console.log('🚀 ~ buttons elements:', buttons);
 }
 
 export default async function decorate(block) {
@@ -52,4 +53,5 @@ export default async function decorate(block) {
 
   // Add button classes to all child button elements
   addButtonClassesToChildren(block);
+  console.log('🚀 ~ decorate ~ block:', block);
 }
