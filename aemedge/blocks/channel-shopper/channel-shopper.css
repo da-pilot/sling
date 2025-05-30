@@ -37,12 +37,12 @@
     line-height: inherit;
 }
 
-#channel-shopper-app img {
-    width: 60px;
+.channel-shopper.block #channel-shopper-app .channel-shopper__modal button:has(svg) {
+    background: white;
 }
 
-.section.dark .section.columns-2:has(.channel-shopper-wrapper) {
-    padding: 0 8%;
+#channel-shopper-app img {
+    width: 60px;
 }
 
 .section.channel-shopper-container > div {
@@ -65,6 +65,11 @@
 
     .section.columns-2:has(.channel-shopper-wrapper) .column-2 {
         text-align:right;
+        padding-right: 8%;
+    }
+
+    .section.columns-2:has(.channel-shopper-wrapper) .column-1 {
+        padding-left: 8%;
     }
     
 }

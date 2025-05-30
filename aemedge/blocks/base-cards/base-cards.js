@@ -1,19 +1,55 @@
 import { createTag, readBlockConfig, loadScript } from '../../scripts/utils.js';
 
 const options = {
-  threshold: 0,
+  threshold: 0.25,
 };// eslint-disable-next-line no-use-before-define
 const observer = new IntersectionObserver(await loadReactLib, options);
-async function loadReactLib(entries) {
-  if (entries.some(async (entry) => {
-    if (entry.isIntersecting) {
-      await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, entry.target);
-      observer.unobserve(entry.target);
+
+function lowercaseSVGFileNames(node) {
+  node.querySelectorAll('img[src$=".svg"]').forEach((img) => {
+    const url = new URL(img.src, window.location.origin);
+    const parts = url.pathname.split('/');
+    const filename = parts.pop();
+    const [name, ext] = filename.split('.');
+    if (name !== name.toLowerCase()) {
+      parts.push(`${name.toLowerCase()}.${ext}`);
+      url.pathname = parts.join('/');
+      img.src = url.toString();
     }
-  }));
+  });
+}
+
+function observeBaseCardsApp() {
+  const container = document.querySelector('.base-cards.block #base-cards-app');
+  if (!container) return;
+  lowercaseSVGFileNames(container);
+  const mo = new MutationObserver(() => {
+    lowercaseSVGFileNames(container);
+  });
+  mo.observe(container, { childList: true, subtree: true });
+
+  // Disconnect observers when the container is removed from the DOM
+  const removalObserver = new MutationObserver(() => {
+    if (!document.body.contains(container)) {
+      mo.disconnect();
+      removalObserver.disconnect();
+    }
+  });
+  removalObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+async function loadReactLib(entries) {
+  if (entries.some((entry) => entry.isIntersecting)) {
+    await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, entries.find((entry) => entry.isIntersecting).target);
+    observer.unobserve(entries.find((entry) => entry.isIntersecting).target);
+    observeBaseCardsApp();
+  }
 }
 
 export default async function decorate(block) {
+  // Clean up any divs without IDs first
+  const divsWithoutId = block.querySelectorAll('div:not([id])');
+  divsWithoutId.forEach((div) => div.remove());
   const config = await readBlockConfig(block);
   const slingProps = {
     optionalSectionTitleText: config['Optional-Section-Title-Text']?.trim() ? config['Optional-Section-Title-Text'] : 'Sling TV Services',
@@ -37,8 +73,8 @@ export default async function decorate(block) {
     comboServiceGoodForTwo: config['Combo-Service-Second-Good-For-Text']?.trim() ? config['Combo-Service-Second-Good-For-Text'] : 'Entertainment',
     showLocalsBanners: typeof config['Show-locals-banner-on-blue-and-combo-card'] === 'boolean' ? config['Show-locals-banner-on-blue-and-combo-card'] : true,
     classification: 'us',
-    iconURLBase: '/aemedge/icons/channels/AllLOBLogos/color',
-    grayIconURLBase: '/aemedge/icons/channels/AllLOBLogos/gray',
+    iconURLBase: config['Icons-Root-Path']?.trim() ? config['Icons-Root-Path'] : '/aemedge/icons/channels/allloblogos/color',
+    grayIconURLBase: config['Gray-Icons-Root-Path']?.trim() ? config['Gray-Icons-Root-Path'] : '/aemedge/icons/channels/allloblogos/color',
     ctaStyle: 'primary',
     ctaTheme: 'light',
     ctaSubText: 'Offer Details',
@@ -56,7 +92,7 @@ export default async function decorate(block) {
       subheaderText: "Don't see a channel you like? More channels are available in add-ons.",
       slingComboAuthoredName: 'Get Both',
       monthText: ' ',
-      compareIconURLBase: '/aemedge/icons/channels/AllLOBLogos/color',
+      compareIconURLBase: '/aemedge/icons/channels/allloblogos/color',
       hideFooterCTA: true,
       footerCtaLink: config['Footer-CTA-Link']?.trim() ? config['Footer-CTA-Link'] : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2',
       footerCtaText: config['Footer-CTA-Text']?.trim() ? config['Footer-CTA-Text'] : 'Try Us Today',
@@ -102,5 +138,6 @@ export default async function decorate(block) {
   // listen to zipcode changes and redecorate
   document.addEventListener('zipupdate', async () => {
     await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, block);
-  }, { once: true });
+    observeBaseCardsApp();
+  });
 }

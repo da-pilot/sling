@@ -35,4 +35,7 @@ export default async function decorate(block) {
   const slingProps = { ...defultProps, ...cleanedConfig };
   const container = createTag('div', { id: 'gmfinder-app', 'data-sling-props': JSON.stringify(slingProps) });
   block.append(container);
+  // Clean up any divs without IDs first
+  const divsWithoutId = block.querySelectorAll('div:not([id])');
+  divsWithoutId.forEach((div) => div.remove());
 }
