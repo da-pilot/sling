@@ -143,6 +143,7 @@ function isOriginAllowed(url) {
 
 const allowedOrigins = [
   'https://916809-952dimlouse.adobeioruntime.net',
+  'https://34866-789turquoisetick.adobeioruntime.net',
   'http://localhost:3000'
 ]
 
