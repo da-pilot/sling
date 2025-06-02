@@ -1,30 +1,62 @@
 import { createTag } from '../../scripts/utils.js';
 
+/*
 async function authenticate() {
-  let authURL = 'https://multipass.q.sling.com/as/authorization.oauth2';
-  const params = {
-    redirect_uri: 'https://ms.q.sling.com/sling-api/oauth-helper/alpha/auth-callback',
-    client_id: 'aem_agentless_idp_client',
-    response_type: 'code',
-  };
-
-  Object.keys(params).forEach((param, index) => {
-    if (index === 0) { authURL = authURL.concat(`?${param}=${params[param]}`); } else authURL = authURL.concat(`&${param}=${params[param]}`);
+    let authURL = 'https://multipass.q.sling.com/as/authorization.oauth2';
+    const params = {
+      redirect_uri: 'https://ms.q.sling.com/sling-api/oauth-helper/alpha/auth-callback',
+      client_id: 'aem_agentless_idp_client',
+      response_type: 'code',
+    };
+    Object.keys(params).forEach((param, index) => {
+      if (index === 0)
+       { authURL = authURL.concat(`?${param}=${params[param]}`); }
+     else
+      authURL = authURL.concat(`&${param}=${params[param]}`);
+    });
+    const config = {
+      method: 'GET',
+    };
+    const response = await fetch(authURL, config);
+    const data = await response.json();
+    console.log(data);
+    if (response.ok && data) {
+      if (data.redirect_uri.includes('watch')) {
+        window.location = data.redirect_uri;
+      }
+      console.log(data);
+    }
+  }
+*/
+async function authenticateUser(email, password) {
+  const url = 'https://ms.p.sling.com/sling-api/oauth-helper/alpha/authenticate';
+  const body = JSON.stringify({
+    username: email, // or 'email' if that's what the API expects
+    password,
   });
 
-  const config = {
-    method: 'GET',
-  };
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      // Add any other required headers here
+    },
+    body,
+    credentials: 'include', // if cookies/session are needed
+  });
 
-  const response = await fetch(authURL, config);
-  const data = await response.json();
-  console.log(data);
-  if (response.ok && data) {
-    if (data.redirect_uri.includes('watch')) {
-      window.location = data.redirect_uri;
+  if (!response.ok) {
+    // Return error message from server if available
+    let errorMsg = 'Sign-in failed. Please check your credentials.';
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.message) errorMsg = errorData.message;
+    } catch (e) {
+      console.log(errorMsg);
     }
-    console.log(data);
+    throw new Error(errorMsg);
   }
+  return response.json();
 }
 
 export default async function decorate(block) {
@@ -96,11 +128,7 @@ export default async function decorate(block) {
   if (block.classList.contains('google')) {
     // Links
     const forgot = createTag('div', { class: 'signin-links' });
-    forgot.innerHTML = `
-      Forgot your <a href="www.sling.com/sign-in/forgot-password" class="forgot-link">password</a> or <a href="www.sling.com/sign-in/forgot-username" class="forgot-link">username/email</a>?
-      <br>
-      Not a Sling user? <a href="/" class="signup-link">Check us out!</a>
-    `;
+    forgot.innerHTML = 'Forgot your <a href="www.sling.com/sign-in/forgot-password" class="forgot-link">password</a> or <a href="www.sling.com/sign-in/forgot-username" class="forgot-link">username/email</a>?<br>Not a Sling user? <a href="/" class="signup-link">Check us out!</a>';
     // Divider
     const divider = createTag('div', { class: 'signin-divider' });
     divider.innerHTML = '<span>OR</span>';
@@ -135,11 +163,30 @@ export default async function decorate(block) {
     return true;
   }
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
     let valid = true;
     if (!validateEmail()) valid = false;
     if (!validatePassword()) valid = false;
-    if (!valid) e.preventDefault();
+    if (!valid) return;
+
+    // Disable button to prevent double submit
+    signinBtn.disabled = true;
+    btnText.innerText = 'Signing in...';
+
+    try {
+      const data = await authenticateUser(userName.value, password.value);
+      // Handle successful login (redirect, show message, etc.)
+      window.location.href = data.redirect_uri || '/'; // or whatever the API returns
+    } catch (err) {
+      // Show error message
+      password.classList.add('error');
+      passwordError.style.display = '';
+      passwordError.innerText = err.message;
+    } finally {
+      signinBtn.disabled = false;
+      btnText.innerText = 'Sign In';
+    }
   });
 
   // Validate on blur (focus out)
@@ -155,6 +202,4 @@ export default async function decorate(block) {
     password.classList.remove('error');
     passwordError.style.display = 'none';
   });
-
-  await authenticate();
 }
