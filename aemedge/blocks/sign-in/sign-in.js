@@ -36,35 +36,35 @@ export default async function decorate(block) {
 
   const form = createTag('form', { type: 'submit', class: 'signin-frm', novalidate: '' });
 
-  // Email input group (label inside the input box)
-  const emailGroup = createTag('div', { class: 'input-group' });
-  const emailLabel = createTag('span', { class: 'input-label-inside' });
-  emailLabel.innerText = 'Email Address';
+  // Email floating label group
+  const emailGroup = createTag('div', { class: 'floating-label-group' });
   const userName = createTag('input', {
     class: 'input username',
     type: 'email',
     name: 'email',
     id: 'email',
-    placeholder: 'username@domain.com',
+    placeholder: ' ', // single space to keep input height
     required: '',
     autocomplete: 'email',
   });
+  const emailLabel = createTag('label', { for: 'email', class: 'floating-label' });
+  emailLabel.innerText = 'Email Address';
   const emailError = createTag('div', { class: 'error-message', style: 'display:none;' });
   emailError.innerText = 'Please enter a valid email address.';
-  emailGroup.append(emailLabel, userName, emailError);
+  emailGroup.append(userName, emailLabel, emailError);
 
-  // Password input group (label inside the input box)
-  const passwordGroup = createTag('div', { class: 'input-group password-group' });
-  const passwordLabel = createTag('span', { class: 'input-label-inside' });
-  passwordLabel.innerText = 'Password';
+  // Password floating label group
+  const passwordGroup = createTag('div', { class: 'floating-label-group password-group' });
   const password = createTag('input', {
     class: 'input password',
     type: 'password',
     name: 'password',
     id: 'password',
-    placeholder: 'Password',
+    placeholder: ' ',
     autocomplete: 'current-password',
   });
+  const passwordLabel = createTag('label', { for: 'password', class: 'floating-label' });
+  passwordLabel.innerText = 'Password';
   // Show/hide toggle icon
   const toggle = createTag('span', {
     class: 'toggle-password',
@@ -79,7 +79,7 @@ export default async function decorate(block) {
   });
   const passwordError = createTag('div', { class: 'error-message', style: 'display:none;' });
   passwordError.innerText = 'Password is required.';
-  passwordGroup.append(passwordLabel, password, toggle, passwordError);
+  passwordGroup.append(password, passwordLabel, toggle, passwordError);
 
   // Sign In button
   const signinBtn = createTag('button', {
@@ -89,8 +89,27 @@ export default async function decorate(block) {
   btnText.innerText = 'Sign In';
   signinBtn.append(btnText);
 
-  // Assemble the form (no extra elements)
+  // Assemble the form (no extra elements by default)
   form.append(emailGroup, passwordGroup, signinBtn);
+
+  // If block has 'google' class, add extra links, divider, and Google sign-in button
+  if (block.classList.contains('google')) {
+    // Links
+    const forgot = createTag('div', { class: 'signin-links' });
+    forgot.innerHTML = `
+      Forgot your <a href="www.sling.com/sign-in/forgot-password" class="forgot-link">password</a> or <a href="www.sling.com/sign-in/forgot-username" class="forgot-link">username/email</a>?
+      <br>
+      Not a Sling user? <a href="/" class="signup-link">Check us out!</a>
+    `;
+    // Divider
+    const divider = createTag('div', { class: 'signin-divider' });
+    divider.innerHTML = '<span>OR</span>';
+    // Google sign-in button
+    const googleBtn = createTag('button', { type: 'button', class: 'google-signin-btn' });
+    googleBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="google-icon"> Sign in with Google';
+    form.append(forgot, divider, googleBtn);
+  }
+
   formContainer.append(heading, form);
   block.append(formContainer);
 
