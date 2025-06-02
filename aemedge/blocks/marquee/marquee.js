@@ -99,6 +99,8 @@ function processBlockConfig(block) {
   const nonMediaDIV = createTag('div', { class: 'text-cta-container' });
   const btnsDIV = createTag('div', { class: 'buttons-container' });
   const dataAnalyticsProps = {};
+  let backgroundFitValue = null; // Store background-fit value
+  let backgroundColorValue = null; // Store background-color value
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
       const cols = [...row.children];
@@ -123,6 +125,12 @@ function processBlockConfig(block) {
           if (id) {
             block.setAttribute('id', id);
           }
+        }
+        if (name === 'background-fit') {
+          backgroundFitValue = col.textContent.trim();
+        }
+        if (name === 'background-color') {
+          backgroundColorValue = col.textContent.trim();
         }
         if (name !== 'foreground') {
           if (name.trim() === 'cta' || name.trim() === 'offer-details') {
@@ -164,20 +172,33 @@ function processBlockConfig(block) {
   }
   block.append(marqueContent);
   block.querySelectorAll('.config-property').forEach((prop) => prop.remove()); // remove config property divs from dom
+  return { backgroundFitValue, backgroundColorValue };
 }
 
 export default async function decorate(block) {
   const config = await readBlockConfig(block);
-  processBlockConfig(block); // for data-analytics-props click interactions
-  const slingProps = { // for data-sling-props properties
+  const { backgroundFitValue, backgroundColorValue } = processBlockConfig(block) || {};
+  const slingProps = {
     ctaAnalyticsParent: config.ctaAnalyticsParent?.trim() ? config.ctaAnalyticsParent : '',
-    ctaAnalyticsName: config.ctaAnalyticsName?.trim() ? config.ctaAnalyticsName : '', // aka ctaText
-    ctaAnalyticsComponent: config.ctaAnalyticsComponent?.trim() ? config.ctaAnalyticsComponent : '', // aka ctaType, cartDestination
+    ctaAnalyticsName: config.ctaAnalyticsName?.trim() ? config.ctaAnalyticsName : '',
+    ctaAnalyticsComponent: config.ctaAnalyticsComponent?.trim() ? config.ctaAnalyticsComponent : '',
     ctaAnalyticsTarget: config.ctaAnalyticsTarget?.trim() ? config.ctaAnalyticsTarget : '',
     ctaUrl: config.cta || '',
   };
   const background = block.querySelector('.background');
-  const bgColor = block.querySelector('.background-color');
+
+  // Merge slingProps into data-analytics-props if it exists
+  let dataAnalyticsProps = {};
+  const dapAttr = block.getAttribute('data-analytics-props');
+  if (dapAttr) {
+    try {
+      dataAnalyticsProps = JSON.parse(dapAttr);
+    } catch (e) {
+      dataAnalyticsProps = {};
+    }
+  }
+  Object.assign(dataAnalyticsProps, slingProps);
+  block.setAttribute('data-analytics-props', JSON.stringify(dataAnalyticsProps));
 
   let bgMediaType;
   if (background) {
@@ -188,18 +209,28 @@ export default async function decorate(block) {
     }
   }
 
-  // set the bg color on the section
-  if (bgColor) {
-    const section = block.closest('.section');
-    if (section) {
-      section.style.backgroundColor = bgColor.textContent;
-    }
-    bgColor.remove();
+  // set the bg color on the block
+  if (backgroundColorValue) {
+    block.style.backgroundColor = backgroundColorValue;
   }
 
   setupBGVideos(block);
   if (bgMediaType === 'picture') setupBGPictures(block);
+
+  // Apply background-fit style if present
+  if (backgroundFitValue) {
+    // Try to apply to <img> inside <picture>
+    const pictureImg = block.querySelector('.background picture img');
+    if (pictureImg) {
+      pictureImg.style.objectFit = backgroundFitValue;
+    }
+    // Try to apply to <video>
+    const video = block.querySelector('.background video');
+    if (video) {
+      video.style.objectFit = backgroundFitValue;
+    }
+  }
+
   background.remove();
   block.querySelectorAll('div').forEach((div) => { if (div.children.length === 0) div.remove(); }); // remove empty divs
-  block.setAttribute('data-sling-props', JSON.stringify(slingProps));
 }

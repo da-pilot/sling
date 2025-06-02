@@ -121,5 +121,16 @@ export default async function decorate(block) {
     bgColor.remove();
   }
   block.querySelectorAll('div').forEach((div) => { if (div.children.length === 0) div.remove(); }); // remove empty divs
-  block.setAttribute('data-sling-props', JSON.stringify(slingProps));
+  // Merge slingProps into data-analytics-props if it exists
+  let dataAnalyticsProps = {};
+  const dapAttr = block.getAttribute('data-analytics-props');
+  if (dapAttr) {
+    try {
+      dataAnalyticsProps = JSON.parse(dapAttr);
+    } catch (e) {
+      dataAnalyticsProps = {};
+    }
+  }
+  Object.assign(dataAnalyticsProps, slingProps);
+  block.setAttribute('data-analytics-props', JSON.stringify(dataAnalyticsProps));
 }
