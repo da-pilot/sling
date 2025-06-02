@@ -5,11 +5,12 @@ import { createTag, readBlockConfig } from '../../scripts/utils.js';
  * @param {HTMLElement} root - The root element to search within.
  */
 function addButtonClassesToChildren(root) {
+  console.log('🚀 ~ addButtonClassesToChildren ~ addButtonClassesToChildren:', addButtonClassesToChildren);
   const buttons = root.querySelectorAll('button');
   buttons.forEach((btn) => {
     btn.classList.add('button', 'primary');
   });
-  console.log('🚀 ~ buttons elements:', buttons);
+  // console.log('🚀 ~ buttons elements:', buttons);
 }
 
 export default async function decorate(block) {

@@ -17,7 +17,7 @@
     height: 20px;
 }
 
-.game-finder.block #gmfinder-app button {
+.game-finder.block #gmfinder-app button:has(span) {
     min-width: unset;
     border: none;
 }
