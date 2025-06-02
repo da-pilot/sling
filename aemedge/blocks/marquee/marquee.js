@@ -1,4 +1,6 @@
-import { createTag, getPictureUrlByScreenWidth, getVideoUrlByScreenWidth } from '../../scripts/utils.js';
+import {
+  createTag, getPictureUrlByScreenWidth, getVideoUrlByScreenWidth, readBlockConfig,
+} from '../../scripts/utils.js';
 import { toClassName } from '../../scripts/aem.js';
 
 function setupVideo(url, block) {
@@ -96,6 +98,7 @@ function processBlockConfig(block) {
   const mediaDIV = createTag('div', { class: 'foreground-container' });
   const nonMediaDIV = createTag('div', { class: 'text-cta-container' });
   const btnsDIV = createTag('div', { class: 'buttons-container' });
+  const dataAnalyticsProps = {};
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
       const cols = [...row.children];
@@ -115,15 +118,39 @@ function processBlockConfig(block) {
         if (name.trim() === 'scroll-cta-into-header') {
           return;
         }
+        if (name === 'id') {
+          const id = col.textContent;
+          if (id) {
+            block.setAttribute('id', id);
+          }
+        }
         if (name !== 'foreground') {
           if (name.trim() === 'cta' || name.trim() === 'offer-details') {
             btnsDIV.append(col);
             nonMediaDIV.append(btnsDIV);
+            // Create data-analytics-props object button interaction
+            dataAnalyticsProps[name] = col.textContent;
+            if (name === 'cta') {
+              const anchor = col.querySelector('a');
+              dataAnalyticsProps.event = 'click';
+              dataAnalyticsProps.eventCategory = 'cta';
+              dataAnalyticsProps.eventAction = 'click';
+              if (anchor) {
+                const ctaText = anchor.textContent;
+                dataAnalyticsProps.eventLabel = ctaText;
+              }
+              block.setAttribute('data-analytics-props', JSON.stringify(dataAnalyticsProps));
+            }
           } else {
             nonMediaDIV.append(col);
           }
         } else {
           mediaDIV.append(col);
+        }
+        // remove the config-only divs from the DOM
+        if (name !== 'cta' && name !== 'offer-details' && name !== 'headline' && name !== 'sub-headline'
+          && name !== 'foreground' && name !== 'background') {
+          col.remove();
         }
       }
     }
@@ -139,8 +166,16 @@ function processBlockConfig(block) {
   block.querySelectorAll('.config-property').forEach((prop) => prop.remove()); // remove config property divs from dom
 }
 
-export default function decorate(block) {
-  processBlockConfig(block);
+export default async function decorate(block) {
+  const config = await readBlockConfig(block);
+  processBlockConfig(block); // for data-analytics-props click interactions
+  const slingProps = { // for data-sling-props properties
+    ctaAnalyticsParent: config.ctaAnalyticsParent?.trim() ? config.ctaAnalyticsParent : '',
+    ctaAnalyticsName: config.ctaAnalyticsName?.trim() ? config.ctaAnalyticsName : '', // aka ctaText
+    ctaAnalyticsComponent: config.ctaAnalyticsComponent?.trim() ? config.ctaAnalyticsComponent : '', // aka ctaType, cartDestination
+    ctaAnalyticsTarget: config.ctaAnalyticsTarget?.trim() ? config.ctaAnalyticsTarget : '',
+    ctaUrl: config.cta || '',
+  };
   const background = block.querySelector('.background');
   const bgColor = block.querySelector('.background-color');
 
@@ -166,4 +201,5 @@ export default function decorate(block) {
   if (bgMediaType === 'picture') setupBGPictures(block);
   background.remove();
   block.querySelectorAll('div').forEach((div) => { if (div.children.length === 0) div.remove(); }); // remove empty divs
+  block.setAttribute('data-sling-props', JSON.stringify(slingProps));
 }
