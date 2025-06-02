@@ -135,8 +135,10 @@ async function main(params) {
     
     // Call gettoken action to get access token with fully qualified name
     logger.debug('Fetching access token...');
+    const namespace = params.AIO_RUNTIME_NAMESPACE || '';
+    const actionName = namespace ? `/${namespace}/sling-da/gettoken` : 'sling-da/gettoken';
     const tokenResult = await ow.actions.invoke({
-      name: '/916809-952dimlouse/sling-da/gettoken',
+      name: actionName,
       blocking: true,
       result: true
     });
