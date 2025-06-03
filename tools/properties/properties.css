@@ -1,0 +1,54 @@
+:root {
+    --color-primary: #2020E0;
+    --color-border: #ccc;
+    --color-error: #800000;
+    --spacing-md: 12px;
+    --border-radius-xl: 16px;
+    --font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+}
+
+.properties-wrapper {
+    padding: var(--spacing-md);
+    display: flex;
+    place-content: center;
+}
+
+
+.insert-property-btn {
+    display: inline-block;
+    padding: 5px 14px;
+    line-height: 18px;
+    font-size: 14px;
+    border: 2px solid #000;
+    color: #000;
+    border-radius: var(--border-radius-xl);
+    font-weight: 700;
+    cursor: pointer;
+    background: none;
+    font-family: var(--font-family);
+}
+
+.insert-property-btn:hover {
+    background-color: rgb(228 240 255);
+}
+
+.message-wrapper {
+    font-family: var(--font-family);
+    font-size: 14px;
+    padding-top: 1rem;
+}
+
+.message-wrapper.hidden {
+    display: none;
+}
+
+.feedback-message {
+    display: flex;
+    align-items: center;
+    margin-right: auto;
+    padding: 0;
+}
+
+.feedback-message.error {
+    color: var(--color-error);
+}
