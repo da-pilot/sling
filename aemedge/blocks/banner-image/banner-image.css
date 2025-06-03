@@ -99,6 +99,7 @@
 
     .offer-details a.button.text {
         max-width: 200px;
+        margin-top:10px;
 
         .link-button-text {
             color:#fff;

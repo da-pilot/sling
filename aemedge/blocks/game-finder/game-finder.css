@@ -17,28 +17,8 @@
     height: 20px;
 }
 
-.game-finder.block #gmfinder-app .package-modal div:nth-child(6) button:has(span) {
-    color: var(--background-color);
-    background: var(--primary-button-color);
+.game-finder.block #gmfinder-app button {
     min-width: unset;
-    border: none;
-    border-radius: 1600px;
-    opacity: 1;
-    font-size: 1.125rem;
-    min-height: 50px;
-    align-content: center;
-    line-height: 1;
-    font-family: var(--body-font-family);
-    display: inline-block;
-    box-sizing: border-box;
-    text-decoration: none;
-    text-align: center;
-    font-style: normal;
-    font-weight: 800;
-    cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 0 16px;
 }
 
 /* stylelint-disable-next-line selector-class-pattern */

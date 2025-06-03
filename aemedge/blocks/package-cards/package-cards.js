@@ -20,7 +20,6 @@ function createLogoObject(logo) {
   logoObject.alText = logoStr[1].trim();
   return logoObject;
 }
-
 export default async function decorate(block) {
   const config = await readBlockConfig(block);
   const c1logos = [];
@@ -93,7 +92,4 @@ export default async function decorate(block) {
   );
   block.append(container);
   // observer.observe(block);
-  // Clean up any divs without IDs first
-  const divsWithoutId = block.querySelectorAll('div:not([id])');
-  divsWithoutId.forEach((div) => div.remove());
 }

@@ -3,14 +3,37 @@
     "editUrlLabel": "Document Authoring",
     "editUrlPattern": "https://da.live/edit#/{{org}}/{{site}}{{pathname}}",
     "plugins": [
+
       {
-        "id": "library",
-        "title": "Library",
-        "environments": [
-          "edit"
-        ],
-        "url": "/tools/sidekick/library/library.html"
+        "id": "scheduler",
+        "title": "Scheduler", 
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "dialog",
+        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1b16054ca2df31c22b312d39dcc00109e7926ac4c.png",
+        "path": "/tools/scheduler/scheduler.html"
       },
+      {
+        "id": "fragments",
+        "title": "Fragments",
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "dialog",
+        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1754eba0e972f3aaa5a26e4cff5c8a1af99bbd324.png",
+        "path": "/tools/fragments/fragments.html"
+      }, 
+      {
+        "id": "properties",
+        "title": "Properties",
+        "environments": ["edit"],
+        "daLibrary": true,
+        "includePaths": ["DA"],
+        "experience": "dialog",
+        "icon": "https://main--sling--da-pilot.aem.live/.da/icons/media_1497fb39986fd7dc0882bdd79633114a7a5a8710f.png",
+        "path": "/tools/properties/properties.html"
+      },      
       {
         "id": "showblocks",
         "title": "Blocks",
@@ -22,20 +45,6 @@
         "title": "Sections",
         "environments": ["dev", "preview", "live"],
         "event": "showsections"
-      },    
-      {
-        "id": "review",
-        "title": "Review...",
-        "environments": [
-          "dev",
-          "preview",
-          "review"
-        ],
-        "url": "https://labs.aem.live/tools/snapshot-admin/palette.html",
-        "isPopover": true,
-        "popoverRect": "width:200px; height: 200px",
-        "passConfig": true,
-        "passReferrer": true
       }
     ]
   }

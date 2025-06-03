@@ -28,9 +28,6 @@ export default async function decorate(block) {
     [...child.children].forEach((col) => {
       const cell = buildCell(header ? i : i + 1);
       cell.innerHTML = col.innerHTML;
-      if (col.className) {
-        cell.className = col.className; // to allow cell color overrides
-      }
 
       // Add data attributes if present
       if (col.dataset.align) {

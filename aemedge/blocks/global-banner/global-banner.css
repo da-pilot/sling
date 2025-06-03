@@ -44,7 +44,7 @@ main .block.global-banner[data-block-status="loaded"] {
 
 main .block.global-banner[data-block-status="loaded"].cyan-black { 
   color: var(--clr-black);
-  background: linear-gradient(270deg, #00b9ff 0%, var(--turquoise) 50%, #00b9ff 100%);
+  background: linear-gradient(270deg, #00b9ff 0%, #0ff 50%, #00b9ff 100%);
   box-sizing: border-box;
 }
 
@@ -59,6 +59,10 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
   font-size: 1em;
 }
 
+main .block.global-banner[data-block-status="loaded"].cyan-black a{ 
+  color: var(--clr-black);
+} 
+
 .global-banner span.close {
   cursor: pointer;
   font-size: 48px;
@@ -68,107 +72,6 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
   z-index: 11;
 }
 
-.static span.close {display: none}
-
-main .block.global-banner[data-block-status="loaded"].static {
-  justify-content: center;
-  padding-top: 22px;
-}
-
-.global-banner.turquoise-center{
-  background: linear-gradient(to right, #00B9FF 0%, var(--turquoise) 50%, #00B9FF 100%); 
-
-  & a, >*{ 
-  color: var(--black);
-}
-}
-
-.global-banner.sling-blue{
-  background: var(--sling-blue);
-  
-  & a, >*{ 
-  color: var(--black)
-}
-}
-
-.global-banner.orange-gradient {
-  background: linear-gradient(to right, #FF6C01 0%, #FFAB01 70%, #FFED01 100%);
-  
-  & a, >*{ 
-  color: var(--black)
-}
-}
-
-.global-banner.turquoise-left{
-  background: linear-gradient(to right, var(--turquoise) 0%, #00B9FF 100%);
-
-  & a, >*{ 
-  color: var(--black);
-}
-}
-
-.global-banner.turquoise-left-vibrant{
-  background: linear-gradient(to right, var(--turquoise) 0%, #00B9FF 50%, #0085FF 100%);
-
-  & a, >*{ 
-  color: var(--black);
-}
-}
-
-.global-banner.white{
-  background: var(--white);
-
-  & a, >*{ 
-  color: var(--black)
-}
-}
-
-.global-banner.black{
-  background: var(--black);
-
-  & a, >*{ 
-  color: var(--white);
-}
-}
-
-.global-banner.accessible-blue-gradient {
-  background: linear-gradient(to right, #00B9FF 0%, #0072EC 50%, #00B9FF 100%);
-
-  & span.close {
-    color: var(--black)
-  }
-
-  & p, a{ 
-  color: var(--white);
-}
-}
-
-.global-banner.accessible-turquoise-gradient  {
-  background: linear-gradient(to right, var(--turquoise) 0%, #0072EC 30.33%, #0072EC 66.66%, var(--turquoise) 100%);
-
-  & span.close {
-    color: var(--black)
-  }
-  
-  & p, a{ 
-  color: var(--white);
-}
-}
-
-.global-banner.accessible-blue  {
-  background: var(--accessible-blue);
-
-  & a, >*{ 
-    color:var(--black)
-  }
-  }
-
-main .block.global-banner[data-block-status="loaded"].cyan-black a{ 
-  color: var(--clr-black);
-}
-
 .global-banner.blue-orange {
   background: var(--blue-to-orange);
 }
-
-

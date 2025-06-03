@@ -81,64 +81,25 @@
 
   &.bg-dark-rock-candy {
     background: var(--dark-rock-candy);
-    color: var(--clr-white);
   }
 
   &.bg-dark-tangerine {
     background-color: var(--dark-tangerine);
-    color: var(--clr-white);
   }
 
   &.bg-primary-dark {
     background: var(--primary-dark);
-    color: var(--clr-white);
   }
 
   &.bg-highlight-coal {
     background: var(--highlight-coal);
-    color: var(--clr-white);
   }
 
   &.bg-blueberry {
     background: var(--blueberry);
-    color: var(--clr-white);
   }
 
-  &.bg-sling-blue {
-    background: var(--sling-blue);
-    color: var(--clr-white);
-  }
-
-  &.bg-accessible-blue {
-    background: var(--accessible-blue);
-    color: var(--clr-white);
-  }
-
-  &.bg-pearl {
-    background: var(--pearl);
-  }
-
-  &.bg-charcoal {
-    background: var(--charcoal);
-    color: var(--clr-white);
-  }
-
-  &.bg-smoke {
-    background: var(--smoke);
-    color: var(--clr-white);
-  }
-
-  &.bg-black {
-    background: var(--black);
-    color: var(--clr-white);
-  }
-
-  &.bg-cherry-red {
-    background: var(--cherry-red);
-    color: var(--clr-white);
-  }
-
-  &[class*="bg-"] { /* stylelint-disable no-descending-specificity */
+  &[class^="bg-"] { /* stylelint-disable no-descending-specificity */
     padding-top: 12px;
     padding-bottom: 12px;
 
@@ -152,9 +113,13 @@
        margin-left: 12px;
        margin-right: 12px;
      }
+
+    h1, h2, h3, h4, h5, h6, p, li {
+      color: var(--clr-white);
+    }
     }
 
-  &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese, &.bg-pearl {
+  &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese {
     h1, h2, h3, h4, h5, h6, p, li {
       color: inherit;
     }
@@ -165,24 +130,11 @@
   }
 
     a:not(.button, .blue, .black, .white) {
+      color: var(--clr-white);
       text-decoration: underline;
     }
   }
 
-.columns > div > div > .button-container.combined:has(> .align-center) {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.columns > div > div > .button-container.combined:has(> .align-right) {
-  margin-left: auto;
-  margin-right: 0;
-}
-
-.columns > div > div > .button-container.combined:has(> .align-left) {
-  margin-left: 0;
-  margin-right: auto;
-}
 
 
 .banner .columns {
@@ -239,11 +191,6 @@
     width: 24px;
   }
 
-  .columns.devices span.icon {
-    height:unset;
-    width:60%;
-  }
-
   .columns.icons {
     place-content: normal center;
     align-items: center;
@@ -279,7 +226,7 @@
     display: flex ;
     align-items: center;
     fill-opacity: 0.6;
-    margin: 0 10px;
+    margin: 10px;
   }
 
   .columns.icons.block {

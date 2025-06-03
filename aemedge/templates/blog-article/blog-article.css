@@ -381,14 +381,6 @@ body.blog-article .section.chat-container .chat-wrapper .chat{
         text-align: center;
     }
 
-    p.button-container:has(a[class='button primary']):hover
-    {
-        outline: none;
-        box-shadow:none;
-        transform: none;
-        cursor: unset;
-    }
-
     .button-container.combined {
         width: 100%;
 
@@ -400,6 +392,14 @@ body.blog-article .section.chat-container .chat-wrapper .chat{
 
     p.button-container:has(a[class='button primary sticky']) .button {
         margin: 0;
+    }
+
+    p.button-container:has(a[class='button primary']):hover
+    {
+        outline: none;
+        box-shadow:none;
+        transform: none;
+        cursor: unset;
     }
 
     a.button.primary:hover,

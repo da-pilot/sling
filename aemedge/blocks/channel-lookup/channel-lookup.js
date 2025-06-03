@@ -78,7 +78,7 @@ export default async function decorate(block) {
   spanZipInput.append(labelTag);
   const spanBtn = createTag('span');
   const buttonTag = createTag('button', { class: 'submit-button', id: 'zipcodebtn' });
-  buttonTag.innerText = 'Submit';
+  buttonTag.innerText = 'SUBMIT';
   spanBtn.append(buttonTag);
   formContainer.append(spanZipInput, spanBtn);
   block.append(formContainer);

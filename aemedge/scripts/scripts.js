@@ -23,6 +23,7 @@ import {
   createTag,
   loadGameFinders,
   loadPackageCards,
+  linkTextIncludesHref,
   centerHeadlines,
   configSideKick,
   buildVideoBlocks,
@@ -32,7 +33,7 @@ import {
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
 const TEMPLATES = ['blog-article', 'blog-category']; // add your templates here
 const TEMPLATE_META = 'template';
-const EXT_IMAGE_URL = /dish\.scene7\.com|\/aemedge\/svgs\/|delivery-p\d+-e\d+\.adobeaemcloud\.com\/adobe\/assets\//;
+const EXT_IMAGE_URL = /dish\.scene7\.com|\/aemedge\/svgs\//;
 
 /**
  * Sanitizes a string for use as class name.
@@ -341,16 +342,14 @@ async function setNavType() {
   }
 }
 
-/*  BUTTONS DECORATION */
 export function replaceTildesWithDel() {
-  // Only process block-level elements where tildes might wrap HTML
-  const elements = document.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6');
-  const tildeRegex = /~~([\s\S]*?)~~/g; // [\s\S] allows matching across tags and newlines
-
-  elements.forEach((element) => {
-    // Only replace if there are tildes present
-    if (element.innerHTML.includes('~~')) {
-      element.innerHTML = element.innerHTML.replace(tildeRegex, '<del>$1</del>');
+  const divs = document.querySelectorAll('div, div > p');
+  divs.forEach((div) => {
+    const text = div.innerHTML;
+    const tildeRegex = /^~~(.*?)~~$/;
+    const match = text.match(tildeRegex);
+    if (match) {
+      div.innerHTML = text.replace(tildeRegex, '<del>$1</del>');
     }
   });
 }
@@ -359,8 +358,8 @@ export function replaceTildesWithDel() {
  * Decorates paragraphs containing a single link as buttons.
  * @param {Element} element container element
  */
-
 export function decorateButtons(element) {
+  replaceTildesWithDel();
   element.querySelectorAll('a').forEach((a) => {
     a.title = a.title || a.textContent;
     if (a.href !== a.textContent && !a.href.includes('/fragments/') && !EXT_IMAGE_URL.test(a.href)) {
@@ -391,47 +390,11 @@ export function decorateButtons(element) {
         linkTextEl.textContent = linkText;
         a.setAttribute('aria-label', linkText);
 
-        // Check for tilde-wrapped content in different contexts
-        const checkAndRemoveTildes = (nodes) => Array.from(nodes).some((node, index, arr) => {
-          if (node === a) {
-            const prevNode = arr[index - 1];
-            const nextNode = arr[index + 1];
-            if (prevNode?.textContent === '~~' && nextNode?.textContent === '~~') {
-              prevNode.remove();
-              nextNode.remove();
-              return true;
-            }
-          }
-          return false;
-        });
-
         if (up.childNodes.length === 1 && (up.tagName === 'P' || up.tagName === 'DIV')) {
-          // Fragment Case 1: Link text is wrapped in tildes
-          const linkTextHasTildes = /^~~[\s\S]*~~$/.test(a.textContent);
-
-          // Remove tildes if they exist
-          if (linkTextHasTildes) {
-            const cleanText = linkTextEl.textContent.replace(/^~~([\s\S]*)~~$/, '$1');
-            linkTextEl.textContent = cleanText;
-            a.title = cleanText;
-            a.setAttribute('aria-label', cleanText);
-          }
-
           a.textContent = '';
-          a.className = linkTextHasTildes ? 'button primary' : 'button text';
+          a.className = 'button text';
           up.classList.add('button-container');
           a.append(linkTextEl);
-        } else if (up.childNodes.length === 3) {
-          if (up.tagName === 'P' && checkAndRemoveTildes(up.childNodes)) {
-            a.className = 'button primary';
-            up.classList.add('button-container');
-          } else if (up.tagName === 'EM' && checkAndRemoveTildes(up.childNodes)) {
-            a.className = 'button secondary';
-            up.classList.add('button-container');
-          }
-        } else if (up.childNodes.length === 1 && up.tagName === 'EM' && threeup.childNodes.length === 1 && twoup.tagName === 'DEL' && (threeup.tagName === 'P' || threeup.tagName === 'DIV')) {
-          a.className = 'button secondary';
-          threeup.classList.add('button-container');
         }
 
         const pageType = getPageType();
@@ -451,10 +414,19 @@ export function decorateButtons(element) {
             a.className = 'button primary';
             twoup.classList.add('button-container');
           }
-
+          // special IF added after removing tildes. Delete when we remove replaceTildesWithDel
+          if (up.childNodes.length === 3 && up.tagName === 'P' && twoup.childNodes.length === 1 && (twoup.tagName === 'P' || twoup.tagName === 'DIV')) {
+            a.className = 'button primary';
+            twoup.classList.add('button-container');
+          }
+          // end delete
           if (up.childNodes.length === 1 && up.tagName === 'EM' && threeup.childNodes.length === 1 && twoup.tagName === 'DEL' && (threeup.tagName === 'P' || threeup.tagName === 'DIV')) {
             a.className = 'button secondary';
             threeup.classList.add('button-container');
+          }
+          if (up.childNodes.length === 1 && up.tagName === 'EM' && twoup.tagName === 'STRONG' && threeup.tagName === 'DEL' && (threeup.parentElement.tagName === 'P' || threeup.parentElement.tagName === 'DIV')) {
+            a.className = 'button dark';
+            threeup.parentElement.classList.add('button-container');
           }
         }
       }
@@ -485,69 +457,35 @@ export function extractStyleVariables() {
     const up = node.parentElement;
     const isParagraph = node.tagName === 'P';
     const text = node.textContent;
-    const numberRegex = text && /\{width-(\d{1,2})?}/; // width-60, etc. 2 digits or less (percentage)
-    const sizeRegex = text && /\{size-([^}]*)\}/; // size-xl, etc.
-    const alignRegex = text && /\{align-([^}]*)\}/; // align-right, align-center, align-left
-    const valignRegex = text && /\{valign-([^}]*)\}/; // valign-top, valign-middle, valign-bottom
-    const targetRegex = text && /\{target-([^}]*)\}/; // target-blank, target-self
-    const idRegex = text && /\{id-([^}]*)\}/; // id-coolsection, etc
-    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-|id-)([a-zA-Z-\s]+)?\}/;
-    const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`); // [plain text]{color}
+    const colorRegex = text && /{([a-zA-Z-\s]+)?}/; // color must be letters or dashes
+    const numberRegex = text && /\{(\d{1,2})?}/;
+    const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`);
 
     const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
+    const colorMatches = text.match(colorRegex);
     const numberMatches = text.match(numberRegex);
     const spanMatches = text.match(spanRegex);
-    const sizeMatches = text.match(sizeRegex);
-    const alignMatches = text.match(alignRegex);
-    const valignMatches = text.match(valignRegex);
-    const colorMatches = text.match(colorRegex);
-    const targetMatches = text.match(targetRegex);
-    const idMatches = text.match(idRegex);
-    // case where size, align are to be added to the node
-    if (sizeMatches && sizeMatches[1] !== undefined) {
-      const size = sizeMatches[1];
-      node.classList.add(`size-${size}`);
-      node.innerHTML = node.innerHTML.replace(sizeRegex, '');
-    }
-    if (alignMatches && alignMatches[1] !== undefined) {
-      const align = alignMatches[1];
-      node.classList.add(`align-${align}`);
-      node.innerHTML = node.innerHTML.replace(alignRegex, '');
-    }
-    // case where id is in the P tag, replace the P with an A id=.
-    if (isParagraph && idMatches && idMatches[1] !== undefined) {
-      const id = idMatches[1];
-      // Create a new <a> element
-      const a = document.createElement('a');
-      a.id = id;
-      a.innerHTML = '';
-      node.parentNode.replaceChild(a, node);
-    }
-    // case where new spacer node is created
+
     if (isParagraph && spacerMatch) {
       const spacerHeight = parseInt(spacerMatch[1], 10);
       node.style.height = `${spacerHeight * 10}px`;
       node.className = 'spacer';
       node.innerHTML = '';
     } else
-      // case where width, valign and/or color are in the first P of a column or table cell
-      if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.startsWith('{') && text.endsWith('}')) {
-        if (numberMatches) {
-          const percentWidth = numberMatches[1];
-          up.style.maxWidth = `${percentWidth}%`;
-        }
-        if (valignMatches) {
-          const valign = valignMatches[1];
-          up.classList.add(`valign-${valign}`);
-        }
+      // case where only the color or width is in the first cell
+      if (isParagraph && up.tagName === 'DIV' && up.firstElementChild === node && text.trim().startsWith('{') && text.trim().endsWith('}')) {
         if (colorMatches) {
           const backgroundColor = colorMatches[1];
           up.classList.add(`bg-${toClassName(backgroundColor)}`);
         }
+        if (numberMatches) {
+          const percentWidth = numberMatches[1];
+          up.style.maxWidth = `${percentWidth}%`;
+        }
         node.remove();
       }
-
-    // handle span wrapping for plain text
+    const anchor = node.querySelector('a');
+    // First handle span wrapping
     if (spanMatches) {
       const currentHTML = node.innerHTML;
       node.innerHTML = currentHTML.replace(new RegExp(spanRegex, 'g'), (match, spanText, color) => {
@@ -556,18 +494,12 @@ export function extractStyleVariables() {
       });
     }
 
-    // Then handle anchor tag color and target
-    const anchor = node.querySelector('a');
+    // Then handle anchor tag coloring
     if (anchor) {
-      if (colorMatches && colorMatches[1] !== undefined) {
+      if (colorMatches && anchor.textContent.endsWith(colorMatches[0])) {
         anchor.classList.add(`bg-${toClassName(colorMatches[1])}`);
-        [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(colorMatches[0], ''));
-        anchor.setAttribute('aria-label', anchor.textContent);
-      }
-      if (targetMatches && targetMatches[1] !== undefined) {
-        anchor.setAttribute('target', targetMatches[1]);
-        [anchor.textContent, anchor.title] = [anchor.textContent, anchor.title].map((str) => str.replace(targetMatches[0], ''));
-        anchor.setAttribute('aria-label', anchor.textContent);
+        anchor.textContent = anchor.textContent.replace(colorMatches[0], '');
+        anchor.title = anchor.title.replace(colorMatches[0], '');
       }
     }
   });
@@ -607,80 +539,54 @@ async function loadTemplate(main) {
   }
 }
 
+/**
+   * Builds a spacer out of a code block with the text 'spacer'.
+   * add up to 3 spacers with 'spacer1', 'spacer2', 'spacer3'
+   */
+function buildSpacer(main) {
+  const codeElements = main.querySelectorAll('code');
+  codeElements.forEach((code) => {
+    const spacerMatch = code.textContent.match(/spacer-(\d+)/);
+    if (spacerMatch) {
+      const spacerHeight = parseInt(spacerMatch[1], 10);
+      const spacerDiv = document.createElement('div');
+      spacerDiv.style.height = `${spacerHeight * 10}px`;
+      code.insertAdjacentElement('afterend', spacerDiv);
+      code.remove();
+    }
+  });
+}
+
 export function decorateExtImage() {
   // dynamic media link or images in /svg folder
   // not for bitmap images because we're not doing renditions here
+  const numberRegex = /\{(\d{1,2})?}/;
   const fragment = document.createDocumentFragment();
 
   document.querySelectorAll('a[href]').forEach((a) => {
-    if (EXT_IMAGE_URL.test(a.href)) {
+    if (EXT_IMAGE_URL.test(a.href) && linkTextIncludesHref(a)) {
       const extImageSrc = a.href;
       const picture = document.createElement('picture');
       const img = document.createElement('img');
-
       img.classList.add('svg');
-      // if the link title to an external image was authored, assign as alt text, else use a default
-      img.alt = a.title || 'Sling TV image';
+      // this alt is a cop out, but it's better than nothing
+      img.alt = 'Sling TV image';
       // making assumption it is not LCP
       img.loading = 'lazy';
       img.src = extImageSrc;
       picture.append(img);
 
-      // Check if the link's text content matches width or align
-      const alignRegex = a.textContent.match(/\{align-([^}]*)\}/);
-      if (alignRegex) {
-        const align = alignRegex[1];
-        picture.classList.add(`align-${align}`);
-      }
-      const numberMatches = a.textContent.match(/\{width-(\d{1,2})?}/);
+      // Check if the link's text content matches numberRegex
+      const numberMatches = a.textContent.match(numberRegex);
       if (numberMatches) {
         const percentWidth = numberMatches[1];
         img.style.maxWidth = `${percentWidth}%`;
-        a.textContent = a.textContent.replace(numberMatches[0], '');
-        a.title = a.title.replace(numberMatches[0], '');
+        // Remove the text content matching numberRegex
+        a.textContent = a.textContent.replace(numberRegex, '');
       }
 
       fragment.append(picture);
       a.replaceWith(fragment);
-
-      // After replacing the <a> with the <picture>, check for <br> and <a> sibling pattern
-      // (i.e., <picture> (just inserted), <br>, <a>)
-      if (picture.nextSibling && picture.nextSibling.nodeName === 'BR' && picture.nextSibling.nextSibling && picture.nextSibling.nextSibling.nodeName === 'A') {
-        const br = picture.nextSibling;
-        const nextA = br.nextSibling;
-        const up = nextA.parentElement;
-        const picClone = picture.cloneNode(true);
-        nextA.replaceChildren(picClone);
-        up.insertAdjacentHTML('beforeend', nextA.outerHTML);
-        br.remove();
-        // TODO remove empty <a> tags
-      }
-    }
-  });
-}
-
-export function decorateExternalLinks(main) {
-  main.querySelectorAll('a').forEach((a) => {
-    const href = a.getAttribute('href');
-    if (href) {
-      const extension = href.split('.').pop().trim();
-      if (!href.startsWith('/') && !href.startsWith('#')) {
-        const url = new URL(href, window.location.href);
-        const host = url.hostname;
-
-        // Open in new tab if:
-        // 1. It's a PDF
-        // 2. It's not sling.com
-        // 3. It is specifically watch.sling.com
-        if (
-          extension === 'pdf'
-          || (!host.endsWith('sling.com') || host === 'watch.sling.com')
-        ) {
-          a.setAttribute('target', '_blank');
-        } else {
-          a.removeAttribute('target');
-        }
-      }
     }
   });
 }
@@ -700,15 +606,14 @@ function buildAutoBlocks(main) {
 }
 
 function decorateLinkedImages() {
-  const pictures = document.querySelectorAll('main picture');
+  const pictures = document.querySelectorAll('.section.columns-container picture');
   pictures.forEach((picture) => {
-    const next = picture.nextElementSibling;
-    if (next && next.tagName === 'A') {
-      const a = next;
-      a.replaceChildren(picture);
-    } else if (next && next.tagName === 'BR' && next.nextElementSibling && next.nextElementSibling.tagName === 'A') {
-      const a = next.nextElementSibling;
-      a.replaceChildren(picture);
+    const pictureParent = picture.parentElement;
+    const nextSibling = pictureParent.nextElementSibling;
+    if (nextSibling && nextSibling.tagName === 'P' && nextSibling.querySelector('a')) {
+      const anchor = nextSibling.querySelector('a');
+      anchor.innerHTML = '';
+      anchor.appendChild(picture);
     }
   });
 }
@@ -716,13 +621,13 @@ function decorateLinkedImages() {
 async function loadLaunchEager() {
   const isTarget = getMetadata('target');
   if (isTarget && isTarget.toLowerCase() === 'true') {
-    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
+    // await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
     if (window.location.host.startsWith('localhost')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
+      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
     } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
+      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
     } else if (window.location.host.endsWith('.page')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
+      await loadScript('https://assets.adobedtm.com/b571b7f9ddbe/47527b7bd4d6/launch-64441534c3f4-development.min.js');
     }
   }
 }
@@ -757,14 +662,12 @@ export function decorateMain(main) {
   decorateSections(main);
   decorateBlocks(main);
   decorateButtons(main);
-  replaceTildesWithDel(main);
-  decorateExternalLinks(main);
   makeTwoColumns(main);
   decorateStyledSections(main);
-  decorateExtImage(main);
-  decorateLinkedImages();
+  buildSpacer(main);
   extractStyleVariables(main);
   decorateExtImage(main);
+  decorateLinkedImages();
   buildVideoBlocks(main);
 }
 
@@ -1019,12 +922,6 @@ async function loadPage() {
   // Start observing for section changes after initial decoration
   handleTargetSections(document);
 
-  // load everything that can be postponed to the latest here
-  await loadLazy(document);
-  configSideKick();
-  // load launch eagerly when target metadata is set to true
-  await loadLaunchEager();
-  // load everything that needs to be loaded later
   loadDelayed();
   // make the last button sticky on blog pages
   makeLastButtonSticky();

@@ -1,16 +1,10 @@
 import { loadScript } from '../../scripts/aem.js';
 
-const getDefaultEmbed = (url) => {
-  const urlObj = new URL(url);
-  const customTitle = urlObj.searchParams.get('title');
-  const titleAttr = customTitle ? `title="${customTitle}"` : `title="Content from ${urlObj.hostname}"`;
-
-  return `<div style="left: 0; width: 100%; height: 0; position: relative; padding-bottom: 56.25%;">
-    <iframe src="${urlObj.href}" style="border: 0; top: 0; left: 0; width: 100%; height: 100%; position: absolute;" allowfullscreen=""
-      scrolling="no" allow="encrypted-media" ${titleAttr} loading="lazy">
+const getDefaultEmbed = (url) => `<div style="left: 0; width: 100%; height: 0; position: relative; padding-bottom: 56.25%;">
+    <iframe src="${url.href}" style="border: 0; top: 0; left: 0; width: 100%; height: 100%; position: absolute;" allowfullscreen=""
+      scrolling="no" allow="encrypted-media" title="Content from ${url.hostname}" loading="lazy">
     </iframe>
   </div>`;
-};
 
 const embedTwitter = (url) => {
   const embedHTML = `<blockquote class="twitter-tweet"><a href="${url.href}"></a></blockquote>`;
