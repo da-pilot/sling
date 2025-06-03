@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // const TARGET_WORKSPACE_ID = '857317386';
 
   const RUNTIME_NAMESPACE = '34866-789turquoisetick';
-  const TARGET_WORKSPACE_ID = 'e60d266b-06d1-c3d6-1dd0-c8d32352b3b1';
+  // const TARGET_WORKSPACE_ID = 'e60d266b-06d1-c3d6-1dd0-c8d32352b3b1';
 
   // Form elements
   const form = document.getElementById('offerForm');
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         offer: {
           name: offerNameInput.value.trim(),
           content: formatHTMLForAPI(blockHtmlInput.value),
-          workspace: TARGET_WORKSPACE_ID,
+          // workspace intentionally omitted; backend will use env/config
         },
         fragmentId,
         path: window.location.pathname,

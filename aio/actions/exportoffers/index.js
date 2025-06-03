@@ -28,15 +28,22 @@ async function getExistingOfferMapping(fragmentId, path, logger) {
   try {
     logger.info(`Getting existing offer mapping for fragmentId: ${fragmentId} and path: ${path}`);
     const files = await filesLib.init();
-    const existingFile = await files.read(TARGET_EXPORTS_FILE);
-    const targetExports = JSON.parse(existingFile);
+    let targetExports;
+    try {
+      const existingFile = await files.read(TARGET_EXPORTS_FILE);
+      targetExports = JSON.parse(existingFile);
+    } catch (readError) {
+      // If file does not exist, create it with empty data array
+      logger.warn('target-exports.json does not exist, creating new file.');
+      targetExports = { data: [] };
+      await files.write(TARGET_EXPORTS_FILE, JSON.stringify(targetExports));
+    }
     logger.info(`Target exports: ${JSON.stringify(targetExports)}`);
     const existingMapping = targetExports.data.find(item => item['fragment-id'] === fragmentId && item['path'] === path);
     logger.info(`Existing mapping: ${JSON.stringify(existingMapping)}`);
     logger.info(`Existing mapping offer-id: ${existingMapping ? existingMapping['offer-id'] : null}`);
     return existingMapping ? existingMapping['offer-id'] : null;
   } catch (error) {
-    // File doesn't exist or is invalid, return null
     logger.error('Error getting existing offer mapping:', error);
     throw new Error(`Failed to get existing offer mapping: ${error.message}`);
   }
@@ -166,10 +173,14 @@ async function main(params) {
     let response;
 
     // Format the offer according to Target API spec
+    const workspaceId = params.ADOBE_TARGET_WORKSPACE_ID || offer.workspace ;
+    if (!workspaceId) {
+      logger.warn('No workspace ID provided in offer or environment variable.');
+    }
     const offerData = {
       name: offer.name,
       content: offer.content,
-      workspace: offer.workspace || 'Default Workspace'
+      workspace: workspaceId
     };
 
     logger.debug(`Offer request data: ${JSON.stringify(offerData)}`);
@@ -189,7 +200,6 @@ async function main(params) {
         logger.info(`Offer ${existingOfferId} exists in Target, proceeding with update`);
       } catch (error) {
         logger.error(`Error checking offer existence: ${error}`);
-        
         // Check if it's a TargetSDKError with 404
         if (error.name === 'TargetSDKError' && 
             error.message.includes('ERROR_GET_OFFER_BY_ID') && 
@@ -210,8 +220,14 @@ async function main(params) {
     } else {
       // Create new offer
       logger.info('Creating new offer in Adobe Target...');
-      response = await targetClient.createOffer(offerData, options);
-      logger.info(`Successfully created offer: ${response.body.id}`);
+      logger.debug(`Payload for createOffer: ${JSON.stringify(offerData)}`);
+      try {
+        response = await targetClient.createOffer(offerData, options);
+        logger.info(`Successfully created offer: ${response.body.id}`);
+      } catch (error) {
+        logger.error(`Error creating offer: ${error.message}, response: ${JSON.stringify(error.response)}`);
+        throw error;
+      }
     }
 
     // Update target exports with the new mapping
@@ -228,10 +244,25 @@ async function main(params) {
   } catch (error) {
     // Log the full error for debugging
     logger.error(`Error processing offer: ${error.message}`);
-    // Pass the full error object to errorResponse
+    // Log additional error details if available
+    if (error.response) {
+      logger.error(`Error response: ${JSON.stringify(error.response)}`);
+    }
+    if (error.body) {
+      logger.error(`Error body: ${JSON.stringify(error.body)}`);
+    }
+    if (error.stack) {
+      logger.error(`Error stack: ${error.stack}`);
+    }
+    // Build a detailed error object for the response
     const statusCode = error.statusCode || 500;
-    const errorMessage = error.message || 'An unknown error occurred';
-    return errorResponse(statusCode, errorMessage, logger);
+    const errorDetails = {
+      message: error.message || 'An unknown error occurred',
+      response: error.response || null,
+      body: error.body || null,
+      stack: error.stack || null
+    };
+    return errorResponse(statusCode, JSON.stringify(errorDetails), logger);
   }
 }
 

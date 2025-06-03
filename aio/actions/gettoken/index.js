@@ -18,8 +18,8 @@ const TOKEN_CACHE_KEY = 'adobe_access_token';
  * @returns {Promise<Object>} Object containing the access token or error
  */
 async function main(params) {
-  // Initialize logger
   const logger = Core.Logger('gettoken', { level: params.LOG_LEVEL || 'info' });
+  logger.info('DEBUG PARAMS:', JSON.stringify(params));
 
   try {
     // Validate required environment variables
@@ -43,6 +43,7 @@ async function main(params) {
 
     logger.debug('Fetching new access token from IMS...');
 
+    const scopes = params.ADOBE_TARGET_SCOPES || 'openid,AdobeID,target_sdk,target_admin,target_write,target_read,additional_info.projectedProductContext,read_organizations,additional_info.roles';
     const response = await fetch('https://ims-na1.adobelogin.com/ims/token/v3', {
       method: 'POST',
       headers: {
@@ -53,7 +54,7 @@ async function main(params) {
         client_id: params.ADOBE_CLIENT_ID,
         client_secret: params.ADOBE_CLIENT_SECRET,
         grant_type: 'client_credentials',
-        scope: 'openid,AdobeID,target_sdk,target_admin,target_write,target_read,additional_info.projectedProductContext,read_organizations,additional_info.roles'
+        scope: scopes
       })
     });
 

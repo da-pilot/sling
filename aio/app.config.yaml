@@ -11,9 +11,9 @@ application:
             web: false
             runtime: nodejs:18
             inputs:
-              ADOBE_CLIENT_ID: $SERVICE_API_KEY
-              ADOBE_CLIENT_SECRET: $AIO_ims_contexts_AEM__Edge__Target__Integration__Sling__QA_client__secrets
-              ADOBE_TARGET_SCOPES: $AIO_ims_contexts_AEM__Edge__Target__Integration__Sling__QA_scopes
+              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
+              ADOBE_CLIENT_SECRET: $ADOBE_CLIENT_SECRET
+              ADOBE_TARGET_SCOPES: $ADOBE_TARGET_SCOPES
               LOG_LEVEL: debug
             annotations:
               final: true
@@ -27,10 +27,11 @@ application:
             web: true
             runtime: nodejs:18
             inputs:
-              ADOBE_CLIENT_ID: $SERVICE_API_KEY
+              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
               ADOBE_TARGET_TENANT: 'dish'
               LOG_LEVEL: debug
-              AIO_RUNTIME_NAMESPACE: $AIO_runtime_namespace
+              AIO_RUNTIME_NAMESPACE: $AIO_RUNTIME_NAMESPACE
+              ADOBE_TARGET_WORKSPACE_ID: '151455161'
             annotations:
               final: true
               require-adobe-auth: false
