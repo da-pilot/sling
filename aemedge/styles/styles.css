@@ -102,6 +102,23 @@
 
   /* Color Variants */
   --blue-to-orange: linear-gradient(to right, #1b00a6, #eb550f);
+
+    /* Spacing Variables */
+    --spacing-xxs: 4px;
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 20px;
+    --spacing-xl: 24px;
+    --spacing-xxl: 32px;
+    --spacing-xxxl: 48px;
+  
+    /* Border Radius */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+    --border-radius-xxl: 24px;
 }
 
 
@@ -1243,16 +1260,16 @@ main .section.light{
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: rgb(0 0 0 / 90%);
   border-radius: var(--border-radius-xl);
   z-index: 10;
-  margin: var(--spacing-md);
   box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
   border: 1px solid transparent;
   background-clip: padding-box;
   position: relative;
   font-family: var(--font-family);
+  gap: var(--spacing-md);
+  margin:0;
+  padding:0;
 }
 
 /* Gradient border effect */
@@ -1279,8 +1296,6 @@ main .section.light{
   text-shadow: 0 1px 2px rgb(0 0 0 / 40%);
   font-weight: 500;
 }
-
-
 
 .export-button {
   font-family: var(--font-family);
@@ -1333,3 +1348,4 @@ main .section.light{
   border-top-right-radius: 10px;
   border-top-left-radius: 10px;
 }
+
