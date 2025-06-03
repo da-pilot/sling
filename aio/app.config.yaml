@@ -14,7 +14,7 @@ application:
               ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
               ADOBE_CLIENT_SECRET: $ADOBE_CLIENT_SECRET
               ADOBE_TARGET_SCOPES: $ADOBE_TARGET_SCOPES
-              LOG_LEVEL: debug
+              LOG_LEVEL: info
             annotations:
               final: true
               require-adobe-auth: false
@@ -29,7 +29,7 @@ application:
             inputs:
               ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
               ADOBE_TARGET_TENANT: 'dish'
-              LOG_LEVEL: debug
+              LOG_LEVEL: info
               AIO_RUNTIME_NAMESPACE: $AIO_RUNTIME_NAMESPACE
               ADOBE_TARGET_WORKSPACE_ID: '151455161'
             annotations:
