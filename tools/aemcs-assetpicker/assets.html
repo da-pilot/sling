@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" style="height: 100%; margin: 0;">
+<head>
+  <meta charset="UTF-8">
+  <title>Asset Selector</title>
+  <meta http-equiv="Permissions-Policy" content="clipboard-write=*, clipboard-read=*">
+  <script src="https://experience.adobe.com/solutions/CQ-assets-selectors/static-assets/resources/assets-selectors.js"></script>
+  <link rel="stylesheet" href="assets.css">
+</head>
+<body style="height: 100%; margin: 0; overflow: hidden;">
+  <div id="asset-selector-container"></div>
+  
+  <!-- Configuration Error Template -->
+  <template id="config-error-template">
+    <div class="config-error-container">
+      <h3>Configuration Required</h3>
+      <p>The Asset Selector requires a repository ID to function properly.</p>
+      <p>Please configure the <strong>aem.repositoryId</strong> in your config file:</p>
+      <ol>
+        <li>Navigate to <code id="config-url"></code></li>
+        <li>Add or update the configuration with the following key-value pair:</li>
+        <pre>
+          {
+          "key": "aem.repositoryId",
+          "value": "your-repository-id"
+        }</pre>
+        <li>Save the changes and refresh this page</li>
+      </ol>
+    </div>
+  </template>
+  
+  <!-- Error Message Template -->
+  <template id="error-message-template">
+    <div class="error-message">
+      Error initializing Asset Selector: <span id="error-message-text"></span>
+    </div>
+  </template>
+    
+  <script type="module" src="assets.js"></script>
+</body>
+</html> 
