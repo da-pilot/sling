@@ -9,7 +9,6 @@
 
 .tabs.wide .tabs-list {
   flex-direction: row;
-  justify-content: center;
 }
 
 .tabs .tabs-list button {
@@ -26,6 +25,7 @@
   white-space: nowrap;
   justify-content: center;
   line-height: normal;
+  margin-bottom: 0;
 }
 
 .tabs.columns p {
@@ -53,7 +53,7 @@
   max-width: fit-content;
   color: rgb(23 23 37);
   opacity: 0.6;
-  padding-bottom: 4px;
+  padding-bottom: 16px;
   border-bottom: 3px transparent;
 }
 
@@ -83,7 +83,7 @@
 }
 
 .tabs .tabs-panel {
-  padding: 16px 16px 0;
+  padding: 0 16px;
   overflow: auto;
 }
 
@@ -207,6 +207,15 @@
     justify-content: center;
   }
 
+  /* Center alignment specifically for carousel variant */
+  .tabs.carousel .tabs-list {
+  justify-content: center;
+  }
+
+  .tabs.wide .tabs-list {
+    justify-content: center;
+  }
+
   .rewards .tabs-container .tabs #tabpanel-upcoming-giveaways p:last-of-type{
     display: none;
   }
@@ -271,11 +280,6 @@
     padding: 0;
   }
 
-}
-
-/* Center alignment specifically for carousel variant */
-.tabs.carousel .tabs-list {
-  justify-content: center;
 }
 
 .tabs.carousel .tabs-list button {

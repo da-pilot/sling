@@ -68,9 +68,9 @@ export default async function decorate(block) {
     if (entries.some((entry) => entry.isIntersecting)) {
       const config = await readBlockConfig(block);
       const slingProps = {
-        chatId: `${config.chatId}` || 'chat-bot-help',
+        chatId: config.chatId?.trim() ? config.chatId : 'chat-bot-help',
         env: 'prod',
-        appId: `${config.appId}` || '80ce3ed3-5387-498a-bea3-e000f1e33371',
+        appId: config.appId?.trim() ? config.appId : '80ce3ed3-5387-498a-bea3-e000f1e33371',
         hideChat: false,
         displayNextToFeedback: false,
         autoLaunch: false,

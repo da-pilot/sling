@@ -3,43 +3,76 @@ body.modal-open {
   }
 
   .modal dialog {
-    --dialog-border-radius: 16px;
+    --dialog-border-radius: 16px; /* Allow later border radius adjustment for dialog modals */
 
     overscroll-behavior: none;
     border: 1px solid var(--dark-color);
     border-radius: var(--dialog-border-radius);
-    width: 100vw;
+    max-width: 100%;
+    margin: 20px auto;
 
       p, li {
         font-size: 1em;
         line-height: 1.5;
       }
+
+      h2 strong{
+      font-weight: 700;
+    }
   }
 
   .modal dialog .modal-content {
     overflow-y: auto;
     overscroll-behavior: none;
+    scrollbar-width: none; /* Supress visible scrollbar when table doesn't fit dialog modal, but still allow scrolling */
     max-height: calc(100dvh - 60px);
+  }
+
+  .modal dialog .modal-content .default-content-wrapper {
+    padding: 0 16px;
+  }
+
+    .modal dialog .modal-content .table-container .default-content-wrapper{
+    position: sticky;
+    top: 0;
+    padding-top:42px;
+    min-height: 150px;
+    text-align: center;
+    background: canvas;
+    }
+
+    .modal dialog .modal-content .table-container .default-content-wrapper p {
+    line-height: 1.1;
+    margin-top: 12px;
   }
 
   @media (width >= 768px) {
     .modal dialog {
       padding: 30px;
       width: 80vw;
-      max-width: 700px;
+      max-width: 960px;
+      margin: auto;
+      overflow: hidden;
     }
 
     .modal dialog .modal-content {
       max-height: calc(100vh - 90px);
     }
-  }
+
+    .modal dialog .modal-content .table-container .default-content-wrapper{
+      position: sticky;
+      top: 0;
+      padding-top: 26px;
+      background: canvas;
+    }
+  } 
 
   .modal dialog::backdrop {
     background-color: rgb(0 0 0 / 50%);
   }
 
   .modal .close-button {
-   all:unset;
+    all:unset;
     position: absolute;
     top: 0;
     right: 0;
@@ -55,9 +88,10 @@ body.modal-open {
   .modal .close-button img{
     height: 20px;
     width: 20px;
-   }
+  }
 
 
   .modal dialog .section {
     padding: 0;
+    margin-right: -1px;
   }

@@ -2,7 +2,7 @@
 header .nav-wrapper {
   background-color: var(--background-color);
   width: 100%;
-  z-index: 2;
+  z-index: 3;
   position: fixed;
 }
 
@@ -283,7 +283,11 @@ header nav[aria-expanded='true'] .nav-sections {
 }
 
 @media (width >= 1380px) {
-  header nav {
+  :root {
+--nav-height: 72px;
+}
+
+header nav {
     display: flex;
     justify-content: space-between;
     gap: 0 32px;
@@ -295,11 +299,11 @@ header nav[aria-expanded='true'] .nav-sections {
   header nav[aria-expanded='true'] {
     min-height: 0;
     overflow: visible;
-    height: 72px;
+    height: var(--nav-height);
   }
 
   header .nav-brand {
-    height: 70px;
+    height: var(--nav-height);
   }
 
   header nav .nav-sections ul {
@@ -313,7 +317,7 @@ header nav[aria-expanded='true'] .nav-sections {
 
   header .profile .icon.icon-sign-in {
     position: absolute;
-    top: 25px;
+    top: 20px;
     right: 160px;
     width: 32px;
     height: 32px;

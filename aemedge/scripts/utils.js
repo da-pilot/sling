@@ -153,8 +153,15 @@ export function buildFragmentBlocks(main) {
     const domainCheck = checkDomain(url);
     if (domainCheck.isKnown && linkTextIncludesHref(a) && url.pathname.includes('/fragments/')) {
       const block = buildBlock('fragment', url.pathname);
+      const parent = a.parentElement;
       a.replaceWith(block);
       decorateBlock(block);
+      if (parent.tagName === 'P' && parent.querySelector('.block')) {
+        const div = document.createElement('div');
+        div.className = parent.className;
+        while (parent.firstChild) div.appendChild(parent.firstChild);
+        parent.replaceWith(div);
+      }
     }
   });
 }

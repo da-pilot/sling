@@ -1,5 +1,16 @@
 import { fetchPlaceholders } from '../../scripts/aem.js';
 
+function hasAutoscrollClass(element) {
+  let current = element;
+  while (current) {
+    if (current.classList && current.classList.contains('autoscroll')) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
 function showSlide(block, slideIndex = 0) {
   const slides = block.querySelectorAll('.carousel-slide');
   const totalSlides = slides.length;
@@ -10,7 +21,7 @@ function showSlide(block, slideIndex = 0) {
   // Update block's active slide index
   block.dataset.activeSlide = realSlideIndex;
 
-  // Scroll to the active slide
+  // Scroll to the active slide with smoother transition
   const activeSlide = slides[realSlideIndex];
   block.querySelector('.carousel-slides').scrollTo({
     top: 0,
@@ -40,6 +51,15 @@ function showSlide(block, slideIndex = 0) {
       button.setAttribute('disabled', 'true');
     }
   });
+
+  // Add shadow effect when slides change
+  const slidesContainer = block.querySelector('.carousel-slides-container');
+  slidesContainer.classList.add('slide-transition');
+
+  // Remove the effect after animation completes
+  setTimeout(() => {
+    slidesContainer.classList.remove('slide-transition');
+  }, 500);
 }
 
 function bindEvents(block) {
@@ -91,19 +111,37 @@ function createSlide(row, slideIndex, carouselId) {
   return slide;
 }
 
-function updateSlideArrows(rows, slideNavButtons) {
-  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+function getVisibleSlidesCount(block) {
+  // Look for a X-slides class on the block or its ancestors
+  let parent = block;
+  while (parent && parent !== document.body) {
+    const match = Array.from(parent.classList).find((cls) => /^(\d+)-slides$/.test(cls));
+    if (match) {
+      return parseInt(match.replace('-slides', ''), 10);
+    }
+    parent = parent.parentElement;
+  }
+  // Fallback to default responsive logic
+  if (window.matchMedia('(max-width: 767px)').matches) return 1;
+  if (window.matchMedia('(max-width: 1023px)').matches) return 2;
+  return 6;
+}
+
+function updateSlideArrows(block, rows) {
   const imageCount = rows.length;
-  if ((isMobile && imageCount <= 2) || (!isMobile && imageCount <= 3)) {
-    slideNavButtons.classList.add('hide');
-  } else {
-    slideNavButtons.classList.remove('hide');
+  const visibleSlides = getVisibleSlidesCount(block);
+  const navButtons = document.getElementById(`carousel-nav-${block.id}`);
+  if (navButtons) {
+    if (imageCount <= visibleSlides && !block.classList.contains('full')) {
+      navButtons.classList.add('hide');
+    } else {
+      navButtons.classList.remove('hide');
+    }
   }
 }
 
 let carouselId = 0;
 export default async function decorate(block) {
-  const variant = block.classList.value;
   carouselId += 1;
   block.setAttribute('id', `carousel-${carouselId}`);
   const rows = block.querySelectorAll(':scope > div');
@@ -132,13 +170,11 @@ export default async function decorate(block) {
     const slideNavButtons = document.createElement('div');
     slideNavButtons.classList.add('carousel-navigation-buttons');
     slideNavButtons.innerHTML = `
-      <button type="button" class= "slide-prev" aria-label="${placeholders.previousSlide || 'Previous Slide'}"></button>
+      <button type="button" class="slide-prev" aria-label="${placeholders.previousSlide || 'Previous Slide'}"></button>
       <button type="button" class="slide-next" aria-label="${placeholders.nextSlide || 'Next Slide'}"></button>
     `;
-
+    slideNavButtons.setAttribute('id', `carousel-nav-${block.id}`);
     container.append(slideNavButtons);
-    updateSlideArrows(rows, slideNavButtons);
-    window.addEventListener('resize', () => updateSlideArrows(rows, slideNavButtons));
   }
 
   rows.forEach((row, idx) => {
@@ -157,27 +193,66 @@ export default async function decorate(block) {
 
   block.prepend(container);
 
+  // Find a parent with a class matching /n-slides/
+  let parent = block;
+  let slideClass = null;
+  while (parent && parent !== document.body) {
+    const match = Array.from(parent.classList).find((cls) => /^(\d+)-slides$/.test(cls));
+    if (match) {
+      slideClass = match;
+      break;
+    }
+    parent = parent.parentElement;
+  }
+
+  // Add the found class, or fallback to rows.length
+  if (slideClass) {
+    // Convert 'n-slides' to 'slides-n'
+    const nSlidesMatch = slideClass.match(/^(\d+)-slides$/);
+    if (nSlidesMatch) {
+      block.classList.add(`slides-${nSlidesMatch[1]}`);
+    }
+  } else {
+    block.classList.add(`slides-${rows.length}`);
+  }
+
   if (!isSingleSlide) {
     bindEvents(block);
-    block.setAttribute('data-bound', 'true');
   }
-  // Auto-scrolling functionality
-  let slideIndex = 0;
-  const slides = block.querySelectorAll('.carousel-slide');
 
-  // Define autoScroll function at the root level
-  const autoScroll = () => {
+  // Auto-scrolling functionality that's always enabled
+  let slideIndex = parseInt(block.dataset.activeSlide, 10) || 0;
+  let autoScrollInterval = null;
+
+  function autoScroll() {
     slideIndex += 1;
-    if (slideIndex >= slides.length) {
+    if (slideIndex >= rows.length) {
       slideIndex = 0;
     }
     showSlide(block, slideIndex);
-  };
-
-  // Call autoScroll every 3 seconds
-  if (variant.includes('autoscroll')) {
-    block.autoScrollInterval = setInterval(autoScroll, 3000);
   }
+
+  updateSlideArrows(block, rows);
+  window.addEventListener('resize', () => updateSlideArrows(block, rows));
+
+  // Start auto-scroll immediately if it has the autoscroll class
+  if (hasAutoscrollClass(block) && rows.length > 1) {
+    // Start auto-scrolling
+    autoScrollInterval = setInterval(autoScroll, 4000);// Increased to 4s for smoother experience
+  }
+  const navButtons = block.querySelectorAll('.carousel-navigation-buttons button');
+  navButtons.forEach((button) => {
+    button.addEventListener('mouseenter', () => {
+      if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+      }
+    });
+    button.addEventListener('mouseleave', () => {
+      if (hasAutoscrollClass(block) && rows.length > 1) {
+        autoScrollInterval = setInterval(autoScroll, 4000);
+      }
+    });
+  });
 }
 
 /**

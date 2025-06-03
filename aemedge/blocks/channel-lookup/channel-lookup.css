@@ -179,7 +179,8 @@
     }
 
     .channel-lookup.block #zipcodebtn:hover {
-        transform: scale(1.1);
+        box-shadow: rgb(7 7 11 / 40%) 0 24px 57px 0;
+        transform: scale(1.05);
     }
 
     .channel-lookup.block .channel-img {

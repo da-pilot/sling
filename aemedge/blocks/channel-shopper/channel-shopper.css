@@ -37,16 +37,39 @@
     line-height: inherit;
 }
 
+.channel-shopper.block #channel-shopper-app .channel-shopper__modal button:has(svg) {
+    background: white;
+}
+
 #channel-shopper-app img {
     width: 60px;
 }
 
+.section.channel-shopper-container > div {
+    width: 100%;
+  }
+
+  .section.columns-2.channel-shopper-container {
+    padding: 0;
+  }
+
 @media (width >= 768px) {
     .section.columns-2.channel-shopper-container {
         display: flex;
+        align-items: center;
     }
 
     .channel-shopper-container {
         text-align: unset;
     }
+
+    .section.columns-2:has(.channel-shopper-wrapper) .column-2 {
+        text-align:right;
+        padding-right: 8%;
+    }
+
+    .section.columns-2:has(.channel-shopper-wrapper) .column-1 {
+        padding-left: 8%;
+    }
+    
 }
