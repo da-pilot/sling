@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Offer Creator</title>
+    <link rel="stylesheet" href="/tools/htmloffer/htmloffer.css">
+</head>
+<body>
+    <div class="offer-dialog">
+        <div class="dialog-header">
+            <h2>Create HTML Offer</h2>
+            <button type="button" class="btn-close" aria-label="Close dialog">&times;</button>
+        </div>
+        <form id="offerForm">
+            <div class="form-group">
+                <label for="offer-name">Offer Name</label>
+                <input type="text" id="offer-name" name="offer-name" required>
+            </div>
+            <div class="form-group">
+                <label for="block-html">Block HTML</label>
+                <textarea id="block-html" name="blockHtml" rows="6"  required></textarea>
+            </div>
+            <div class="button-wrapper">
+                <div class="message-wrapper"></div>
+                <div class="button-group">
+                    <button type="submit" class="btn-export">Export</button>
+                    <button type="button" class="btn-reset">Reset</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <script type="module" src="htmloffer.js"></script>
+</body>
+</html> 

@@ -1,0 +1,40 @@
+application:
+  actions: actions
+  web: false
+  runtimeManifest:
+    packages:
+      sling-da:
+        license: Apache-2.0
+        actions:
+          gettoken:
+            function: actions/gettoken/index.js
+            web: false
+            runtime: nodejs:18
+            inputs:
+              ADOBE_CLIENT_ID: $SERVICE_API_KEY
+              ADOBE_CLIENT_SECRET: $ADOBE_CLIENT_SECRET
+              ADOBE_TARGET_SCOPES: $ADOBE_TARGET_SCOPES
+              LOG_LEVEL: info
+            annotations:
+              final: true
+              require-adobe-auth: false
+            limits:
+              timeout: 60000
+              memorySize: 1024
+
+          exportoffers:
+            function: actions/exportoffers/index.js
+            web: true
+            runtime: nodejs:18
+            inputs:
+              ADOBE_CLIENT_ID: $ADOBE_CLIENT_ID
+              ADOBE_TARGET_TENANT: 'dish'
+              LOG_LEVEL: info
+              AIO_RUNTIME_NAMESPACE: $AIO_RUNTIME_NAMESPACE
+              ADOBE_TARGET_WORKSPACE_ID: '151455161'
+            annotations:
+              final: true
+              require-adobe-auth: false
+            limits:
+              timeout: 60000
+              memorySize: 1024

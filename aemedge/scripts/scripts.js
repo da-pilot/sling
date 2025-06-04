@@ -26,6 +26,7 @@ import {
   centerHeadlines,
   configSideKick,
   buildVideoBlocks,
+  setFragmentIds,
 } from './utils.js';
 
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
@@ -726,10 +727,27 @@ async function loadLaunchEager() {
   }
 }
 /**
-   * Decorates the main element.
-   * @param {Element} main The main element
-   */
-// eslint-disable-next-line import/prefer-default-export
+ * Handles section nesting when sections have the same fragment-id
+ * @param {Element} section The section element to check
+ */
+function handleTargetSections(doc) {
+  const main = doc.querySelector('main');
+  main.querySelectorAll(':scope > div.section').forEach((section) => {
+    const childSection = section.querySelector('div.section');
+    if (childSection) {
+      const parentFragmentId = section.getAttribute('data-fragment-id');
+      const childFragmentId = childSection.getAttribute('data-fragment-id');
+      if (parentFragmentId && childFragmentId && parentFragmentId === childFragmentId) {
+        section.replaceWith(childSection);
+      }
+    }
+  });
+}
+
+/**
+ * Decorates the main element.
+ * @param {Element} main The main element
+ */
 export function decorateMain(main) {
   // hopefully forward compatible button decoration
   centerHeadlines();
@@ -775,6 +793,9 @@ async function loadEager(doc) {
   } catch (e) {
     // do nothing
   }
+  configSideKick();
+  // load launch eagerly when target metadata is set to true
+  await loadLaunchEager();
 }
 
 /**
@@ -797,13 +818,14 @@ async function loadHeader(header) {
 }
 
 /**
-   * Loads everything that doesn't need to be delayed.
-   * @param {Element} doc The container element
-   */
+ * Loads everything that doesn't need to be delayed.
+ * @param {Element} doc The container element
+ */
 async function loadLazy(doc) {
   autolinkModals(doc);
   const main = doc.querySelector('main');
   await loadBlocks(main);
+  await setFragmentIds(main);
   const gameFinders = doc.querySelectorAll('.game-finder.block');
   if (gameFinders && gameFinders.length > 0) {
     await loadGameFinders(doc);
@@ -843,16 +865,157 @@ function loadDelayed() {
   // load anything that can be postponed to the latest here
 }
 
+/**
+ * Sets up a MutationObserver to watch for block replacements in the DOM
+ * and reinitialize them when they are replaced.
+ */
+function setupBlockObserver() {
+  // Define an array of block names to observe
+  // These are blocks that have interactive elements and need rebinding
+  const blocksToObserve = [
+    'carousel', // Has slide navigation and auto-scroll
+    'accordion', // Has expand/collapse functionality
+    'tabs', // Has tab switching functionality
+    'modal', // Has dialog show/hide and close button events
+    'image-slider', // Has auto-scrolling functionality
+    'game-finder', // Has interactive React app elements
+    'channel-lookup', // Has form submission and API interactions
+    'chat', // Has interactive chat functionality
+    'marquee', // Has scroll CTA and resize handlers
+    'offer-cards', // Has resize event handlers
+    'channel-shopper', // Has IntersectionObserver and React app
+    'category', // Has media query listeners and author click handlers
+  ];
+
+  // Create a MutationObserver to watch for DOM changes
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        // Process each added node
+        mutation.addedNodes.forEach((node) => {
+          // Skip text nodes and nodes that are directly in header or footer
+          if (node.nodeType !== Node.ELEMENT_NODE
+              || (node.parentElement
+               && (node.parentElement.tagName === 'HEADER'
+                || node.parentElement.tagName === 'FOOTER'))) {
+            return;
+          }
+
+          // Check if the added node is one of the blocks we want to observe
+          const isObservedBlock = node.classList
+          && blocksToObserve.some((blockName) => node.classList.contains(blockName)
+            || (node.classList.contains('block') && node.classList.contains(blockName)));
+
+          if (isObservedBlock) {
+            // Determine which block type this is
+            const blockType = blocksToObserve.find((blockName) => node.classList.contains(blockName)
+              || (node.classList.contains('block') && node.classList.contains(blockName)));
+
+            if (blockType) {
+              // Import the block module and call rebindEvents
+              const importPath = window.hlx?.codeBasePath
+                ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+                : `/aemedge/blocks/${blockType}/${blockType}.js`;
+
+              import(importPath)
+                .then((module) => {
+                  if (module.rebindEvents) {
+                    module.rebindEvents(node);
+                    node.setAttribute('data-bound', 'true');
+                  }
+                })
+                .catch(() => {
+                  // Try alternative path resolution
+                  const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+
+                  import(altImportPath)
+                    .then((module) => {
+                      if (module.rebindEvents) {
+                        module.rebindEvents(node);
+                        node.setAttribute('data-bound', 'true');
+                      }
+                    })
+                    .catch(() => {
+                      // Handle error silently
+                    });
+                });
+            }
+          }
+        });
+      }
+    });
+  });
+
+  // Start observing the document body for changes
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+
+  // Also set up a periodic check for blocks that need rebinding
+  setInterval(() => {
+    // Find all blocks in the main content area that need rebinding
+    const blocksToCheck = blocksToObserve
+      .map((blockName) => `main .${blockName}, main .block.${blockName}`)
+      .join(', ');
+
+    const blocks = document.querySelectorAll(blocksToCheck);
+
+    blocks.forEach((block) => {
+      // Skip if already bound
+      if (block.hasAttribute('data-bound')) {
+        return;
+      }
+
+      // Determine which block type this is
+      const blockType = blocksToObserve.find((blockName) => block.classList.contains(blockName)
+        || (block.classList.contains('block') && block.classList.contains(blockName)));
+
+      if (blockType) {
+        // Import the block module and call rebindEvents
+        const importPath = window.hlx?.codeBasePath
+          ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
+          : `/aemedge/blocks/${blockType}/${blockType}.js`;
+
+        import(importPath)
+          .then((module) => {
+            if (module.rebindEvents) {
+              module.rebindEvents(block);
+              block.setAttribute('data-bound', 'true');
+            }
+          })
+          .catch(() => {
+            // Try alternative path resolution
+            const altImportPath = `../blocks/${blockType}/${blockType}.js`;
+
+            import(altImportPath)
+              .then((module) => {
+                if (module.rebindEvents) {
+                  module.rebindEvents(block);
+                  block.setAttribute('data-bound', 'true');
+                }
+              })
+              .catch(() => {
+                // Handle error silently
+              });
+          });
+      }
+    });
+  }, 2000); // Check every 2 seconds
+}
+
 async function loadPage() {
   // load everything that needs to be loaded eagerly
   await loadEager(document);
 
   // load everything that can be postponed to the latest here
-  await loadLazy(document);
-  configSideKick();
-  // load launch eagerly when target metadata is set to true
-  await loadLaunchEager();
+  // Start observing for section changes after initial decoration
+  handleTargetSections(document);
+  // Set up observer for block DOM changes
+  setupBlockObserver();
   // load everything that needs to be loaded later
+  await loadLazy(document);
+
   loadDelayed();
   // make the last button sticky on blog pages
   makeLastButtonSticky();

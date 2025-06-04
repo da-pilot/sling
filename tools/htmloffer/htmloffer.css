@@ -1,0 +1,315 @@
+body {
+    font-family: var(--body-font-family);
+    margin: 0;
+    padding: 0;
+    color: var(--text-color);
+}
+
+.html-offer-dialog-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgb(0 0 0 / 50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.html-offer-dialog-container .offer-dialog {
+    background: var(--white);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 2px 10px rgb(0 0 0 / 10%);
+    width: 100%;
+    max-width: 650px;
+    max-height: 90vh;
+    margin: var(--spacing-md);
+    position: relative;
+    font-family: var(--body-font-family);
+    border: 2px solid var(--primary-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.html-offer-dialog-container .dialog-header {
+    position: sticky;
+    top: 0;
+    background: var(--white);
+    z-index: 1;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--charcoal);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.html-offer-dialog-container .dialog-header h2 {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.html-offer-dialog-container .btn-close {
+    background: none;
+    border: none;
+    font-size: var(--heading-font-size-xxl);
+    color: var(--charcoal);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.html-offer-dialog-container .btn-close:hover {
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.html-offer-dialog-container label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
+    color: var(--text-color);
+    padding-bottom: var(--spacing-xs);
+}
+
+.html-offer-dialog-container input,
+.html-offer-dialog-container textarea {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--charcoal);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--body-font-size-s);
+    box-sizing: border-box;
+    font-family: var(--body-font-family);
+    background-color: var(--background-color);
+}
+
+.html-offer-dialog-container input:read-only {
+    background-color: var(--background-color);
+    cursor: not-allowed;
+}
+
+.html-offer-dialog-container textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.html-offer-dialog-container .button-wrapper {
+    position: sticky;
+    bottom: 0;
+    background: var(--white);
+    z-index: 1;
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--charcoal);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.html-offer-dialog-container .message-wrapper {
+    flex: 1;
+    margin-right: var(--spacing-md);
+    font-size: var(--body-font-size-s);
+    font-style: italic;
+}
+
+.html-offer-dialog-container .message-wrapper.success {
+    color: var(--success-color);
+}
+
+.html-offer-dialog-container .message-wrapper.error {
+    color: #ff3b30;
+    font-weight: 500;
+}
+
+.html-offer-dialog-container .message-wrapper.loading {
+    color: var(--primary-button-color);
+}
+
+.html-offer-dialog-container .loading-spinner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--primary-button-color);
+}
+
+.html-offer-dialog-container .spinner {
+    width: 20px;
+    height: 20px;
+    background: url('/.da/icons/export-to-target.png') no-repeat center center;
+    background-size: contain;
+    animation: pulse 1.5s ease-in-out infinite;
+    display: inline-block;
+    filter: brightness(0) saturate(100%);
+}
+
+@keyframes pulse {
+    0% { filter: brightness(0) saturate(100%) invert(45%) sepia(98%) saturate(1765%) hue-rotate(194deg) brightness(98%) contrast(101%); }
+    50% { filter: brightness(0) saturate(100%) invert(83%) sepia(31%) saturate(436%) hue-rotate(157deg) brightness(89%) contrast(85%); }
+    100% { filter: brightness(0) saturate(100%) invert(45%) sepia(98%) saturate(1765%) hue-rotate(194deg) brightness(98%) contrast(101%); }
+}
+
+.html-offer-dialog-container .button-group {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.html-offer-dialog-container button {
+    font-family: var(--body-font-family);
+    display: inline-block;
+    box-sizing: border-box;
+    text-decoration: none;
+    border: none;
+    text-align: center;
+    font-style: normal;
+    font-weight: 800;
+    cursor: pointer;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 var(--spacing-md);
+    border-radius: 1600px;
+    opacity: 1;
+    font-size: var(--body-font-size-m);
+    min-height: 50px;
+    align-content: center;
+    line-height: 1;
+}
+
+/* Add disabled button styles */
+.html-offer-dialog-container fieldset:disabled button {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    background-color: var(--background-color);
+    border: 2px solid var(--charcoal);
+    color: var(--charcoal);
+}
+
+.html-offer-dialog-container .btn-export {
+    color: var(--background-color);
+    background: var(--primary-button-color);
+    border: 2px solid transparent;
+}
+
+.html-offer-dialog-container .btn-export:hover:not(:disabled) {
+    outline: none;
+    opacity: 0.9;
+}
+
+.html-offer-dialog-container .btn-reset {
+    color: var(--text-color);
+    background-color: var(--background-color);
+    border: 2px solid var(--charcoal);
+}
+
+.html-offer-dialog-container .btn-reset:hover:not(:disabled) {
+    outline: none;
+    opacity: 0.9;
+}
+
+.html-offer-dialog-container .btn-cancel {
+    color: var(--text-color);
+    background-color: var(--background-color);
+    border: 2px solid var(--charcoal);
+}
+
+.html-offer-dialog-container .btn-cancel:hover:not(:disabled) {
+    background-color: var(--charcoal);
+    outline: none;
+    opacity: 0.9;
+    border-color: var(--text-color);
+}
+
+.html-offer-dialog-container input:focus,
+.html-offer-dialog-container textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgb(0 114 236 / 20%);
+}
+
+.html-offer-dialog-container .error {
+    border-color: var(--invalid-red) !important;
+}
+
+.html-offer-dialog-container .form-group {
+    padding: var(--spacing-sm);
+}
+
+.html-offer-dialog-container #block-html {
+    line-height: 1.6;
+    color: var(--text-color);
+    min-height: 120px;
+    white-space: pre-wrap;
+    tab-size: 2;
+    overflow-x: auto;
+    resize: vertical;
+    background-image: linear-gradient(transparent 23px, var(--border-color) 24px);
+    background-size: 100% 24px;
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--charcoal);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--body-font-size-s);
+    box-sizing: border-box;
+    font-family: var(--body-font-family);
+    background-color: var(--background-color);
+}
+
+.html-offer-dialog-container #block-html.formatted-html {
+    color: #e06c75;
+}
+
+.html-offer-dialog-container #block-html.formatted-html ::selection {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.html-offer-dialog-container #block-html:read-only {
+    cursor: text;
+    opacity: 0.9;
+}
+
+.html-offer-dialog-container form {
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
+}
+
+.html-offer-dialog-container form::-webkit-scrollbar {
+    width: 8px;
+}
+
+.html-offer-dialog-container form::-webkit-scrollbar-track {
+    background: var(--background-color);
+    border-radius: 4px;
+}
+
+.html-offer-dialog-container form::-webkit-scrollbar-thumb {
+    background: var(--charcoal);
+    border-radius: 4px;
+}
+
+.html-offer-dialog-container form::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+.html-offer-dialog-container fieldset {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+.html-offer-dialog-container input.error {
+    border-color: #ff3b30;
+} 
