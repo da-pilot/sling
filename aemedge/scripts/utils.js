@@ -690,31 +690,16 @@ export function getVideoUrlByScreenWidth(videoLinks) {
 
 export function getPictureUrlByScreenWidth(pictures) {
   const screenWidth = window.innerWidth;
-  if (pictures.length === 0) {
-    return null;
-  }
-  if (pictures.length === 1) {
-    return pictures[0];
-  }
+  if (!pictures.length) return null;
+  if (pictures.length === 1) return pictures[0];
   if (pictures.length === 2) {
-    // First link for desktop and tablet, second link for mobile
-    if (screenWidth >= 1024) {
-      return pictures[0]; // Desktop
-    }
-    if (screenWidth >= 768 && screenWidth < 1024) {
-      return pictures[0]; // Tablet
-    }
-    return pictures[1]; // Mobile
+    // 0: desktop/tablet, 1: mobile
+    return screenWidth >= 1024 ? pictures[0] : pictures[1];
   }
-
-  // If there are 3 or more links
-  if (screenWidth >= 1024) {
-    return pictures[0];// Desktop
-  }
-  if (screenWidth >= 768 && screenWidth < 1024) {
-    return pictures[1]; // Tablet
-  }
-  return pictures[2]; // Mobile
+  // 3+ images: 0: desktop, 1: tablet, 2: mobile
+  if (screenWidth >= 1024) return pictures[0];
+  if (screenWidth >= 768) return pictures[1];
+  return pictures[2];
 }
 export async function getZipcode() {
   const ZIPCODE_ENDPOINT = 'https://p-geo.movetv.com/geo';

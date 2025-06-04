@@ -27,6 +27,7 @@ import {
   configSideKick,
   buildVideoBlocks,
   setFragmentIds,
+  getPictureUrlByScreenWidth,
 } from './utils.js';
 
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
@@ -229,8 +230,7 @@ export const resizeListeners = new WeakMap();
 export function getBackgroundImage(element) {
   const sectionData = element.dataset.background;
   const bgImages = sectionData.split(',').map((img) => img.trim());
-  return (bgImages.length === 1
-    || (window.innerWidth > 1024 && bgImages.length === 2)) ? bgImages[0] : bgImages[1];
+  return getPictureUrlByScreenWidth(bgImages);
 }
 
 export function createOptimizedBackgroundImage(element, breakpoints = [
@@ -243,6 +243,15 @@ export function createOptimizedBackgroundImage(element, breakpoints = [
   const updateBackground = () => {
     const bgImage = getBackgroundImage(element);
     const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (element.dataset.backgroundFit) {
+      element.style.backgroundSize = element.dataset.backgroundFit;
+    }
+    if (element.dataset.backgroundPosition) {
+      element.style.backgroundPosition = element.dataset.backgroundPosition;
+    }
+    if (element.dataset.backgroundColor) {
+      element.style.backgroundColor = element.dataset.backgroundColor;
+    }
     if (hexColorRegex.test(bgImage)) {
       element.style.backgroundColor = bgImage;
       return;

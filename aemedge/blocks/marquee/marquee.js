@@ -100,6 +100,7 @@ function processBlockConfig(block) {
   const btnsDIV = createTag('div', { class: 'buttons-container' });
   const dataAnalyticsProps = {};
   let backgroundFitValue = null; // Store background-fit value
+  let backgroundPositionValue = null; // Store background-position value
   let backgroundColorValue = null; // Store background-color value
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
@@ -128,6 +129,9 @@ function processBlockConfig(block) {
         }
         if (name === 'background-fit') {
           backgroundFitValue = col.textContent.trim();
+        }
+        if (name === 'background-position') {
+          backgroundPositionValue = col.textContent.trim();
         }
         if (name === 'background-color') {
           backgroundColorValue = col.textContent.trim();
@@ -172,12 +176,14 @@ function processBlockConfig(block) {
   }
   block.append(marqueContent);
   block.querySelectorAll('.config-property').forEach((prop) => prop.remove()); // remove config property divs from dom
-  return { backgroundFitValue, backgroundColorValue };
+  return { backgroundFitValue, backgroundPositionValue, backgroundColorValue };
 }
 
 export default async function decorate(block) {
   const config = await readBlockConfig(block);
-  const { backgroundFitValue, backgroundColorValue } = processBlockConfig(block) || {};
+  const {
+    backgroundFitValue, backgroundPositionValue, backgroundColorValue,
+  } = processBlockConfig(block) || {};
   const slingProps = {
     ctaAnalyticsParent: config.ctaAnalyticsParent?.trim() ? config.ctaAnalyticsParent : '',
     ctaAnalyticsName: config.ctaAnalyticsName?.trim() ? config.ctaAnalyticsName : '',
@@ -218,11 +224,12 @@ export default async function decorate(block) {
   if (bgMediaType === 'picture') setupBGPictures(block);
 
   // Apply background-fit style if present
-  if (backgroundFitValue) {
+  if (backgroundFitValue || backgroundPositionValue) {
     // Try to apply to <img> inside <picture>
     const pictureImg = block.querySelector('.background picture img');
     if (pictureImg) {
       pictureImg.style.objectFit = backgroundFitValue;
+      pictureImg.style.objectPosition = backgroundPositionValue;
     }
     // Try to apply to <video>
     const video = block.querySelector('.background video');
