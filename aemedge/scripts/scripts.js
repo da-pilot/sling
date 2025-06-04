@@ -546,16 +546,10 @@ export function extractStyleVariables() {
           const backgroundColor = colorMatches[1];
           up.classList.add(`bg-${toClassName(backgroundColor)}`);
         }
-        // handle aspect ratio in carousels
+        // pass aspect ratio through in class for styling carousels
         if (aspectRatioMatches && aspectRatioMatches[1] !== undefined) {
           const aspectRatioMatch = aspectRatioMatches[1];
-          console.log('🚀 ~ aspectRatioMatch:', aspectRatioMatch);
           up.classList.add(`aspect-${aspectRatioMatch}`);
-          console.log('🚀 ~ up:', up);
-          console.log('🚀 ~ up.classList:', up.classList);
-          // up.innerHTML = up.innerHTML.replace(aspectRatioRegex, '');
-          console.log('🚀 ~ up.innerHTML:', up.innerHTML);
-          console.log('🚀 ~ node.innerHTML:', node.innerHTML);
         }
         node.remove();
       }

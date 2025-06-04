@@ -106,7 +106,16 @@
   width: 100%;
   min-height: 100%;
   height: 100%;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 2 / 3; /* default aspect ratio (portrait) for images in carousel */
+}
+
+
+.aspect-square .carousel .carousel-slide .carousel-slide-image picture {
+  aspect-ratio: 1 / 1;
+}
+
+.aspect-landscape .carousel .carousel-slide .carousel-slide-image picture {
+  aspect-ratio: 16 / 9;
 }
 
 .carousel.medium .carousel-slide .carousel-slide-image picture {

@@ -109,27 +109,28 @@ export default async function decorate(block) {
           rows.forEach((row) => {
             const subBlockContent = [];
             const contentKey = row.children[1].innerHTML;
-            console.log('🚀 ~ rows.forEach ~ contentKey:', contentKey);
             const contentValue = row.children[2].innerHTML;
-            console.log('🚀 ~ rows.forEach ~ row.children[2]:', row.children[2]);
-            console.log('🚀 ~ rows.forEach ~ contentValue:', contentValue);
             subBlockContent.push([contentKey, contentValue]);
             // build sub block with the existing content
             const subBlock = buildBlock(subBlockToBuild, subBlockContent);
             // add tabCategory and sub block content to newDiv
             const tabCategoryDiv = document.createElement('div');
             tabCategoryDiv.innerHTML = row.firstElementChild.innerHTML;
-            // const tabAspectRatioDiv = document.createElement('div');
             // tabAspectRatioDiv.innerHTML = contentValue.firstElementChild;
             const tabContentDiv = document.createElement('div');
+            // check if aspect ratio is present and set aspect ratio class
+            const aspectRatioPresent = row.children[2];
+            const aspectMarker = aspectRatioPresent && [...aspectRatioPresent.classList].find((cls) => cls.startsWith('aspect-'));
+            let aspectMatches = null;
+            if (aspectMarker) {
+              aspectMatches = [...aspectRatioPresent.classList].find((cls) => cls.startsWith('aspect-'));
+              tabContentDiv.classList.add(aspectMatches);
+            }
             tabContentDiv.append(subBlock);
             const newRow = document.createElement('div');
             newRow.append(tabCategoryDiv);
-            // newRow.append(tabAspectRatioDiv);
             newRow.append(tabContentDiv);
             newBlock.append(newRow);
-            console.log('🚀 ~ rows.forEach ~ newRow:', newRow);
-            // console.log('🚀 ~ rows.forEach ~ tabAspectRatioDiv:', tabAspectRatioDiv);
           });
         }
       }
