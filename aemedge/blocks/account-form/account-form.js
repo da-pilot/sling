@@ -42,6 +42,9 @@ async function normalizeConfigValue(val, fallback) {
       }
       return fallback;
     }
+    if (/^\/.+/.test(val)) {
+      return `https://www.sling.com${val}`;
+    }
     return val;
   }
   if (typeof val === 'boolean') return val;
