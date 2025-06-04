@@ -1,0 +1,40 @@
+/* Account Form Block Styles */
+
+.account-form.block > div:not([id]) p {
+  display: none;
+}
+
+#account-form-app a[data-test-id$="button-button"],
+#account-form-app button[data-test-id$="button-button"] {
+    position: relative;
+    display: inline-flex;
+    -webkit-box-pack: center;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 18px;
+    padding: 0.938rem 1.2rem;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0;
+    background: linear-gradient(108.93deg, rgb(0 114 236) 37.23%, rgb(0 185 255) 112.13%);
+    border: none;
+    border-radius: 1600px;
+    opacity: 1;
+    min-width: unset;
+    width: unset;
+    height: unset;
+    color: rgb(245 245 246);
+    box-shadow: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#account-form-app a[data-test-id$="button-button"]:hover:enabled,
+#account-form-app button[data-test-id$="button-button"]:hover:enabled {
+  outline: none;
+  box-shadow: rgb(7 7 11 / 40%) 0 24px 57px 0;
+  opacity: 1;
+  transform: scale(1.05);
+  cursor: pointer;
+}
+
