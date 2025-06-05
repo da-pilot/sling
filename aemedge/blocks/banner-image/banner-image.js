@@ -1,4 +1,4 @@
-import { createTag } from '../../scripts/utils.js';
+import { createTag, readBlockConfig } from '../../scripts/utils.js';
 import { toClassName } from '../../scripts/aem.js';
 import { createOptimizedBackgroundImage } from '../../scripts/scripts.js';
 
@@ -18,6 +18,12 @@ function processBlockConfig(block) {
         const name = toClassName(cols[0].textContent);
         cols[0].classList.add('config-property');
         col.classList.add(name);
+        if (name === 'id') {
+          const id = col.textContent;
+          if (id) {
+            block.setAttribute('id', id);
+          }
+        }
         if (name === 'background') {
           if (col.dataset.align) {
             block.setAttribute('data-align', col.dataset.align);
@@ -90,8 +96,16 @@ function processBlockConfig(block) {
   block.querySelectorAll('.config-property').forEach((prop) => prop.remove()); // remove config property divs from dom
 }
 
-export default function decorate(block) {
-  processBlockConfig(block);
+export default async function decorate(block) {
+  const config = await readBlockConfig(block);
+  processBlockConfig(block); // for data-analytics-props click interactions
+  const slingProps = { // for data-sling-props properties
+    ctaAnalyticsParent: config.ctaAnalyticsParent?.trim() ? config.ctaAnalyticsParent : '',
+    ctaAnalyticsName: config.ctaAnalyticsName?.trim() ? config.ctaAnalyticsName : '', // aka ctaText
+    ctaAnalyticsComponent: config.ctaAnalyticsComponent?.trim() ? config.ctaAnalyticsComponent : '', // aka ctaType, cartDestination
+    ctaAnalyticsTarget: config.ctaAnalyticsTarget?.trim() ? config.ctaAnalyticsTarget : '',
+    ctaUrl: config.cta || '',
+  };
   const background = block.querySelector('.background');
   const bgColor = block.querySelector('.background-color');
   if (background) {
@@ -107,4 +121,16 @@ export default function decorate(block) {
     bgColor.remove();
   }
   block.querySelectorAll('div').forEach((div) => { if (div.children.length === 0) div.remove(); }); // remove empty divs
+  // Merge slingProps into data-analytics-props if it exists
+  let dataAnalyticsProps = {};
+  const dapAttr = block.getAttribute('data-analytics-props');
+  if (dapAttr) {
+    try {
+      dataAnalyticsProps = JSON.parse(dapAttr);
+    } catch (e) {
+      dataAnalyticsProps = {};
+    }
+  }
+  Object.assign(dataAnalyticsProps, slingProps);
+  block.setAttribute('data-analytics-props', JSON.stringify(dataAnalyticsProps));
 }

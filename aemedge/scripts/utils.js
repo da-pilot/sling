@@ -661,60 +661,30 @@ export async function readBlockConfig(block) {
 
 export function getVideoUrlByScreenWidth(videoLinks) {
   const screenWidth = window.innerWidth;
-  if (videoLinks.length === 0) {
-    return null;
-  }
-  if (videoLinks.length === 1) {
-    return videoLinks[0].getAttribute('href');
-  }
+  if (!videoLinks.length) return null;
+  if (videoLinks.length === 1) return videoLinks[0].getAttribute('href');
   if (videoLinks.length === 2) {
-    // First link for desktop and tablet, second link for mobile
-    if (screenWidth >= 1024) {
-      return videoLinks[0].getAttribute('href'); // Desktop
-    }
-    if (screenWidth >= 768 && screenWidth < 1024) {
-      return videoLinks[0].getAttribute('href'); // Tablet
-    }
-    return videoLinks[1].getAttribute('href'); // Mobile
+    // 0: desktop/tablet, 1: mobile
+    return screenWidth >= 1024 ? videoLinks[0].getAttribute('href') : videoLinks[1].getAttribute('href');
   }
-
-  // If there are 3 or more links
-  if (screenWidth >= 1024) {
-    return videoLinks[0].getAttribute('href'); // Desktop
-  }
-  if (screenWidth >= 768 && screenWidth < 1024) {
-    return videoLinks[1].getAttribute('href'); // Tablet
-  }
-  return videoLinks[2].getAttribute('href'); // Mobile
+  // 3+ links: 0: desktop, 1: tablet, 2: mobile
+  if (screenWidth >= 1024) return videoLinks[0].getAttribute('href');
+  if (screenWidth >= 768) return videoLinks[1].getAttribute('href');
+  return videoLinks[2].getAttribute('href');
 }
 
 export function getPictureUrlByScreenWidth(pictures) {
   const screenWidth = window.innerWidth;
-  if (pictures.length === 0) {
-    return null;
-  }
-  if (pictures.length === 1) {
-    return pictures[0];
-  }
+  if (!pictures.length) return null;
+  if (pictures.length === 1) return pictures[0];
   if (pictures.length === 2) {
-    // First link for desktop and tablet, second link for mobile
-    if (screenWidth >= 1024) {
-      return pictures[0]; // Desktop
-    }
-    if (screenWidth >= 768 && screenWidth < 1024) {
-      return pictures[0]; // Tablet
-    }
-    return pictures[1]; // Mobile
+    // 0: desktop/tablet, 1: mobile
+    return screenWidth >= 1024 ? pictures[0] : pictures[1];
   }
-
-  // If there are 3 or more links
-  if (screenWidth >= 1024) {
-    return pictures[0];// Desktop
-  }
-  if (screenWidth >= 768 && screenWidth < 1024) {
-    return pictures[1]; // Tablet
-  }
-  return pictures[2]; // Mobile
+  // 3+ images: 0: desktop, 1: tablet, 2: mobile
+  if (screenWidth >= 1024) return pictures[0];
+  if (screenWidth >= 768) return pictures[1];
+  return pictures[2];
 }
 export async function getZipcode() {
   const ZIPCODE_ENDPOINT = 'https://p-geo.movetv.com/geo';

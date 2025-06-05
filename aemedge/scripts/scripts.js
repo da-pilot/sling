@@ -27,6 +27,7 @@ import {
   configSideKick,
   buildVideoBlocks,
   setFragmentIds,
+  getPictureUrlByScreenWidth,
 } from './utils.js';
 
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
@@ -229,8 +230,7 @@ export const resizeListeners = new WeakMap();
 export function getBackgroundImage(element) {
   const sectionData = element.dataset.background;
   const bgImages = sectionData.split(',').map((img) => img.trim());
-  return (bgImages.length === 1
-    || (window.innerWidth > 1024 && bgImages.length === 2)) ? bgImages[0] : bgImages[1];
+  return getPictureUrlByScreenWidth(bgImages);
 }
 
 export function createOptimizedBackgroundImage(element, breakpoints = [
@@ -243,21 +243,33 @@ export function createOptimizedBackgroundImage(element, breakpoints = [
   const updateBackground = () => {
     const bgImage = getBackgroundImage(element);
     const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (element.dataset.backgroundFit) {
+      element.style.backgroundSize = element.dataset.backgroundFit;
+    }
+    if (element.dataset.backgroundPosition) {
+      element.style.backgroundPosition = element.dataset.backgroundPosition;
+    }
     if (hexColorRegex.test(bgImage)) {
       element.style.backgroundColor = bgImage;
       return;
     }
-    const pathname = EXT_IMAGE_URL.test(bgImage)
-      ? bgImage
-      : new URL(bgImage, window.location.href).pathname;
     const matchedBreakpoint = breakpoints
       .filter((br) => !br.media || window.matchMedia(br.media).matches)
       .reduce((acc, curr) => (parseInt(curr.width, 10)
       > parseInt(acc.width, 10) ? curr : acc), breakpoints[0]);
 
     const adjustedWidth = matchedBreakpoint.width * window.devicePixelRatio;
-    element.style.backgroundImage = EXT_IMAGE_URL.test(bgImage) ? `url(${pathname}`
-      : `url(${pathname}?width=${adjustedWidth}&format=webply&optimize=highest)`;
+    let imageUrl = bgImage;
+    if (!EXT_IMAGE_URL.test(bgImage)) {
+      try {
+        const urlObj = new URL(bgImage, window.location.href);
+        imageUrl = urlObj.href;
+      } catch (e) {
+        imageUrl = bgImage;
+      }
+      imageUrl = `${imageUrl}?width=${adjustedWidth}&format=webply&optimize=highest`;
+    }
+    element.style.backgroundImage = `url(${imageUrl})`;
   };
 
   if (resizeListeners.has(element)) {
@@ -271,6 +283,9 @@ export function createOptimizedBackgroundImage(element, breakpoints = [
 function decorateStyledSections(main) {
   Array.from(main.querySelectorAll('.section[data-background]')).forEach((section) => {
     createOptimizedBackgroundImage(section);
+  });
+  Array.from(main.querySelectorAll('.section[data-background-color]')).forEach((section) => {
+    section.style.backgroundColor = section.dataset.backgroundColor;
   });
 }
 
