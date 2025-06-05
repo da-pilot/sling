@@ -77,7 +77,7 @@ export default async function decorate(block) {
           // check if aspect ratio is present and set aspect ratio class
           const aspectMatches = getAspectRatioClass(row);
           if (aspectMatches) {
-            console.log('🚀 ~TABS if subBlockToBuild is carousel~ aspectMatches:', aspectMatches);
+            // console.log('🚀 ~TABS if subBlockToBuild is carousel~ aspectMatches:', aspectMatches);
             tabContentDiv.classList.add(aspectMatches);
           }
           const newRow = document.createElement('div');
@@ -119,7 +119,7 @@ export default async function decorate(block) {
               // check if aspect ratio is present and set aspect ratio class
               const aspectMatches = getAspectRatioClass(row);
               if (aspectMatches) {
-                console.log('🚀 ~TABS if isNonStandard ~ aspectMatches:', aspectMatches);
+                // console.log('🚀 ~TABS if isNonStandard ~ aspectMatches:', aspectMatches);
                 tabContentDiv.classList.add(aspectMatches);
               }
               const newRow = document.createElement('div');
@@ -158,7 +158,7 @@ export default async function decorate(block) {
             // check if aspect ratio is present and set aspect ratio class
             const aspectMatches = getAspectRatioClass(row);
             if (aspectMatches) {
-              console.log('🚀 ~TABS if isStandard ~ aspectMatches:', aspectMatches);
+              // console.log('🚀 ~TABS if isStandard ~ aspectMatches:', aspectMatches);
               tabContentDiv.classList.add(aspectMatches);
             }
             tabContentDiv.append(subBlock);
