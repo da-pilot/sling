@@ -24,7 +24,6 @@ async function normalizeConfigValue(val, fallback, key) {
 
     // If the key matches and value contains an <a href>, extract the href and fetch .plain.html
     if (key && htmlFetchKeys.includes(key) && val.includes('<a ')) {
-      console.log('val', val);
       try {
         const match = val.match(/<a [^>]*href=["']([^"']+)["']/i);
         if (match && match[1]) {
@@ -163,7 +162,6 @@ export default async function decorate(block) {
     focusEmail: await normalizeConfigValue(config['focus-email'], false, 'focus-email'),
   };
 
-  console.log(props);
   // Create a container for the React component, add props as data attribute
   const container = createTag('div', { id: 'account-form-app', 'data-sling-props': JSON.stringify(props) });
   block.append(container);
