@@ -249,24 +249,27 @@ export function createOptimizedBackgroundImage(element, breakpoints = [
     if (element.dataset.backgroundPosition) {
       element.style.backgroundPosition = element.dataset.backgroundPosition;
     }
-    if (element.dataset.backgroundColor) {
-      element.style.backgroundColor = element.dataset.backgroundColor;
-    }
     if (hexColorRegex.test(bgImage)) {
       element.style.backgroundColor = bgImage;
       return;
     }
-    const pathname = EXT_IMAGE_URL.test(bgImage)
-      ? bgImage
-      : new URL(bgImage, window.location.href).pathname;
     const matchedBreakpoint = breakpoints
       .filter((br) => !br.media || window.matchMedia(br.media).matches)
       .reduce((acc, curr) => (parseInt(curr.width, 10)
       > parseInt(acc.width, 10) ? curr : acc), breakpoints[0]);
 
     const adjustedWidth = matchedBreakpoint.width * window.devicePixelRatio;
-    element.style.backgroundImage = EXT_IMAGE_URL.test(bgImage) ? `url(${pathname}`
-      : `url(${pathname}?width=${adjustedWidth}&format=webply&optimize=highest)`;
+    let imageUrl = bgImage;
+    if (!EXT_IMAGE_URL.test(bgImage)) {
+      try {
+        const urlObj = new URL(bgImage, window.location.href);
+        imageUrl = urlObj.href;
+      } catch (e) {
+        imageUrl = bgImage;
+      }
+      imageUrl = `${imageUrl}?width=${adjustedWidth}&format=webply&optimize=highest`;
+    }
+    element.style.backgroundImage = `url(${imageUrl})`;
   };
 
   if (resizeListeners.has(element)) {
@@ -280,6 +283,9 @@ export function createOptimizedBackgroundImage(element, breakpoints = [
 function decorateStyledSections(main) {
   Array.from(main.querySelectorAll('.section[data-background]')).forEach((section) => {
     createOptimizedBackgroundImage(section);
+  });
+  Array.from(main.querySelectorAll('.section[data-background-color]')).forEach((section) => {
+    section.style.backgroundColor = section.dataset.backgroundColor;
   });
 }
 

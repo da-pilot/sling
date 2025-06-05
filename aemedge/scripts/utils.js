@@ -661,31 +661,16 @@ export async function readBlockConfig(block) {
 
 export function getVideoUrlByScreenWidth(videoLinks) {
   const screenWidth = window.innerWidth;
-  if (videoLinks.length === 0) {
-    return null;
-  }
-  if (videoLinks.length === 1) {
-    return videoLinks[0].getAttribute('href');
-  }
+  if (!videoLinks.length) return null;
+  if (videoLinks.length === 1) return videoLinks[0].getAttribute('href');
   if (videoLinks.length === 2) {
-    // First link for desktop and tablet, second link for mobile
-    if (screenWidth >= 1024) {
-      return videoLinks[0].getAttribute('href'); // Desktop
-    }
-    if (screenWidth >= 768 && screenWidth < 1024) {
-      return videoLinks[0].getAttribute('href'); // Tablet
-    }
-    return videoLinks[1].getAttribute('href'); // Mobile
+    // 0: desktop/tablet, 1: mobile
+    return screenWidth >= 1024 ? videoLinks[0].getAttribute('href') : videoLinks[1].getAttribute('href');
   }
-
-  // If there are 3 or more links
-  if (screenWidth >= 1024) {
-    return videoLinks[0].getAttribute('href'); // Desktop
-  }
-  if (screenWidth >= 768 && screenWidth < 1024) {
-    return videoLinks[1].getAttribute('href'); // Tablet
-  }
-  return videoLinks[2].getAttribute('href'); // Mobile
+  // 3+ links: 0: desktop, 1: tablet, 2: mobile
+  if (screenWidth >= 1024) return videoLinks[0].getAttribute('href');
+  if (screenWidth >= 768) return videoLinks[1].getAttribute('href');
+  return videoLinks[2].getAttribute('href');
 }
 
 export function getPictureUrlByScreenWidth(pictures) {
