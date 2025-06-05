@@ -26,11 +26,18 @@ export default async function decorate(block) {
     }
   });
   if (cleanedConfig.leagueList) {
-    cleanedConfig.leagueList = cleanedConfig.leagueList.split(',');
+    cleanedConfig.leagueList = cleanedConfig.leagueList
+      .split(',')
+      .map((item) => item.trim().replace(/^"(.+)"$/, '$1').replace(/^'(.*)'$/, '$1'));
   }
   if (cleanedConfig.numberOfDays) {
     cleanedConfig.numberOfDays = parseInt(cleanedConfig.numberOfDays, 10);
     if (Number.isNaN(cleanedConfig.numberOfDays)) delete cleanedConfig.numberOfDays;
+  }
+  if (cleanedConfig.preselectUrlPath) {
+    cleanedConfig.preselectUrlPath = cleanedConfig.preselectUrlPath
+      .replace(/&amp%3B/g, '&')
+      .replace(/&amp;/g, '&');
   }
   const slingProps = { ...defultProps, ...cleanedConfig };
   const container = createTag('div', { id: 'gmfinder-app', 'data-sling-props': JSON.stringify(slingProps) });
