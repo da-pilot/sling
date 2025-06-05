@@ -160,7 +160,16 @@ export default async function decorate(block) {
     showPartnerRestartForm: await normalizeConfigValue(config['show-partner-restart-form'], false, 'show-partner-restart-form'),
     disablePwdEyeIcon: await normalizeConfigValue(config['disable-pwd-eye-icon'], false, 'disable-pwd-eye-icon'),
     focusEmail: await normalizeConfigValue(config['focus-email'], false, 'focus-email'),
+    heading: await normalizeConfigValue(config.heading, '', 'heading'),
   };
+
+  // Render heading if present
+  if (props.heading) {
+    const headingEl = document.createElement('h2');
+    headingEl.className = 'account-form-heading';
+    headingEl.innerHTML = props.heading;
+    block.prepend(headingEl);
+  }
 
   // Create a container for the React component, add props as data attribute
   const container = createTag('div', { id: 'account-form-app', 'data-sling-props': JSON.stringify(props) });
