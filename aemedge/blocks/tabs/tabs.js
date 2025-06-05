@@ -11,6 +11,31 @@ function hasWrapper(el) {
   return !!el.firstElementChild && window.getComputedStyle(el.firstElementChild).display === 'block';
 }
 
+/**
+ * Finds the first aspect ratio class (e.g., "aspect-square") in the given row's children.
+ * @param {HTMLElement} row - The row element to search.
+ * @returns {string|null} The aspect ratio class name if found, otherwise null.
+ */
+function getAspectRatioClass(row) {
+  // Check for aspect-* class on the second column
+  const aspectClass1 = row.children[1] && row.children[1].classList
+    ? [...row.children[1].classList].find((cls) => cls.startsWith('aspect-'))
+    : null;
+  // Check for aspect-* class on the third column
+  const aspectClass2 = row.children[2] && row.children[2].classList
+    ? [...row.children[2].classList].find((cls) => cls.startsWith('aspect-'))
+    : null;
+  // Check for aspect-* class on a nested div inside the third column
+  let aspectClass3 = null;
+  if (row.children[2]) {
+    const nestedDiv = row.children[2].querySelector('div');
+    if (nestedDiv && nestedDiv.classList) {
+      aspectClass3 = [...nestedDiv.classList].find((cls) => cls.startsWith('aspect-')) || null;
+    }
+  }
+  return aspectClass1 || aspectClass2 || aspectClass3 || null;
+}
+
 export default async function decorate(block) {
   // nonStandard = mix of 2 and 3 column rows for sub blocks under tabs
   // standard = all 3 column rows for sub blocks under tabs
@@ -49,6 +74,12 @@ export default async function decorate(block) {
           tabCategoryDiv.innerHTML = row.firstElementChild.innerHTML;
           const tabContentDiv = document.createElement('div');
           tabContentDiv.append(subBlock);
+          // check if aspect ratio is present and set aspect ratio class
+          const aspectMatches = getAspectRatioClass(row);
+          if (aspectMatches) {
+            console.log('🚀 ~TABS if subBlockToBuild is carousel~ aspectMatches:', aspectMatches);
+            tabContentDiv.classList.add(aspectMatches);
+          }
           const newRow = document.createElement('div');
           newRow.append(tabCategoryDiv);
           newRow.append(tabContentDiv);
@@ -85,6 +116,12 @@ export default async function decorate(block) {
               tabCategoryDiv.innerHTML = oldTabCategory.innerHTML;
               const tabContentDiv = document.createElement('div');
               tabContentDiv.append(subBlock);
+              // check if aspect ratio is present and set aspect ratio class
+              const aspectMatches = getAspectRatioClass(row);
+              if (aspectMatches) {
+                console.log('🚀 ~TABS if isNonStandard ~ aspectMatches:', aspectMatches);
+                tabContentDiv.classList.add(aspectMatches);
+              }
               const newRow = document.createElement('div');
               newRow.append(tabCategoryDiv);
               newRow.append(tabContentDiv);
@@ -119,11 +156,9 @@ export default async function decorate(block) {
             // tabAspectRatioDiv.innerHTML = contentValue.firstElementChild;
             const tabContentDiv = document.createElement('div');
             // check if aspect ratio is present and set aspect ratio class
-            const aspectRatioPresent = row.children[2];
-            const aspectMarker = aspectRatioPresent && [...aspectRatioPresent.classList].find((cls) => cls.startsWith('aspect-'));
-            let aspectMatches = null;
-            if (aspectMarker) {
-              aspectMatches = [...aspectRatioPresent.classList].find((cls) => cls.startsWith('aspect-'));
+            const aspectMatches = getAspectRatioClass(row);
+            if (aspectMatches) {
+              console.log('🚀 ~TABS if isStandard ~ aspectMatches:', aspectMatches);
               tabContentDiv.classList.add(aspectMatches);
             }
             tabContentDiv.append(subBlock);

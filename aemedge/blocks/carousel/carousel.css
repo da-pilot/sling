@@ -118,6 +118,10 @@
   aspect-ratio: 16 / 9;
 }
 
+.aspect-none .carousel .carousel-slide .carousel-slide-image picture {
+  aspect-ratio: unset;
+}
+
 .carousel.medium .carousel-slide .carousel-slide-image picture {
   /* position: absolute;
   inset: 0; */
