@@ -506,7 +506,8 @@ export function extractStyleVariables() {
     const valignRegex = text && /\{valign-([^}]*)\}/; // valign-top, valign-middle, valign-bottom
     const targetRegex = text && /\{target-([^}]*)\}/; // target-blank, target-self
     const idRegex = text && /\{id-([^}]*)\}/; // id-coolsection, etc
-    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-|id-)([a-zA-Z-\s]+)?\}/;
+    const aspectRatioRegex = text && /\{aspect-([^}]*)\}/; // aspect-square, aspect-landscape, aspect-portrait (default)
+    const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-|id-|aspect-)([a-zA-Z-\s]+)?\}/;
     const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`); // [plain text]{color}
 
     const spacerMatch = text.match(/\{spacer-(\d+)}/); // {spacer-5}
@@ -518,6 +519,8 @@ export function extractStyleVariables() {
     const colorMatches = text.match(colorRegex);
     const targetMatches = text.match(targetRegex);
     const idMatches = text.match(idRegex);
+    const aspectRatioMatches = text.match(aspectRatioRegex);
+
     // case where size, align are to be added to the node
     if (sizeMatches && sizeMatches[1] !== undefined) {
       const size = sizeMatches[1];
@@ -558,6 +561,11 @@ export function extractStyleVariables() {
         if (colorMatches) {
           const backgroundColor = colorMatches[1];
           up.classList.add(`bg-${toClassName(backgroundColor)}`);
+        }
+        // pass aspect ratio through in class for styling carousels
+        if (aspectRatioMatches && aspectRatioMatches[1] !== undefined) {
+          const aspectRatioMatch = aspectRatioMatches[1];
+          up.classList.add(`aspect-${aspectRatioMatch}`);
         }
         node.remove();
       }
