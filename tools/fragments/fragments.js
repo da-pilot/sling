@@ -29,26 +29,6 @@ function showMessage(text, isError = false, autoHide = false) {
   }
 }
 
-function addToInfoList(text) {
-  const infoWrapper = document.querySelector('.info-list-wrapper');
-  const indicator = document.querySelector('.message-indicator');
-  const fragmentList = infoWrapper.querySelector('.info-list');
-
-  // Add new fragment to list with clickable link
-  const listItem = document.createElement('li');
-  const fragmentUrl = text.replace('Inserted fragment link: ', '');
-  const link = document.createElement('a');
-  link.href = fragmentUrl;
-  link.textContent = fragmentUrl;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  listItem.appendChild(link);
-  fragmentList.appendChild(listItem);
-
-  // Show indicator when messages exist
-  indicator.classList.remove('hidden');
-}
-
 /**
  * Creates a tree structure from file paths
  * @param {Array} files - Array of file objects with paths
@@ -93,9 +73,10 @@ function hideMessageContainer() {
  * @param {string} name - Item name
  * @param {Object} node - Tree node data
  * @param {Function} onClick - Click handler for fragment items
+ * @param {Object} context - SDK context (for URL generation)
  * @returns {HTMLElement} Tree item element
  */
-function createTreeItem(name, node, onClick) {
+function createTreeItem(name, node, onClick, context) {
   const item = document.createElement('li');
   item.className = 'tree-item';
 
@@ -118,11 +99,54 @@ function createTreeItem(name, node, onClick) {
     const displayName = name.replace('.html', '');
     textSpan.textContent = displayName;
 
+    // --- Preview Icon ---
+    const previewIcon = document.createElement('button');
+    previewIcon.className = 'fragment-preview-btn';
+    previewIcon.setAttribute('aria-label', `Preview fragment "${displayName}"`);
+    previewIcon.title = `Preview "${displayName}"`;
+    previewIcon.style.display = 'none'; // Hidden by default
+    // Use an eye icon (assume /icons/eye-icon.png exists)
+    const eyeImg = document.createElement('img');
+    eyeImg.src = '/.da/icons/open-preview.png';
+    eyeImg.alt = 'Preview';
+    eyeImg.className = 'tree-icon preview-icon';
+    eyeImg.setAttribute('aria-hidden', 'true');
+    previewIcon.appendChild(eyeImg);
+
+    // Always use context to generate fragmentUrl
+    let fragmentUrl = '';
+    if (context && context.org && context.repo) {
+      const basePath = `/${context.org}/${context.repo}`;
+      const displayPath = node.path.replace(basePath, '').replace(/\.html$/, '');
+      fragmentUrl = displayPath.startsWith('/') ? displayPath : `/${displayPath}`;
+    }
+    previewIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (fragmentUrl) {
+        window.open(fragmentUrl, '_blank');
+      }
+    });
+
+    // Show preview icon on hover
+    button.addEventListener('mouseenter', () => {
+      previewIcon.style.display = '';
+    });
+    button.addEventListener('mouseleave', () => {
+      previewIcon.style.display = 'none';
+    });
+    previewIcon.addEventListener('mouseenter', () => {
+      previewIcon.style.display = '';
+    });
+    previewIcon.addEventListener('mouseleave', () => {
+      previewIcon.style.display = 'none';
+    });
+
     button.appendChild(fragmentIcon);
     button.appendChild(textSpan);
+    content.appendChild(button);
+    content.appendChild(previewIcon);
     button.title = `Click to insert link for "${displayName}"`;
     button.addEventListener('click', () => onClick({ path: node.path }));
-    content.appendChild(button);
   } else {
     const folderButton = document.createElement('button');
     folderButton.className = 'folder-btn';
@@ -166,7 +190,7 @@ function createTreeItem(name, node, onClick) {
       Object.entries(node.children)
         .sort(([a], [b]) => a.localeCompare(b))
         .forEach(([childName, childNode]) => {
-          list.appendChild(createTreeItem(childName, childNode, onClick));
+          list.appendChild(createTreeItem(childName, childNode, onClick, context));
         });
 
       item.appendChild(content);
@@ -193,12 +217,11 @@ function handleFragmentSelect(actions, file, context) {
     return;
   }
 
-  // Remove org/repo prefix and .html extension from display path only
   const basePath = `/${context.org}/${context.repo}`;
   const displayPath = file.path.replace(basePath, '').replace(/\.html$/, '');
   const fragmentUrl = `https://main--${context.repo}--${context.org}.aem.live${displayPath}`;
-  actions.sendHTML(`<a href="${fragmentUrl}" class="fragment">${fragmentUrl}</a>`);
-  addToInfoList(`Inserted fragment link: ${fragmentUrl}`);
+  actions.sendHTML(`<span><a href="${fragmentUrl}" class="fragment">${fragmentUrl}</a></span>`);
+  actions.closeLibrary();
 }
 
 /**
@@ -210,7 +233,6 @@ function filterFragments(searchText, fragmentsList) {
   const items = fragmentsList.querySelectorAll('.tree-item');
   const searchLower = searchText.toLowerCase();
 
-  // Hide message container when searching
   const msgContainer = document.querySelector('.message-wrapper');
   const indicator = document.querySelector('.message-indicator');
   if (!msgContainer.classList.contains('hidden')) {
@@ -218,7 +240,6 @@ function filterFragments(searchText, fragmentsList) {
     indicator.classList.remove('active');
   }
 
-  // First pass: Find matching items and their parent folders
   const matchingPaths = new Set();
   items.forEach((item) => {
     const button = item.querySelector('.fragment-btn-item');
@@ -232,12 +253,10 @@ function filterFragments(searchText, fragmentsList) {
     }
   });
 
-  // Second pass: Show/hide items and expand folders
   items.forEach((item) => {
     const isMatching = matchingPaths.has(item);
     item.style.display = isMatching ? '' : 'none';
 
-    // If it's a folder and it's in the matching paths, expand it
     const folderBtn = item.querySelector('.folder-btn');
     const list = item.querySelector('.tree-list');
     if (folderBtn && list && isMatching) {
@@ -251,7 +270,6 @@ function filterFragments(searchText, fragmentsList) {
     }
   });
 
-  // If search is cleared, collapse all folders
   if (!searchText) {
     items.forEach((item) => {
       const folderBtn = item.querySelector('.folder-btn');
@@ -281,7 +299,6 @@ function expandToDepth(item, currentDepth, targetDepth) {
   const list = item.querySelector('.tree-list');
 
   if (folderBtn && list && currentDepth <= targetDepth) {
-    // Expand this folder
     folderBtn.classList.add('expanded');
     folderBtn.setAttribute('aria-expanded', 'true');
     const folderIcon = folderBtn.querySelector('.folder-icon');
@@ -290,7 +307,6 @@ function expandToDepth(item, currentDepth, targetDepth) {
     }
     list.classList.remove('hidden');
 
-    // Recursively expand child folders
     const childFolders = list.querySelectorAll(':scope > .tree-item');
     childFolders.forEach((childItem) => {
       expandToDepth(childItem, currentDepth + 1, targetDepth);
@@ -381,6 +397,7 @@ function expandToDepth(item, currentDepth, targetDepth) {
             name,
             node,
             (file) => handleFragmentSelect(actions, file, context),
+            context, // Pass context for correct URL
           );
           fragmentsList.appendChild(item);
 
