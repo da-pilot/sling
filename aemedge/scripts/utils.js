@@ -948,3 +948,42 @@ export async function setFragmentIds(main) {
     }
   });
 }
+
+/**
+ * Replaces all occurrences of &amp; and &amp%3B with &
+ * @param {string} value
+ * @returns {string}
+ */
+export function decodeAmpersand(value) {
+  return value.replace(/&amp%3B/g, '&').replace(/&amp;/g, '&');
+}
+
+/**
+ * Ensures that all <a> links matching a given path pattern will redirect to sling.com
+ * when accessed from localhost, .aem.page, or .aem.live domains.
+ *
+ * @param {Element} container - The DOM element to scope the delegation to (e.g., block or document)
+ * @param {RegExp} pathPattern - RegExp to match the href (e.g., /^\/cart/)
+ */
+export function rewriteLinksForSlingDomain(container, pathPattern = /^\/cart/) {
+  const shouldRewrite = window.location.hostname === 'localhost'
+    || window.location.hostname.endsWith('.aem.page')
+    || window.location.hostname.endsWith('.aem.live');
+
+  if (!shouldRewrite) return;
+
+  // Attach event listener in capture phase
+  container.addEventListener('click', (e) => {
+    // Handle <a> tags
+    const anchor = e.target.closest('a');
+    if (
+      anchor
+      && anchor.getAttribute('href')
+      && pathPattern.test(anchor.getAttribute('href'))
+      && !anchor.getAttribute('href').startsWith('//')
+    ) {
+      e.preventDefault();
+      window.location.replace(`https://sling.com${anchor.getAttribute('href')}`);
+    }
+  }, true);
+}

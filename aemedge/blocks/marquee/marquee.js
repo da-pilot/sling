@@ -1,5 +1,5 @@
 import {
-  createTag, getPictureUrlByScreenWidth, getVideoUrlByScreenWidth, readBlockConfig,
+  createTag, getPictureUrlByScreenWidth, getVideoUrlByScreenWidth, readBlockConfig, decodeAmpersand,
 } from '../../scripts/utils.js';
 import { toClassName } from '../../scripts/aem.js';
 
@@ -189,7 +189,7 @@ export default async function decorate(block) {
     ctaAnalyticsName: config.ctaAnalyticsName?.trim() ? config.ctaAnalyticsName : '',
     ctaAnalyticsComponent: config.ctaAnalyticsComponent?.trim() ? config.ctaAnalyticsComponent : '',
     ctaAnalyticsTarget: config.ctaAnalyticsTarget?.trim() ? config.ctaAnalyticsTarget : '',
-    ctaUrl: config.cta || '',
+    ctaUrl: config.cta ? decodeAmpersand(config.cta) : '',
   };
   const background = block.querySelector('.background');
 

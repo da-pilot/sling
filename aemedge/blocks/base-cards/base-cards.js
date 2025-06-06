@@ -1,4 +1,7 @@
-import { createTag, readBlockConfig, loadScript } from '../../scripts/utils.js';
+import {
+  createTag, readBlockConfig, loadScript, decodeAmpersand,
+  rewriteLinksForSlingDomain,
+} from '../../scripts/utils.js';
 
 const options = {
   threshold: 0.25,
@@ -36,6 +39,9 @@ function observeBaseCardsApp() {
     }
   });
   removalObserver.observe(document.body, { childList: true, subtree: true });
+
+  // Patch cart links for sling.com redirection
+  rewriteLinksForSlingDomain(container, /^\/cart/);
 }
 
 async function loadReactLib(entries) {
@@ -47,9 +53,6 @@ async function loadReactLib(entries) {
 }
 
 export default async function decorate(block) {
-  // Clean up any divs without IDs first
-  const divsWithoutId = block.querySelectorAll('div:not([id])');
-  divsWithoutId.forEach((div) => div.remove());
   const config = await readBlockConfig(block);
   const slingProps = {
     optionalSectionTitleText: config['Optional-Section-Title-Text']?.trim() ? config['Optional-Section-Title-Text'] : 'Sling TV Services',
@@ -94,13 +97,13 @@ export default async function decorate(block) {
       monthText: ' ',
       compareIconURLBase: '/aemedge/icons/channels/allloblogos/color',
       hideFooterCTA: true,
-      footerCtaLink: config['Footer-CTA-Link']?.trim() ? config['Footer-CTA-Link'] : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2',
+      footerCtaLink: config['Footer-CTA-Link']?.trim() ? decodeAmpersand(config['Footer-CTA-Link']) : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2',
       footerCtaText: config['Footer-CTA-Text']?.trim() ? config['Footer-CTA-Text'] : 'Try Us Today',
       targetWindow: '_self',
       mobileStickyCTATextColor: 'White',
-      orangeServiceCTALink: config['Orange-Service-CTA-Link']?.trim() ? config['Orange-Service-CTA-Link'] : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2&sb=domestic',
-      blueServiceCTALink: config['Blue-Service-CTA-Link']?.trim() ? config['Blue-Service-CTA-Link'] : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2&sb=sling-mss',
-      comboServiceCTALink: config['Combo-Service-CTA-Link']?.trim() ? config['Combo-Service-CTA-Link'] : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2&sb=sling-combo',
+      orangeServiceCTALink: config['Orange-Service-CTA-Link']?.trim() ? decodeAmpersand(config['Orange-Service-CTA-Link']) : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2&sb=domestic',
+      blueServiceCTALink: config['Blue-Service-CTA-Link']?.trim() ? decodeAmpersand(config['Blue-Service-CTA-Link']) : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2&sb=sling-mss',
+      comboServiceCTALink: config['Combo-Service-CTA-Link']?.trim() ? decodeAmpersand(config['Combo-Service-CTA-Link']) : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2&sb=sling-combo',
       orangeServiceCTAText: config['Orange-Service-CTA-Text']?.trim() ? config['Orange-Service-CTA-Text'] : 'Add Orange',
       blueServiceCTAText: config['Blue-Service-CTA-Text']?.trim() ? config['Blue-Service-CTA-Text'] : 'Add Blue',
       comboServiceCTAText: config['Combo-Service-CTA-Text']?.trim() ? config['Combo-Service-CTA-Text'] : 'Add Both',
@@ -132,6 +135,7 @@ export default async function decorate(block) {
     },
     useV2ComparisonModal: true,
   };
+
   const container = createTag('div', { id: 'base-cards-app', 'data-sling-props': JSON.stringify(slingProps) });
   block.append(container);
   observer.observe(block);
@@ -139,5 +143,14 @@ export default async function decorate(block) {
   document.addEventListener('zipupdate', async () => {
     await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, block);
     observeBaseCardsApp();
+    // Patch cart links again after zip update
+    const zipUpdateContainer = document.querySelector('.base-cards.block #base-cards-app');
+    if (zipUpdateContainer) {
+      rewriteLinksForSlingDomain(zipUpdateContainer, /^\/cart/);
+    }
   });
+
+  // Clean up any divs without IDs first
+  const divsWithoutId = block.querySelectorAll('div:not([id])');
+  divsWithoutId.forEach((div) => div.remove());
 }
