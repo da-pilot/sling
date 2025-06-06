@@ -972,6 +972,7 @@ export function rewriteLinksForSlingDomain(container, pathPattern = /^\/cart/) {
 
   if (!shouldRewrite) return;
 
+  // Attach event listener in capture phase
   container.addEventListener('click', (e) => {
     // Handle <a> tags
     const anchor = e.target.closest('a');
@@ -982,23 +983,18 @@ export function rewriteLinksForSlingDomain(container, pathPattern = /^\/cart/) {
       && !anchor.getAttribute('href').startsWith('//')
     ) {
       e.preventDefault();
-      window.location.href = `https://sling.com${anchor.getAttribute('href')}`;
+      window.location.replace(`https://sling.com${anchor.getAttribute('href')}`);
       return;
     }
 
-    // Handle <button> tags that might trigger cart navigation
+    // Handle <button> tags with text 'checkout' (case-insensitive)
     const button = e.target.closest('button');
     if (button) {
-      // Try to extract a cart path from button text or value
-      // This is a best-effort guess since there is no data-href
-      const buttonText = button.textContent || '';
-      const buttonValue = button.value || '';
-      // Look for something like '/cart' in the text or value
-      const match = buttonText.match(pathPattern) || buttonValue.match(pathPattern);
-      if (match) {
+      const buttonText = (button.textContent || '').toLowerCase();
+      if (buttonText.includes('checkout')) {
         e.preventDefault();
-        window.location.href = `https://sling.com${match[0]}`;
+        window.location.replace('https://sling.com/cart');
       }
     }
-  });
+  }, true);
 }
