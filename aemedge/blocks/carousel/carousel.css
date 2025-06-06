@@ -109,7 +109,7 @@
   aspect-ratio: 2 / 3; /* default aspect ratio (portrait) for images in carousel */
 }
 
-
+/* Aspect ratio classes when in tabs */
 .aspect-square .carousel .carousel-slide .carousel-slide-image picture {
   aspect-ratio: 1 / 1;
 }
@@ -119,6 +119,19 @@
 }
 
 .aspect-none .carousel .carousel-slide .carousel-slide-image picture {
+  aspect-ratio: unset;
+}
+
+/* Aspect ratio classes when standalone */
+.carousel.aspect-square .carousel-slide .carousel-slide-image picture {
+  aspect-ratio: 1 / 1;
+}
+
+.carousel.aspect-landscape .carousel-slide .carousel-slide-image picture {
+  aspect-ratio: 16 / 9;
+}
+
+.carousel.aspect-none .carousel-slide .carousel-slide-image picture {
   aspect-ratio: unset;
 }
 

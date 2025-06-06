@@ -506,7 +506,7 @@ export function extractStyleVariables() {
     const valignRegex = text && /\{valign-([^}]*)\}/; // valign-top, valign-middle, valign-bottom
     const targetRegex = text && /\{target-([^}]*)\}/; // target-blank, target-self
     const idRegex = text && /\{id-([^}]*)\}/; // id-coolsection, etc
-    const aspectRatioRegex = text && /\{aspect-([^}]*)\}/; // aspect-square, aspect-landscape, aspect-portrait (default)
+    const aspectRatioRegex = text && /\{aspect-([^}]*)\}/; // aspect-square, aspect-landscape, aspect-none, aspect-portrait (default)
     const colorRegex = text && /\{(?!size-|align-|valign-|spacer-|target-|id-|aspect-)([a-zA-Z-\s]+)?\}/;
     const spanRegex = new RegExp(`\\[([\\s\\S]*?)\\]${colorRegex.source}`); // [plain text]{color}
 
