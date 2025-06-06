@@ -1,4 +1,7 @@
-import { createTag, loadScript, readBlockConfig } from '../../scripts/utils.js';
+import {
+  createTag, loadScript, readBlockConfig, decodeAmpersand,
+  rewriteLinksForSlingDomain,
+} from '../../scripts/utils.js';
 
 const options = {
   threshold: 0,
@@ -29,7 +32,7 @@ export default async function decorate(block) {
     localBadgeText: config.localBadgeText?.trim() ? config.localBadgeText : 'Local',
     checkoutButtonText: config.checkoutButtonText?.trim() ? config.checkoutButtonText : 'Checkout',
     channelIconUrl: '/aemedge/icons/channels/allloblogos/color',
-    ctaUrl: config.ctaUrl?.trim() ? config.ctaUrl : '/cart/magento/account',
+    ctaUrl: config.ctaUrl ? decodeAmpersand(config.ctaUrl) : '/cart/magento/account',
     maxChannelsSelected: typeof config.maxChannelsSelected === 'number' ? config.maxChannelsSelected : 5,
     limitHitErrorText: config.limitHitErrorText?.trim() ? config.limitHitErrorText : 'Unselect a channel to add another. To view all channels in your recommended plan, click the \'more\' button(s).',
     errorMsgDuration: typeof config.errorMsgDuration === 'number' ? config.errorMsgDuration : 5000,
@@ -40,4 +43,7 @@ export default async function decorate(block) {
   block.append(container);
 
   observer.observe(block);
+
+  // Patch cart links for sling.com redirection
+  rewriteLinksForSlingDomain(container, /^\/cart/);
 }

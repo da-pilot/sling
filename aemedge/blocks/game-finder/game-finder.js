@@ -1,4 +1,6 @@
-import { createTag, readBlockConfig } from '../../scripts/utils.js';
+import {
+  createTag, readBlockConfig, decodeAmpersand, rewriteLinksForSlingDomain,
+} from '../../scripts/utils.js';
 
 export default async function decorate(block) {
   const defultProps = {
@@ -35,13 +37,13 @@ export default async function decorate(block) {
     if (Number.isNaN(cleanedConfig.numberOfDays)) delete cleanedConfig.numberOfDays;
   }
   if (cleanedConfig.preselectUrlPath) {
-    cleanedConfig.preselectUrlPath = cleanedConfig.preselectUrlPath
-      .replace(/&amp%3B/g, '&')
-      .replace(/&amp;/g, '&');
+    cleanedConfig.preselectUrlPath = decodeAmpersand(cleanedConfig.preselectUrlPath);
   }
   const slingProps = { ...defultProps, ...cleanedConfig };
   const container = createTag('div', { id: 'gmfinder-app', 'data-sling-props': JSON.stringify(slingProps) });
   block.append(container);
+  // Patch cart links for sling.com redirection
+  rewriteLinksForSlingDomain(container, /^\/cart/);
   // Clean up any divs without IDs first
   const divsWithoutId = block.querySelectorAll('div:not([id])');
   divsWithoutId.forEach((div) => div.remove());
