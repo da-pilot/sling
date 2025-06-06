@@ -1202,6 +1202,15 @@ a.black {
 }
 
 @media (width >=1024px) {
+  .section.flex {
+    display: flex;
+    flex-wrap: wrap;
+
+    .accordion-wrapper {
+      padding-left:0;
+    }
+  }
+
   /* CTA Banner Section */
   .section.banner {
     .buttons-container {
@@ -1227,6 +1236,27 @@ a.black {
     .section.dark {
         margin: 0;
     }
+
+
+div:has( > div.block.width-25) {
+  width: 24% !important;
+}
+
+div:has( > div.block.width-50) {
+  width: 50% !important;
+}
+
+div:has( > div.block.width-75) {
+  width: 74% !important;
+}
+
+div:has( > div.block.width-33) {
+  width: 31.5% !important;
+}
+
+div:has( > div.block.width-66) {
+  width: 65% !important;
+}
 
   section > .default-content-wrapper > p.fragment-wrapper {
     .section.banner {
