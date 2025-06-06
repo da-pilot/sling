@@ -3,7 +3,6 @@ import {
   loadFooter,
   decorateIcons,
   decorateSections,
-  decorateBlocks,
   decorateTemplateAndTheme,
   waitForLCP,
   loadBlocks,
@@ -36,10 +35,17 @@ const TEMPLATE_META = 'template';
 const EXT_IMAGE_URL = /dish\.scene7\.com|\/aemedge\/svgs\/|delivery-p\d+-e\d+\.adobeaemcloud\.com\/adobe\/assets\//;
 
 /**
- * Sanitizes a string for use as class name.
- * @param {string} name The unsanitized string
- * @returns {string} The class name
+ * Decorates all blocks in a container element.
+ * Overwriting the function in aem.js to avoid decorating fragment-wrapper blocks
+ * @param {Element} main The container element
  */
+function decorateBlocks(main) {
+  main.querySelectorAll('div.section > div > div').forEach((block) => {
+    if (!block.classList.contains('fragment-wrapper')) {
+      decorateBlock(block);
+    }
+  });
+}
 
 /**
  * Builds hero block and prepends to main in a new section.
