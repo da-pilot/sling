@@ -679,10 +679,23 @@ export function decorateExtImage() {
         const nextA = br.nextSibling;
         const up = nextA.parentElement;
         const picClone = picture.cloneNode(true);
-        nextA.replaceChildren(picClone);
-        up.insertAdjacentHTML('beforeend', nextA.outerHTML);
+        const existingPic = nextA.querySelector('picture img');
+        const newPicImg = picClone.querySelector('img');
+        // Only replace if the <a> doesn't already have the correct <picture>
+        if (!existingPic || existingPic.src !== newPicImg.src) {
+          nextA.replaceChildren(picClone);
+        }
+        // Only insert if an identical <a> (with picture) doesn't already exist in the parent
+        const duplicate = Array.from(up.children).some((child) => (
+          child.nodeName === 'A'
+          && child.href === nextA.href
+          && child.querySelector('picture img')
+          && child.querySelector('picture img').src === newPicImg.src
+        ));
+        if (!duplicate) {
+          up.insertAdjacentHTML('beforeend', nextA.outerHTML);
+        }
         br.remove();
-        // TODO remove empty <a> tags
       }
     }
   });
