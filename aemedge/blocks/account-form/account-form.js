@@ -175,8 +175,16 @@ export default async function decorate(block) {
   const container = createTag('div', { id: 'account-form-app', 'data-sling-props': JSON.stringify(props) });
   block.append(container);
 
-  // Load the React build for account-form
-  await loadScript('../../../aemedge/scripts/sling-react/account-form-build.js', {}, container);
+  // IntersectionObserver to lazy-load React app
+  const options = { threshold: 0.25 };
+  const observer = new IntersectionObserver(async (entries, obs) => {
+    if (entries.some((entry) => entry.isIntersecting)) {
+      await loadScript('../../../aemedge/scripts/sling-react/account-form-build.js', {}, container);
+      obs.unobserve(container);
+    }
+  }, options);
+
+  observer.observe(container);
 
   // Clean up any divs without IDs first (like base-cards)
   const divsWithoutId = block.querySelectorAll('div:not([id])');
