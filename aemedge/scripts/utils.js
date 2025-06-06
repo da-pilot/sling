@@ -984,17 +984,6 @@ export function rewriteLinksForSlingDomain(container, pathPattern = /^\/cart/) {
     ) {
       e.preventDefault();
       window.location.replace(`https://sling.com${anchor.getAttribute('href')}`);
-      return;
-    }
-
-    // Handle <button> tags with text 'checkout' (case-insensitive)
-    const button = e.target.closest('button');
-    if (button) {
-      const buttonText = (button.textContent || '').toLowerCase();
-      if (buttonText.includes('checkout')) {
-        e.preventDefault();
-        window.location.replace('https://sling.com/cart');
-      }
     }
   }, true);
 }
