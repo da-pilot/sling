@@ -66,6 +66,12 @@ class ChannelModal {
   }
 
   async fetchPackageChannels(packageIdentifier, packageType, planIdentifier = 'one-month') {
+    console.log('🔍 Fetching channels for:', {
+      packageIdentifier,
+      packageType,
+      planIdentifier,
+    });
+
     const query = `
       query GetPackage($filter: PackageAttributeFilterInput) {
         packages(filter: $filter) {
@@ -85,6 +91,7 @@ class ChannelModal {
     const variables = {
       filter: {
         pck_type: { in: [packageType] },
+        package_identifier: { eq: packageIdentifier },
         is_channel_required: { eq: true },
         tag: { in: ['us'] },
         plan_identifier: { eq: planIdentifier },
@@ -92,6 +99,8 @@ class ChannelModal {
         region_id: ['5'],
       },
     };
+
+    console.log('📤 GraphQL Variables:', JSON.stringify(variables, null, 2));
 
     try {
       const response = await fetch(this.baseURL, {
@@ -120,7 +129,27 @@ class ChannelModal {
         return null;
       }
 
-      return data.data.packages.items[0]?.package || null;
+      const packages = data.data.packages.items;
+      console.log(
+        `📦 Found ${packages.length} packages for identifier "${packageIdentifier}":`,
+        packages.map((item) => item.package?.name || 'Unknown'),
+      );
+
+      // Since we're now filtering by package_identifier, we should get the specific package
+      if (packages.length > 0 && packages[0].package) {
+        const selectedPackage = packages[0].package;
+        console.log(
+          '✅ Selected package:',
+          selectedPackage.name,
+          'with',
+          selectedPackage.channels?.length || 0,
+          'channels',
+        );
+        return selectedPackage;
+      }
+
+      console.log('❌ No package found for identifier:', packageIdentifier);
+      return null;
     } catch (error) {
       console.error('Error fetching package channels:', error);
       return null;
