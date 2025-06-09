@@ -65,8 +65,8 @@ class ChannelModal {
     this.channelLogoBaseURL = '/aemedge/icons/sling-tv/channels/AllLOBLogos/Color';
   }
 
-  async fetchPackageChannels(packageIdentifier, packageType, planIdentifier = 'one-month') {
-    console.log('🔍 Fetching channels for:', {
+  async fetchPackageChannels(packageIdentifier, packageType, planIdentifier = 'one-month', blockId = 'unknown') {
+    console.log(`🔍 [${blockId}] Fetching channels for:`, {
       packageIdentifier,
       packageType,
       planIdentifier,
@@ -88,19 +88,28 @@ class ChannelModal {
       }
     `;
 
-    const variables = {
-      filter: {
-        pck_type: { in: [packageType] },
-        package_identifier: { eq: packageIdentifier },
-        is_channel_required: { eq: true },
-        tag: { in: ['us'] },
-        plan_identifier: { eq: planIdentifier },
-        plan_offer_identifier: { eq: 'monthly' },
-        region_id: ['5'],
-      },
+    // Build filter object conditionally
+    const filter = {
+      is_channel_required: { eq: true },
+      tag: { in: ['us'] },
+      plan_identifier: { eq: planIdentifier },
+      plan_offer_identifier: { eq: 'monthly' },
+      region_id: ['5'],
     };
 
-    console.log('📤 GraphQL Variables:', JSON.stringify(variables, null, 2));
+    // Add package type filter only if it's not null/undefined
+    if (packageType) {
+      filter.pck_type = { in: [packageType] };
+    }
+
+    // Try using 'identifier' instead of 'package_identifier'
+    if (packageIdentifier) {
+      filter.identifier = { eq: packageIdentifier };
+    }
+
+    const variables = { filter };
+
+    console.log(`📤 [${blockId}] GraphQL Variables:`, JSON.stringify(variables, null, 2));
 
     try {
       const response = await fetch(this.baseURL, {
@@ -115,7 +124,7 @@ class ChannelModal {
       }
 
       const data = await response.json();
-      console.log('GraphQL Response:', data);
+      console.log(`📥 [${blockId}] GraphQL Response:`, data);
 
       // Check for GraphQL errors
       if (data.errors) {
@@ -251,6 +260,17 @@ class ChannelModal {
 }
 
 export default async function decorate(block) {
+  // Prevent duplicate decoration
+  if (block.hasAttribute('data-view-all-channels-decorated')) {
+    console.log('🚫 Block already decorated, skipping');
+    return;
+  }
+  block.setAttribute('data-view-all-channels-decorated', 'true');
+
+  // Generate unique block ID for debugging
+  const blockId = `block-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`🎨 Decorating View All Channels ${blockId}`);
+
   let config = await readBlockConfigForViewAllChannels(block);
   config = normalizeConfigKeys(config);
 
