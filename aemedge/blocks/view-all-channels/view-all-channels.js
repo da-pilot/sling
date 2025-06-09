@@ -61,7 +61,7 @@ export const defaultProps = {
 
 class ChannelModal {
   constructor() {
-    this.baseURL = 'https://slingcommerce.com/graphql';
+    this.baseURL = 'https://www.slingcommerce.com/graphql';
     this.channelLogoBaseURL = '/aemedge/icons/sling-tv/channels/AllLOBLogos/Color';
   }
 
