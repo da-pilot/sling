@@ -100,99 +100,99 @@
   width: 100%;
   overflow-x: auto;
 
-table {
-  width: 100%;
-  max-width: 100%;
-  border-collapse: collapse;
-  font-size: var(--body-font-size-xs);
+  table {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-font-size-xs);
 
-  th, td {
-    padding: 0 6px;
-  }
+    th, td {
+      padding: 0 6px;
+    }
 
-  thead tr {
-    border-top: 2px solid;
-    border-bottom: 2px solid;
-  }
+    thead tr {
+      border-top: 2px solid;
+      border-bottom: 2px solid;
+    }
 
-  td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
-    text-align: center;
-  }
+    td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
+      text-align: center;
+    }
   }
 }
 
 /* Full column-align (left, center, right) styles for up to 6 columns */
 .column-left-1 tr:not(.single-column-row) > *:first-child {
-    text-align: left;
-  }
+  text-align: left;
+}
 
 .column-left-2 table tr > *:nth-child(2) {
-    text-align: left;
-  }
+  text-align: left;
+}
 
 .column-left-3 table tr > *:nth-child(3) {
-    text-align: left;
-  }
+  text-align: left;
+}
 
 .column-left-4 table tr > *:nth-child(4) {
-    text-align: left;
-  }
+  text-align: left;
+}
 
 .column-left-5 table tr > *:nth-child(5) {
-    text-align: left;
-  }
+  text-align: left;
+}
 
 .column-left-6 table tr > *:nth-child(6) {
-    text-align: left;
-  }
+  text-align: left;
+}
 
 .column-center-1 tr:not(.single-column-row) > *:first-child {
-    text-align: center;
-  }
+  text-align: center;
+}
 
 .column-center-2 table tr > *:nth-child(2) {
-    text-align: center;
-  }
+  text-align: center;
+}
 
 .column-center-3 table tr > *:nth-child(3) {
-    text-align: center;
-  }
+  text-align: center;
+}
 
 .column-center-4 table tr > *:nth-child(4) {
-    text-align: center;
-  }
+  text-align: center;
+}
 
 .column-center-5 table tr > *:nth-child(5) {
-    text-align: center;
-  }
+  text-align: center;
+}
 
 .column-center-6 table tr > *:nth-child(6) {
-    text-align: center;
-  }
+  text-align: center;
+}
 
 .column-right-1 tr:not(.single-column-row) > *:first-child {
-    text-align: right;
-  }
+  text-align: right;
+}
 
 .column-right-2 table tr > *:nth-child(2) {
-    text-align: right;
-  }
+  text-align: right;
+}
 
 .column-right-3 table tr > *:nth-child(3) {
-    text-align: right;
-  }
+  text-align: right;
+}
 
 .column-right-4 table tr > *:nth-child(4) {
-    text-align: right;
-  }
+  text-align: right;
+}
 
 .column-right-5 table tr > *:nth-child(5) {
-    text-align: right;
-  }
+  text-align: right;
+}
 
 .column-right-6 table tr > *:nth-child(6) {
-    text-align: right;
-  }
+  text-align: right;
+}
 
 /* bordered variant */
 .table.bordered table th,
@@ -224,7 +224,6 @@ table {
   background-color: var(--dark-rock-candy);
   border-color: var(--dark-rock-candy);
   color: var(--clr-white);
-
 }
 
 /* striped variant */
@@ -250,7 +249,6 @@ table {
 
 .playoffs.table table .single-column-row.lightgrey td, .schedule.table table .single-column-row.lightgrey td {
   background-color: var(--dark-color);
-
 }
 
 .schedule.table p,
