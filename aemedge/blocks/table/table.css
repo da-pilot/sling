@@ -74,10 +74,10 @@
       margin-left: auto;
       margin-right: auto;
 
-     > .button-container {
-       margin-left: 12px;
-       margin-right: 12px;
-     }
+      > .button-container {
+        margin-left: 12px;
+        margin-right: 12px;
+      }
     }
 
   &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese, &.bg-pearl {
@@ -118,92 +118,87 @@ table {
   td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
     text-align: center;
   }
-
- }
+  }
 }
 
 /* Full column-align (left, center, right) styles for up to 6 columns */
-  .column-left-1 tr:not(.single-column-row) > *:first-child {
-      color: blue;
-      text-align: left;
-    }
+.column-left-1 tr:not(.single-column-row) > *:first-child {
+    text-align: left;
+  }
 
-  .column-left-2 tr > *:nth-child(2) {
-      text-align: left;
-    }
+.column-left-2 table tr > *:nth-child(2) {
+    text-align: left;
+  }
 
-  .column-left-3 tr > *:nth-child(3) {
-      text-align: left;
-    }
+.column-left-3 table tr > *:nth-child(3) {
+    text-align: left;
+  }
 
-  .column-left-4 tr > *:nth-child(4) {
-      text-align: left;
-    }
+.column-left-4 table tr > *:nth-child(4) {
+    text-align: left;
+  }
 
-  .column-left-5 tr > *:nth-child(5) {
-      text-align: left;
-    }
+.column-left-5 table tr > *:nth-child(5) {
+    text-align: left;
+  }
 
-  .column-left-6 tr > *:nth-child(6) {
-      text-align: left;
-    }
+.column-left-6 table tr > *:nth-child(6) {
+    text-align: left;
+  }
 
-  .column-center-1 tr:not(.single-column-row) > *:first-child {
-      color: green;
-      text-align: center;
-    }
+.column-center-1 tr:not(.single-column-row) > *:first-child {
+    text-align: center;
+  }
 
-  .column-center-2 tr > *:nth-child(2) {
-      text-align: center;
-    }
+.column-center-2 table tr > *:nth-child(2) {
+    text-align: center;
+  }
 
-  .column-center-3 tr > *:nth-child(3) {
-      text-align: center;
-    }
+.column-center-3 table tr > *:nth-child(3) {
+    text-align: center;
+  }
 
-  .column-center-4 tr > *:nth-child(4) {
-      text-align: center;
-    }
+.column-center-4 table tr > *:nth-child(4) {
+    text-align: center;
+  }
 
-  .column-center-5 tr > *:nth-child(5) {
-      text-align: center;
-    }
+.column-center-5 table tr > *:nth-child(5) {
+    text-align: center;
+  }
 
-  .column-center-6 tr > *:nth-child(6) {
-      text-align: center;
-    }
+.column-center-6 table tr > *:nth-child(6) {
+    text-align: center;
+  }
 
-    .column-right-1 tr:not(.single-column-row) > *:first-child {
-    color: red;
+.column-right-1 tr:not(.single-column-row) > *:first-child {
     text-align: right;
   }
 
-  .column-right-2 tr > *:nth-child(2) {
-      text-align: right;
-    }
+.column-right-2 table tr > *:nth-child(2) {
+    text-align: right;
+  }
 
-  .column-right-3 tr > *:nth-child(3) {
-      text-align: right;
-    }
+.column-right-3 table tr > *:nth-child(3) {
+    text-align: right;
+  }
 
-  .column-right-4 tr > *:nth-child(4) {
-      text-align: right;
-    }
+.column-right-4 table tr > *:nth-child(4) {
+    text-align: right;
+  }
 
-  .column-right-5 tr > *:nth-child(5) {
-      text-align: right;
-    }
+.column-right-5 table tr > *:nth-child(5) {
+    text-align: right;
+  }
 
-  .column-right-6 tr > *:nth-child(6) {
-      text-align: right;
-    }
+.column-right-6 table tr > *:nth-child(6) {
+    text-align: right;
+  }
 
 /* bordered variant */
 .table.bordered table th,
 .table.bordered table td { /* stylelint-disable-line */
   border: 1px solid;
 }
-
 
 .table:not(.playoffs, .schedule) table tbody tr {
   border-bottom: 1px solid;
