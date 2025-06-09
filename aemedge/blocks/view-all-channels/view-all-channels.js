@@ -98,7 +98,26 @@ class ChannelModal {
         body: JSON.stringify({ query, variables }),
       });
 
+      if (!response.ok) {
+        console.error('HTTP Error:', response.status, response.statusText);
+        return null;
+      }
+
       const data = await response.json();
+      console.log('GraphQL Response:', data);
+
+      // Check for GraphQL errors
+      if (data.errors) {
+        console.error('GraphQL Errors:', data.errors);
+        return null;
+      }
+
+      // Check if data structure exists
+      if (!data.data || !data.data.packages || !data.data.packages.items) {
+        console.error('Unexpected response structure:', data);
+        return null;
+      }
+
       return data.data.packages.items[0]?.package || null;
     } catch (error) {
       console.error('Error fetching package channels:', error);
