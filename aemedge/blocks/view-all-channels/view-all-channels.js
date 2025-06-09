@@ -65,18 +65,16 @@ class ChannelModal {
     this.channelLogoBaseURL = '/aemedge/icons/sling-tv/channels/AllLOBLogos/Color';
   }
 
-  async fetchPackageChannels(packageIdentifier, planIdentifier = 'monthly') {
+  async fetchPackageChannels(packageIdentifier, packageType, planIdentifier = 'one-month') {
     const query = `
-      query GetPackages($filter: PackageAttributeFilterInput) {
+      query GetPackage($filter: PackageAttributeFilterInput) {
         packages(filter: $filter) {
           items {
             package {
               name
-              canonical_identifier
               channels {
                 call_sign
                 name
-                active
               }
             }
           }
@@ -86,8 +84,12 @@ class ChannelModal {
 
     const variables = {
       filter: {
-        canonical_identifier: { eq: packageIdentifier },
-        plan_identifier: { in: [planIdentifier] },
+        pck_type: { in: [packageType] },
+        is_channel_required: { eq: true },
+        tag: { in: ['us'] },
+        plan_identifier: { eq: planIdentifier },
+        plan_offer_identifier: { eq: 'monthly' },
+        region_id: ['5'],
       },
     };
 
@@ -163,8 +165,9 @@ class ChannelModal {
     document.body.appendChild(modal);
   }
 
-  async showChannelsModal(packageIdentifier, planIdentifier = 'monthly', modalTitle = null) {
-    const packageData = await this.fetchPackageChannels(packageIdentifier, planIdentifier);
+  async showChannelsModal(packageIdentifier, packageType, planIdentifier = 'one-month', modalTitle = null) {
+    const packageData = await
+    this.fetchPackageChannels(packageIdentifier, packageType, planIdentifier);
     if (packageData && packageData.channels) {
       this.createModal(packageData, modalTitle);
     } else {
@@ -172,12 +175,12 @@ class ChannelModal {
     }
   }
 
-  async showCombinedChannelsModal(package1Identifier, package2Identifier, planIdentifier = 'monthly', modalTitle = 'All Channels') {
+  async showCombinedChannelsModal(package1Identifier, package1Type, package2Identifier, package2Type, planIdentifier = 'one-month', modalTitle = 'All Channels') {
     try {
       // Fetch both packages simultaneously
       const [package1Data, package2Data] = await Promise.all([
-        this.fetchPackageChannels(package1Identifier, planIdentifier),
-        this.fetchPackageChannels(package2Identifier, planIdentifier),
+        this.fetchPackageChannels(package1Identifier, package1Type, planIdentifier),
+        this.fetchPackageChannels(package2Identifier, package2Type, planIdentifier),
       ]);
 
       // Combine channels from both packages
@@ -258,8 +261,10 @@ export default async function decorate(block) {
       e.preventDefault();
       await channelModal.showCombinedChannelsModal(
         props.package1Identifier,
+        props.package1Type,
         props.package2Identifier,
-        'monthly',
+        props.package2Type,
+        'one-month',
         props.viewAllChannelsText,
       );
     });
@@ -276,7 +281,7 @@ export default async function decorate(block) {
 
     package1Link.addEventListener('click', async (e) => {
       e.preventDefault();
-      await channelModal.showChannelsModal(props.package1Identifier, 'monthly');
+      await channelModal.showChannelsModal(props.package1Identifier, props.package1Type, 'one-month');
     });
 
     container.appendChild(package1Link);
@@ -291,7 +296,7 @@ export default async function decorate(block) {
 
     package2Link.addEventListener('click', async (e) => {
       e.preventDefault();
-      await channelModal.showChannelsModal(props.package2Identifier, 'monthly');
+      await channelModal.showChannelsModal(props.package2Identifier, props.package2Type, 'one-month');
     });
 
     container.appendChild(package2Link);
@@ -306,7 +311,7 @@ export default async function decorate(block) {
 
     defaultLink.addEventListener('click', async (e) => {
       e.preventDefault();
-      await channelModal.showChannelsModal('sling-mss', 'monthly');
+      await channelModal.showChannelsModal('sling-mss', 'base_linear', 'one-month');
     });
 
     container.appendChild(defaultLink);
