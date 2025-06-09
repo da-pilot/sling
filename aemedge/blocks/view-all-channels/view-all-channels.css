@@ -1,0 +1,179 @@
+/* View All Channels Block Styles */
+
+.view-all-channels.block > div:not([id]) p {
+  display: none;
+}
+
+#view-all-channels-app a[data-test-id$="button-button"],
+#view-all-channels-app button[data-test-id$="button-button"] {
+    position: relative;
+    display: inline-flex;
+    -webkit-box-pack: center;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 18px;
+    padding: 0.938rem 1.2rem;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0;
+    background: linear-gradient(108.93deg, #0078AD 37.23%, #00B9FF 112.13%);
+    border: none;
+    border-radius: 1600px;
+    opacity: 1;
+    min-width: unset;
+    width: unset;
+    height: unset;
+    color: #F5F5F6;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#view-all-channels-app a[data-test-id$="button-button"]:hover:enabled,
+#view-all-channels-app button[data-test-id$="button-button"]:hover:enabled {
+  outline: none;
+  box-shadow: rgb(7 7 11 / 40%) 0 24px 57px 0;
+  opacity: 1;
+  transform: scale(1.05);
+  cursor: pointer;
+}
+
+.view-all-channels-heading {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Vanilla JS Implementation Styles */
+.view-all-channels-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.view-all-channels-link {
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline-block;
+  margin: 10px;
+  font-size: 16px;
+  transition: opacity 0.2s ease;
+}
+
+.view-all-channels-link:hover {
+  opacity: 0.8;
+}
+
+/* Channel Modal Styles */
+.channel-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgb(0 0 0 / 50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.channel-modal {
+  background: white;
+  max-width: 800px;
+  max-height: 80vh;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 30%);
+}
+
+.channel-modal .modal-header {
+  padding: 20px;
+  background: linear-gradient(90deg, #202230 0%, #44444F 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.channel-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.channel-modal .close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.channel-modal .close-btn:hover {
+  opacity: 0.8;
+}
+
+.channel-modal .modal-body {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.channel-modal .channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 15px;
+}
+
+.channel-modal .channel-item {
+  text-align: center;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.channel-modal .channel-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+}
+
+.channel-modal .channel-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 8px;
+}
+
+.channel-modal .channel-item span {
+  display: block;
+  font-size: 12px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (width <= 768px) {
+  .channel-modal {
+    max-width: 90vw;
+    margin: 20px;
+  }
+  
+  .channel-modal .channels-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+  }
+  
+  .channel-modal .channel-item img {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .channel-modal .modal-header {
+    padding: 15px;
+  }
+  
+  .channel-modal .modal-body {
+    padding: 15px;
+  }
+} 
