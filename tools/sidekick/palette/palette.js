@@ -25,7 +25,7 @@ class PaletteElement extends LitElement {
       border-radius: 4px;
       transition: all 0.2s ease;
       display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 100px auto;
     gap: 20px;
     font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
     }
@@ -97,8 +97,10 @@ class PaletteElement extends LitElement {
     const brandName = color['brand-name'];
     const colorValue = color['color-value'];
     const uses = color.application;
-    const isMatch = !this.searchTerm || brandName.toLowerCase().includes(this.searchTerm)
-    || colorValue.toLowerCase().includes(this.searchTerm);
+    const isMatch = !this.searchTerm
+      || brandName.toLowerCase().includes(this.searchTerm)
+      || colorValue.toLowerCase().includes(this.searchTerm)
+      || (uses && uses.toLowerCase().includes(this.searchTerm));
 
     return html`
             <li class=${isMatch ? brandName : `${brandName} filtered`} 
