@@ -544,6 +544,12 @@
   }
 
   @media (width >=992px) {
+    .column {
+      line-height: 30px;
+      max-width: 1168px;
+      margin: 0 auto;
+    }
+    
     .rewards .section.rewards-column.columns-container .columns-wrapper .columns {
       line-height: 30px;
       max-width: 1168px;
