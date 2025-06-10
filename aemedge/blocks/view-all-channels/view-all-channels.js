@@ -65,57 +65,68 @@ class ChannelModal {
     this.channelLogoBaseURL = '/aemedge/icons/sling-tv/channels/AllLOBLogos/Color';
   }
 
-  async fetchPackageChannels(packageIdentifier, packageType, planIdentifier = 'one-month', blockId = 'unknown') {
-    console.log(`🔍 [${blockId}] Fetching channels for:`, {
-      packageIdentifier,
-      packageType,
-      planIdentifier,
-    });
+  async fetchPackageChannels(packageIdentifier, packageType = 'base_linear') {
+    console.log('🔍 Fetching channels for package:', packageIdentifier);
 
+    // Use the exact working GraphQL query from the live site
     const query = `
       query GetPackage($filter: PackageAttributeFilterInput) {
         packages(filter: $filter) {
           items {
+            plan {
+              plan_code
+              plan_identifier
+              plan_name
+              __typename
+            }
+            planOffer {
+              plan_offer_identifier
+              discount
+              discount_type
+              plan_offer_name
+              offer_identifier
+              description
+              __typename
+            }
             package {
               name
+              base_price
+              sku
               channels {
+                identifier
                 call_sign
                 name
+                __typename
               }
+              plan_offer_price
+              canonical_identifier
+              __typename
             }
+            __typename
           }
+          __typename
         }
       }
     `;
 
-    // Build filter object conditionally
-    const filter = {
-      is_channel_required: { eq: true },
-      tag: { in: ['us'] },
-      plan_identifier: { eq: planIdentifier },
-      plan_offer_identifier: { eq: 'monthly' },
-      region_id: ['5'],
+    const variables = {
+      filter: {
+        pck_type: { in: [packageType] },
+        is_channel_required: { eq: true },
+        tag: { in: ['us'] },
+        plan_identifier: { eq: 'one-month' },
+        plan_offer_identifier: { eq: 'monthly' },
+        region_id: ['5'],
+      },
     };
 
-    // Add package type filter only if it's not null/undefined
-    if (packageType) {
-      filter.pck_type = { in: [packageType] };
-    }
-
-    // Try using 'identifier' instead of 'package_identifier'
-    if (packageIdentifier) {
-      filter.identifier = { eq: packageIdentifier };
-    }
-
-    const variables = { filter };
-
-    console.log(`📤 [${blockId}] GraphQL Variables:`, JSON.stringify(variables, null, 2));
+    console.log('📤 GraphQL Variables:', JSON.stringify(variables, null, 2));
 
     try {
       const response = await fetch(this.baseURL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables }),
+        body: JSON.stringify({ query, variables, operationName: 'GetPackage' }),
       });
 
       if (!response.ok) {
@@ -124,37 +135,44 @@ class ChannelModal {
       }
 
       const data = await response.json();
-      console.log(`📥 [${blockId}] GraphQL Response:`, data);
+      console.log('📥 GraphQL Response received');
 
-      // Check for GraphQL errors
       if (data.errors) {
         console.error('GraphQL Errors:', data.errors);
         return null;
       }
 
-      // Check if data structure exists
-      if (!data.data || !data.data.packages || !data.data.packages.items) {
+      // Handle the correct response structure: data.packages.items.package (array)
+      if (!data.data || !data.data.packages || !data.data.packages.items || !data.data.packages.items.package) {
         console.error('Unexpected response structure:', data);
         return null;
       }
 
-      const packages = data.data.packages.items;
-      console.log(
-        `📦 Found ${packages.length} packages for identifier "${packageIdentifier}":`,
-        packages.map((item) => item.package?.name || 'Unknown'),
-      );
+      const allPackages = data.data.packages.items.package;
+      console.log('📦 Available packages:', allPackages.map((pkg) => `${pkg.name} (${pkg.canonical_identifier})`));
 
-      // Since we're now filtering by package_identifier, we should get the specific package
-      if (packages.length > 0 && packages[0].package) {
-        const selectedPackage = packages[0].package;
+      // Find package by canonical_identifier
+      const selectedPackage = allPackages.find((pkg) => pkg.canonical_identifier === packageIdentifier
+        || (packageIdentifier === 'sling-mss' && pkg.canonical_identifier === 'sling-mss')
+        || (packageIdentifier === 'domestic' && pkg.canonical_identifier === 'domestic')
+        || (packageIdentifier === 'sling-combo' && pkg.canonical_identifier.includes('combo')));
+
+      if (selectedPackage && selectedPackage.channels) {
         console.log(
           '✅ Selected package:',
           selectedPackage.name,
           'with',
-          selectedPackage.channels?.length || 0,
+          selectedPackage.channels.length,
           'channels',
         );
-        return selectedPackage;
+
+        return {
+          name: selectedPackage.name,
+          channels: selectedPackage.channels.map((channel) => ({
+            call_sign: channel.call_sign,
+            name: channel.name,
+          })),
+        };
       }
 
       console.log('❌ No package found for identifier:', packageIdentifier);
@@ -203,9 +221,8 @@ class ChannelModal {
     document.body.appendChild(modal);
   }
 
-  async showChannelsModal(packageIdentifier, packageType, planIdentifier = 'one-month', modalTitle = null) {
-    const packageData = await
-    this.fetchPackageChannels(packageIdentifier, packageType, planIdentifier);
+  async showChannelsModal(packageIdentifier, packageType, modalTitle = null) {
+    const packageData = await this.fetchPackageChannels(packageIdentifier, packageType);
     if (packageData && packageData.channels) {
       this.createModal(packageData, modalTitle);
     } else {
@@ -260,17 +277,6 @@ class ChannelModal {
 }
 
 export default async function decorate(block) {
-  // Prevent duplicate decoration
-  if (block.hasAttribute('data-view-all-channels-decorated')) {
-    console.log('🚫 Block already decorated, skipping');
-    return;
-  }
-  block.setAttribute('data-view-all-channels-decorated', 'true');
-
-  // Generate unique block ID for debugging
-  const blockId = `block-${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`🎨 Decorating View All Channels ${blockId}`);
-
   let config = await readBlockConfigForViewAllChannels(block);
   config = normalizeConfigKeys(config);
 
