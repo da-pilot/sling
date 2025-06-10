@@ -360,15 +360,6 @@
   .rewards .section.rewards-column.columns-container .columns div picture img {
     width: 100%;
   }
-
-  .columns.smallicons div picture img {
-    width: 114.664px;
-  }
-
-  .columns.bigicons div picture img {
-    width: 97.328px;
-  }
-
   
 
   @media (width >= 768px) {
@@ -468,10 +459,6 @@
       width: 16.66vw;
       max-width: 194.7px;
       height: auto;
-    }
-
-    .columns.smallicons div picture img {
-      width: 48.664px;
     }
 
     .banner .columns {
