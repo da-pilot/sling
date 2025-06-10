@@ -290,7 +290,7 @@ export default async function decorate(block) {
 
   const package1Identifier = config.package1identifier || config['package-1-identifier'] || defaultProps.package1Identifier;
   const package1Type = config.package1type || config['package-1-type'] || defaultProps.package1Type;
-  const package1Name = config.package1name || config['package-1-name'] || defaultProps.package1Name;
+  const package1Name = config.package1name || config['package-1-name'] || config.packagename || defaultProps.package1Name;
 
   const package2Identifier = config.package2identifier || config['package-2-identifier'] || defaultProps.package2Identifier;
   const package2Type = config.package2type || config['package-2-type'] || defaultProps.package2Type;

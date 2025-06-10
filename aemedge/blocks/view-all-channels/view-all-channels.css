@@ -22,9 +22,7 @@
   color: var(--primary-color, #0078AD);
 }
 
-
-
-/* Channel Content Styles for Modal */
+/* Channel Content Styles */
 .view-all-channels-content {
   width: 100%;
 }
@@ -43,8 +41,8 @@
 
 .channels-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
   padding: 0;
   max-width: 100%;
   justify-items: center;
@@ -69,29 +67,13 @@
   height: 90px;
   object-fit: contain;
   background-color: transparent;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
 }
 
-/* Mobile - starts with 5 icons per row, goes down to 3 */
-@media (width <= 480px) {
-  .channels-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-}
-
-@media (width >= 481px) and (width <= 767px) {
+/* Tablet >= 768px */
+@media (width >= 768px) {
   .channels-grid {
     grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-  }
-}
-
-/* Tablet */
-@media (width >= 768px) and (width <= 1023px) {
-  .channels-grid {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 15px;
+    gap: 12px;
   }
   
   .channels-header h2 {
@@ -99,15 +81,23 @@
   }
 }
 
-/* Desktop */
+/* Desktop >= 1024px */
 @media (width >= 1024px) {
   .channels-grid {
     grid-template-columns: repeat(5, 1fr);
-    gap: 20px;
+    gap: 16px;
   }
   
   .channels-header h2 {
     font-size: 2rem;
+  }
+}
+
+/* Large Desktop >= 1440px */
+@media (width >= 1440px) {
+  .channels-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
   }
 }
 
