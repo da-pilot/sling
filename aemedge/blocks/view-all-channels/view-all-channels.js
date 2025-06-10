@@ -1,4 +1,22 @@
-import { createTag, decodeAmpersand } from '../../scripts/utils.js';
+import { createTag } from '../../scripts/utils.js';
+
+const defaultProps = {
+  id: 'view-all-channels',
+  package1Identifier: 'sling-mss',
+  package1Type: 'base_linear',
+  package1Name: 'Sling Blue',
+  package2Identifier: null,
+  package2Type: null,
+  package2Name: null,
+  showTitle: true,
+};
+
+const CONFIG = {
+  baseURL: 'https://www.slingcommerce.com/graphql',
+  channelLogoBaseURL: '/aemedge/icons/channels/allloblogos/color',
+  cachePrefix: 'sling_package_',
+  cacheExpiry: 30 * 60 * 1000, // 30 minutes
+};
 
 function normalizeConfigKeys(config) {
   const normalized = {};
@@ -17,7 +35,7 @@ function toPropName(name) {
     : '';
 }
 
-async function readBlockConfigForViewAllChannels(block) {
+function readBlockConfigForViewAllChannels(block) {
   const config = {};
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
@@ -48,338 +66,287 @@ async function readBlockConfigForViewAllChannels(block) {
   return config;
 }
 
-export const defaultProps = {
-  id: 'view-all-channels',
-  viewAllChannelsText: 'View All Channels',
-  package1Identifier: 'sling-mss',
-  package1Type: 'base_linear',
-  package1Name: 'Sling Blue',
-  package2Identifier: null,
-  package2Type: null,
-  package2Name: null,
-};
+function getCacheKey(packageIdentifier, packageType) {
+  return `${CONFIG.cachePrefix}${packageIdentifier}_${packageType}`;
+}
 
-class ChannelModal {
-  constructor() {
-    this.baseURL = 'https://www.slingcommerce.com/graphql';
-    this.channelLogoBaseURL = '/aemedge/icons/sling-tv/channels/AllLOBLogos/Color';
+function getCachedData(cacheKey) {
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CONFIG.cacheExpiry) {
+        return data;
+      }
+      localStorage.removeItem(cacheKey);
+    }
+  } catch (error) {
+    // Ignore cache errors and fetch fresh data
+  }
+  return null;
+}
+
+function setCachedData(cacheKey, data) {
+  try {
+    const cacheObject = {
+      data,
+      timestamp: Date.now(),
+      expiry: CONFIG.cacheExpiry,
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheObject));
+  } catch (error) {
+    // Ignore cache errors (storage might be full or disabled)
+  }
+}
+
+async function fetchPackageChannels(packageIdentifier, packageType = 'base_linear') {
+  const cacheKey = getCacheKey(packageIdentifier, packageType);
+  const cachedData = getCachedData(cacheKey);
+
+  if (cachedData) {
+    return cachedData;
   }
 
-  async fetchPackageChannels(packageIdentifier, packageType = 'base_linear') {
-    console.log('🔍 Fetching channels for package:', packageIdentifier);
-
-    // Use the exact working GraphQL query from the live site
-    const query = `
-      query GetPackage($filter: PackageAttributeFilterInput) {
-        packages(filter: $filter) {
-          items {
-            plan {
-              plan_code
-              plan_identifier
-              plan_name
-              __typename
-            }
-            planOffer {
-              plan_offer_identifier
-              discount
-              discount_type
-              plan_offer_name
-              offer_identifier
-              description
-              __typename
-            }
-            package {
+  const query = `
+    query GetPackage($filter: PackageAttributeFilterInput) {
+      packages(filter: $filter) {
+        items {
+          plan {
+            plan_code
+            plan_identifier
+            plan_name
+            __typename
+          }
+          planOffer {
+            plan_offer_identifier
+            discount
+            discount_type
+            plan_offer_name
+            offer_identifier
+            description
+            __typename
+          }
+          package {
+            name
+            base_price
+            sku
+            channels {
+              identifier
+              call_sign
               name
-              base_price
-              sku
-              channels {
-                identifier
-                call_sign
-                name
-                __typename
-              }
-              plan_offer_price
-              canonical_identifier
               __typename
             }
+            plan_offer_price
+            canonical_identifier
             __typename
           }
           __typename
         }
+        __typename
       }
-    `;
+    }
+  `;
 
-    const variables = {
-      filter: {
-        pck_type: { in: [packageType] },
-        is_channel_required: { eq: true },
-        tag: { in: ['us'] },
-        plan_identifier: { eq: 'one-month' },
-        plan_offer_identifier: { eq: 'monthly' },
-        region_id: ['5'],
-      },
-    };
+  const variables = {
+    filter: {
+      pck_type: { in: [packageType] },
+      is_channel_required: { eq: true },
+      tag: { in: ['us'] },
+      plan_identifier: { eq: 'one-month' },
+      plan_offer_identifier: { eq: 'monthly' },
+      region_id: ['5'],
+    },
+  };
 
-    console.log('📤 GraphQL Variables:', JSON.stringify(variables, null, 2));
+  try {
+    const response = await fetch(CONFIG.baseURL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables, operationName: 'GetPackage' }),
+    });
 
-    try {
-      const response = await fetch(this.baseURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables, operationName: 'GetPackage' }),
-      });
-
-      if (!response.ok) {
-        console.error('HTTP Error:', response.status, response.statusText);
-        return null;
-      }
-
-      const data = await response.json();
-      console.log('📥 GraphQL Response received');
-
-      if (data.errors) {
-        console.error('GraphQL Errors:', data.errors);
-        return null;
-      }
-
-      // Handle the correct response structure: data.packages.items.package (array)
-      if (!data.data
-        || !data.data.packages
-        || !data.data.packages.items
-         || !data.data.packages.items.package) {
-        console.error('Unexpected response structure:', data);
-        return null;
-      }
-
-      const allPackages = data.data.packages.items.package;
-      console.log('📦 Available packages:', allPackages.map((pkg) => `${pkg.name} (${pkg.canonical_identifier})`));
-
-      // Find package by canonical_identifier
-      const selectedPackage = allPackages.find(
-        (pkg) => pkg.canonical_identifier === packageIdentifier
-        || (packageIdentifier === 'sling-mss' && pkg.canonical_identifier === 'sling-mss')
-        || (packageIdentifier === 'domestic' && pkg.canonical_identifier === 'domestic')
-        || (packageIdentifier === 'sling-combo' && pkg.canonical_identifier.includes('combo')),
-      );
-
-      if (selectedPackage && selectedPackage.channels) {
-        console.log(
-          '✅ Selected package:',
-          selectedPackage.name,
-          'with',
-          selectedPackage.channels.length,
-          'channels',
-        );
-
-        return {
-          name: selectedPackage.name,
-          channels: selectedPackage.channels.map((channel) => ({
-            call_sign: channel.call_sign,
-            name: channel.name,
-          })),
-        };
-      }
-
-      console.log('❌ No package found for identifier:', packageIdentifier);
-      return null;
-    } catch (error) {
-      console.error('Error fetching package channels:', error);
+    if (!response.ok) {
       return null;
     }
-  }
 
-  createModal(packageData, modalTitle = null) {
-    const modal = document.createElement('div');
-    modal.className = 'channel-modal-overlay';
+    const data = await response.json();
 
-    // Use custom title if provided, otherwise use package name
-    const title = modalTitle || `${packageData.name} Channels`;
-
-    modal.innerHTML = `
-      <div class="channel-modal">
-        <div class="modal-header">
-          <h2>${title}</h2>
-          <button class="close-btn">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="channels-grid">
-            ${packageData.channels.map((channel) => `
-              <div class="channel-item">
-                <img src="${this.channelLogoBaseURL}/${channel.call_sign.toLowerCase()}.svg" 
-                     alt="${channel.name}" 
-                     onerror="this.style.display='none'"
-                     loading="lazy">
-                <span>${channel.name}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Close functionality
-    modal.querySelector('.close-btn').onclick = () => modal.remove();
-    modal.onclick = (e) => {
-      if (e.target === modal) modal.remove();
-    };
-
-    document.body.appendChild(modal);
-  }
-
-  async showChannelsModal(packageIdentifier, packageType, modalTitle = null) {
-    const packageData = await this.fetchPackageChannels(packageIdentifier, packageType);
-    if (packageData && packageData.channels) {
-      this.createModal(packageData, modalTitle);
-    } else {
-      console.error('Unable to load channel information for package:', packageIdentifier);
+    if (data.errors) {
+      return null;
     }
-  }
 
-  async showCombinedChannelsModal(package1Identifier, package1Type, package2Identifier, package2Type, planIdentifier = 'one-month', modalTitle = 'All Channels') {
-    try {
-      // Fetch both packages simultaneously
-      const [package1Data, package2Data] = await Promise.all([
-        this.fetchPackageChannels(package1Identifier, package1Type, planIdentifier),
-        this.fetchPackageChannels(package2Identifier, package2Type, planIdentifier),
-      ]);
-
-      // Combine channels from both packages
-      const channelMap = new Map(); // To avoid duplicates
-
-      // Add channels from package 1
-      if (package1Data && package1Data.channels) {
-        package1Data.channels.forEach((channel) => {
-          channelMap.set(channel.call_sign, channel);
-        });
-      }
-
-      // Add channels from package 2
-      if (package2Data && package2Data.channels) {
-        package2Data.channels.forEach((channel) => {
-          channelMap.set(channel.call_sign, channel);
-        });
-      }
-
-      // Convert map to array and sort alphabetically
-      const combinedChannels = Array.from(channelMap.values())
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      if (combinedChannels.length > 0) {
-        // Create a combined package object
-        const combinedPackageData = {
-          name: 'Combined',
-          channels: combinedChannels,
-        };
-
-        this.createModal(combinedPackageData, modalTitle);
-      } else {
-        console.error('Unable to load channel information for combined packages');
-      }
-    } catch (error) {
-      console.error('Error fetching combined channel data:', error);
+    if (!data.data
+      || !data.data.packages
+      || !data.data.packages.items
+       || !data.data.packages.items.package) {
+      return null;
     }
+
+    const allPackages = data.data.packages.items.package;
+
+    const selectedPackage = allPackages.find(
+      (pkg) => pkg.canonical_identifier === packageIdentifier
+      || (packageIdentifier === 'sling-mss' && pkg.canonical_identifier === 'sling-mss')
+      || (packageIdentifier === 'domestic' && pkg.canonical_identifier === 'domestic')
+      || (packageIdentifier === 'sling-combo' && pkg.canonical_identifier.includes('combo')),
+    );
+
+    if (selectedPackage && selectedPackage.channels) {
+      const result = {
+        name: selectedPackage.name,
+        channels: selectedPackage.channels.map((channel) => ({
+          call_sign: channel.call_sign,
+          name: channel.name,
+        })),
+      };
+
+      setCachedData(cacheKey, result);
+      return result;
+    }
+
+    return null;
+  } catch (error) {
+    return null;
   }
 }
 
-export default async function decorate(block) {
-  let config = await readBlockConfigForViewAllChannels(block);
-  config = normalizeConfigKeys(config);
+async function fetchCombinedChannels(
+  package1Identifier,
+  package1Type,
+  package2Identifier,
+  package2Type,
+) {
+  const [package1Data, package2Data] = await Promise.all([
+    fetchPackageChannels(package1Identifier, package1Type),
+    fetchPackageChannels(package2Identifier, package2Type),
+  ]);
 
-  // Map the config keys to the correct prop names and decode HTML entities
-  const props = {
-    ...defaultProps,
-    id: config.id || defaultProps.id,
-    viewAllChannelsText: decodeAmpersand(config['view-all-channels-text'] || defaultProps.viewAllChannelsText),
-    package1Identifier: config['package-1-identifier'] || defaultProps.package1Identifier,
-    package1Type: config['package-1-type'] || defaultProps.package1Type,
-    package1Name: config['package-1-name'] ? decodeAmpersand(config['package-1-name']) : defaultProps.package1Name,
-    package2Identifier: config['package-2-identifier'] || null,
-    package2Type: config['package-2-type'] || null,
-    package2Name: config['package-2-name'] ? decodeAmpersand(config['package-2-name']) : null,
-    viewAllChannelsTextColor: config['view-all-channels-text-color'] || '#0078AD',
-  };
-
-  // Initialize channel modal
-  const channelModal = new ChannelModal();
-
-  // Create container for the view all channels functionality
-  const container = createTag('div', {
-    class: 'view-all-channels-container',
-  });
-
-  // Check if both packages are configured
-  if (props.package1Identifier && props.package2Identifier) {
-    // Show single link for combined channels
-    const combinedLink = createTag('a', {
-      href: '#',
-      class: 'view-all-channels-link',
-      style: `color: ${props.viewAllChannelsTextColor} !important;`,
-    });
-    combinedLink.textContent = props.viewAllChannelsText;
-
-    combinedLink.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await channelModal.showCombinedChannelsModal(
-        props.package1Identifier,
-        props.package1Type,
-        props.package2Identifier,
-        props.package2Type,
-        'one-month',
-        props.viewAllChannelsText,
-      );
-    });
-
-    container.appendChild(combinedLink);
-  } else if (props.package1Identifier) {
-    // Show link for package 1 only
-    const package1Link = createTag('a', {
-      href: '#',
-      class: 'view-all-channels-link',
-      style: `color: ${props.viewAllChannelsTextColor} !important;`,
-    });
-    package1Link.textContent = props.viewAllChannelsText;
-
-    package1Link.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await channelModal.showChannelsModal(props.package1Identifier, props.package1Type, 'one-month');
-    });
-
-    container.appendChild(package1Link);
-  } else if (props.package2Identifier) {
-    // Show link for package 2 only
-    const package2Link = createTag('a', {
-      href: '#',
-      class: 'view-all-channels-link',
-      style: `color: ${props.viewAllChannelsTextColor} !important;`,
-    });
-    package2Link.textContent = props.viewAllChannelsText;
-
-    package2Link.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await channelModal.showChannelsModal(props.package2Identifier, props.package2Type, 'one-month');
-    });
-
-    container.appendChild(package2Link);
-  } else {
-    // Show default link if no packages are configured
-    const defaultLink = createTag('a', {
-      href: '#',
-      class: 'view-all-channels-link',
-      style: `color: ${props.viewAllChannelsTextColor} !important;`,
-    });
-    defaultLink.textContent = props.viewAllChannelsText;
-
-    defaultLink.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await channelModal.showChannelsModal('sling-mss', 'base_linear', 'one-month');
-    });
-
-    container.appendChild(defaultLink);
+  if (!package1Data && !package2Data) {
+    return null;
   }
 
-  block.appendChild(container);
+  const combinedChannels = [];
+  const channelMap = new Map();
 
-  // Clean up any configuration divs
-  const divsWithoutId = block.querySelectorAll('div:not([class*="view-all-channels"])');
-  divsWithoutId.forEach((div) => div.remove());
+  if (package1Data && package1Data.channels) {
+    package1Data.channels.forEach((channel) => {
+      if (!channelMap.has(channel.call_sign)) {
+        channelMap.set(channel.call_sign, channel);
+        combinedChannels.push(channel);
+      }
+    });
+  }
+
+  if (package2Data && package2Data.channels) {
+    package2Data.channels.forEach((channel) => {
+      if (!channelMap.has(channel.call_sign)) {
+        channelMap.set(channel.call_sign, channel);
+        combinedChannels.push(channel);
+      }
+    });
+  }
+
+  return {
+    name: 'Combined Packages',
+    channels: combinedChannels,
+  };
+}
+
+function renderChannelIcons(container, packageData, showTitle = true) {
+  if (!packageData || !packageData.channels) {
+    container.innerHTML = '<p class="no-channels">No channels available</p>';
+    return;
+  }
+
+  const content = createTag('div', { class: 'view-all-channels-content' });
+
+  if (showTitle) {
+    const header = createTag('div', { class: 'channels-header' });
+    const title = createTag('h2', {}, `${packageData.name} Channels`);
+    header.appendChild(title);
+    content.appendChild(header);
+  }
+
+  const grid = createTag('div', { class: 'channels-grid' });
+
+  packageData.channels.forEach((channel) => {
+    const channelItem = createTag('div', { class: 'channel-item' });
+    const img = createTag('img', {
+      src: `${CONFIG.channelLogoBaseURL}/${channel.call_sign.toLowerCase()}.svg`,
+      alt: channel.name,
+      title: channel.name,
+      loading: 'lazy',
+    });
+
+    // Handle image load errors by hiding the item
+    img.onerror = () => {
+      channelItem.style.display = 'none';
+    };
+
+    channelItem.appendChild(img);
+    grid.appendChild(channelItem);
+  });
+
+  content.appendChild(grid);
+  container.appendChild(content);
+}
+
+export async function getPackageChannels(packageIdentifier, packageType = 'base_linear') {
+  return fetchPackageChannels(packageIdentifier, packageType);
+}
+
+export async function getCombinedPackageChannels(
+  package1Identifier,
+  package1Type,
+  package2Identifier,
+  package2Type,
+) {
+  return fetchCombinedChannels(
+    package1Identifier,
+    package1Type,
+    package2Identifier,
+    package2Type,
+  );
+}
+
+export default async function decorate(block) {
+  const config = normalizeConfigKeys({
+    ...defaultProps,
+    ...readBlockConfigForViewAllChannels(block),
+  });
+
+  const package1Identifier = config.package1identifier || config['package-1-identifier'] || defaultProps.package1Identifier;
+  const package1Type = config.package1type || config['package-1-type'] || defaultProps.package1Type;
+
+  const package2Identifier = config.package2identifier || config['package-2-identifier'] || defaultProps.package2Identifier;
+  const package2Type = config.package2type || config['package-2-type'] || defaultProps.package2Type;
+
+  const showTitle = config.showtitle !== undefined ? config.showtitle !== 'false' : defaultProps.showTitle;
+
+  block.innerHTML = '';
+
+  try {
+    let packageData;
+
+    if (package2Identifier && package2Type) {
+      // Combined packages
+      packageData = await fetchCombinedChannels(
+        package1Identifier,
+        package1Type,
+        package2Identifier,
+        package2Type,
+      );
+    } else if (package1Identifier && package1Type) {
+      // Single package
+      packageData = await fetchPackageChannels(package1Identifier, package1Type);
+    } else {
+      // No packages configured - silent error
+      console.error('View All Channels: Please configure Package 1 Identifier and Package 1 Type');
+      return;
+    }
+
+    renderChannelIcons(block, packageData, showTitle);
+  } catch (error) {
+    console.error('View All Channels: Unable to load channels', error);
+  }
 }
