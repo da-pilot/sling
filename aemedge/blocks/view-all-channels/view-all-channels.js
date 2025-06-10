@@ -66,31 +66,53 @@ function readBlockConfigForViewAllChannels(block) {
 
 async function fetchPackageChannels(packageIdentifier, packageType = 'base_linear') {
   const query = `
-    query GetPackagesWithChannels($filter: PackageAttributeFilterInput) {
+    query GetPackage($filter: PackageAttributeFilterInput) {
       packages(filter: $filter) {
         items {
+          plan {
+            plan_code
+            plan_identifier
+            plan_name
+            __typename
+          }
+          planOffer {
+            plan_offer_identifier
+            discount
+            discount_type
+            plan_offer_name
+            offer_identifier
+            description
+            __typename
+          }
           package {
             name
-            canonical_identifier
+            base_price
             sku
-            package_type
             channels {
               identifier
               call_sign
               name
-              active
+              __typename
             }
+            plan_offer_price
+            canonical_identifier
+            __typename
           }
+          __typename
         }
+        __typename
       }
     }
   `;
 
   const variables = {
     filter: {
-      plan_identifier: { in: ['monthly'] },
-      lob: { in: ['Domestic-live'] },
+      pck_type: { in: [packageType] },
+      is_channel_required: { eq: true },
       tag: { in: ['us'] },
+      plan_identifier: { eq: 'one-month' },
+      plan_offer_identifier: { eq: 'monthly' },
+      region_id: ['5'],
     },
   };
 
@@ -98,7 +120,7 @@ async function fetchPackageChannels(packageIdentifier, packageType = 'base_linea
     const response = await fetch(CONFIG.baseURL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, variables }),
+      body: JSON.stringify({ query, variables, operationName: 'GetPackage' }),
     });
 
     if (!response.ok) {
@@ -111,33 +133,38 @@ async function fetchPackageChannels(packageIdentifier, packageType = 'base_linea
       return null;
     }
 
-    if (!data.data || !data.data.packages || !data.data.packages.items) {
+    if (!data.data
+        || !data.data.packages
+        || !data.data.packages.items
+        || !data.data.packages.items.package) {
       return null;
     }
 
-    const packageItems = data.data.packages.items;
+    const allPackages = data.data.packages.items.package;
 
-    // Find matching package using reference logic
-    const matchedItem = packageItems.find((item) => {
-      const pkg = item.package;
-      const identifier = pkg.canonical_identifier || pkg.sku;
+    // Find matching package with improved logic
+    const selectedPackage = allPackages.find((pkg) => {
+      const identifier = pkg.canonical_identifier;
 
-      return identifier === packageIdentifier && pkg.package_type === packageType;
+      // Exact match first
+      if (identifier === packageIdentifier) return true;
+
+      // Handle specific known mappings
+      if (packageIdentifier === 'sling-mss' && identifier === 'sling-mss') return true;
+      if (packageIdentifier === 'sports-extra-mss-2' && identifier === 'sports-extra') return true;
+      if (packageIdentifier === 'sling-combo' && (identifier === 'sling-combo' || identifier.includes('combo'))) return true;
+
+      return false;
     });
 
-    if (matchedItem && matchedItem.package.channels) {
-      const pkg = matchedItem.package;
-
-      // Filter active channels and map to expected format
-      const channels = pkg.channels
-        .filter((channel) => channel.active !== false)
-        .map((channel) => ({
-          call_sign: channel.call_sign,
-          name: channel.name,
-        }));
+    if (selectedPackage && selectedPackage.channels) {
+      const channels = selectedPackage.channels.map((channel) => ({
+        call_sign: channel.call_sign,
+        name: channel.name,
+      }));
 
       return {
-        name: pkg.name,
+        name: selectedPackage.name,
         channels,
       };
     }
