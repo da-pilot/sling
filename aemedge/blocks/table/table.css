@@ -122,74 +122,29 @@
 }
 
 /* Full column-align (left, center, right) styles for up to 6 columns */
-.column-left-1 tr:not(.single-column-row) > *:first-child {
-  text-align: left;
-}
-
-.column-left-2 table tr > *:nth-child(2) {
-  text-align: left;
-}
-
-.column-left-3 table tr > *:nth-child(3) {
-  text-align: left;
-}
-
-.column-left-4 table tr > *:nth-child(4) {
-  text-align: left;
-}
-
-.column-left-5 table tr > *:nth-child(5) {
-  text-align: left;
-}
-
+.column-left-1 tr:not(.single-column-row) > *:first-child, 
+.column-left-2 table tr > *:nth-child(2), 
+.column-left-3 table tr > *:nth-child(3), 
+.column-left-4 table tr > *:nth-child(4), 
+.column-left-5 table tr > *:nth-child(5), 
 .column-left-6 table tr > *:nth-child(6) {
   text-align: left;
 }
 
-.column-center-1 tr:not(.single-column-row) > *:first-child {
-  text-align: center;
-}
-
-.column-center-2 table tr > *:nth-child(2) {
-  text-align: center;
-}
-
-.column-center-3 table tr > *:nth-child(3) {
-  text-align: center;
-}
-
-.column-center-4 table tr > *:nth-child(4) {
-  text-align: center;
-}
-
-.column-center-5 table tr > *:nth-child(5) {
-  text-align: center;
-}
-
+.column-center-1 tr:not(.single-column-row) > *:first-child, 
+.column-center-2 table tr > *:nth-child(2), 
+.column-center-3 table tr > *:nth-child(3), 
+.column-center-4 table tr > *:nth-child(4), 
+.column-center-5 table tr > *:nth-child(5), 
 .column-center-6 table tr > *:nth-child(6) {
   text-align: center;
 }
 
-.column-right-1 tr:not(.single-column-row) > *:first-child {
-  text-align: right;
-}
-
-.column-right-2 table tr > *:nth-child(2) {
-  text-align: right;
-}
-
-.column-right-3 table tr > *:nth-child(3) {
-  text-align: right;
-}
-
-.column-right-4 table tr > *:nth-child(4) {
-  text-align: right;
-}
-
-.column-right-5 table tr > *:nth-child(5) {
-  text-align: right;
-}
-
+.column-right-1 tr:not(.single-column-row) > *:first-child, 
+.column-right-2 table tr > *:nth-child(2), 
+.column-right-3 table tr > *:nth-child(3), 
+.column-right-4 table tr > *:nth-child(4), 
+.column-right-5 table tr > *:nth-child(5), 
 .column-right-6 table tr > *:nth-child(6) {
   text-align: right;
 }
