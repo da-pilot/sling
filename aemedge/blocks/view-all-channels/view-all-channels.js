@@ -65,38 +65,15 @@ async function fetchPackageChannels(packageIdentifier, packageType = 'base_linea
     query GetPackage($filter: PackageAttributeFilterInput) {
       packages(filter: $filter) {
         items {
-          plan {
-            plan_code
-            plan_identifier
-            plan_name
-            __typename
-          }
-          planOffer {
-            plan_offer_identifier
-            discount
-            discount_type
-            plan_offer_name
-            offer_identifier
-            description
-            __typename
-          }
           package {
             name
-            base_price
-            sku
+            canonical_identifier
             channels {
-              identifier
               call_sign
               name
-              __typename
             }
-            plan_offer_price
-            canonical_identifier
-            __typename
           }
-          __typename
         }
-        __typename
       }
     }
   `;
