@@ -2,13 +2,9 @@ import { createTag } from '../../scripts/utils.js';
 
 const defaultProps = {
   id: 'view-all-channels',
-  package1Identifier: 'sling-mss',
-  package1Type: 'base_linear',
-  package1Name: 'Sling Blue',
   package2Identifier: null,
   package2Type: null,
   package2Name: null,
-  showTitle: true,
 };
 
 const CONFIG = {
@@ -224,22 +220,13 @@ async function fetchCombinedChannels(
   };
 }
 
-function renderChannelIcons(container, packageData, showTitle = true, customTitle = null) {
+function renderChannelIcons(container, packageData) {
   if (!packageData || !packageData.channels) {
     container.innerHTML = '<p class="no-channels">No channels available</p>';
     return;
   }
 
   const content = createTag('div', { class: 'view-all-channels-content' });
-
-  if (showTitle) {
-    const header = createTag('div', { class: 'channels-header' });
-    const titleText = customTitle || packageData.name;
-    const title = createTag('h2', {}, `${titleText} Channels`);
-    header.appendChild(title);
-    content.appendChild(header);
-  }
-
   const grid = createTag('div', { class: 'channels-grid' });
 
   packageData.channels.forEach((channel) => {
@@ -290,12 +277,9 @@ export default async function decorate(block) {
 
   const package1Identifier = config.package1identifier || config['package-1-identifier'] || defaultProps.package1Identifier;
   const package1Type = config.package1type || config['package-1-type'] || defaultProps.package1Type;
-  const package1Name = config.package1name || config['package-1-name'] || config.packagename || defaultProps.package1Name;
 
   const package2Identifier = config.package2identifier || config['package-2-identifier'] || defaultProps.package2Identifier;
   const package2Type = config.package2type || config['package-2-type'] || defaultProps.package2Type;
-
-  const showTitle = config.showtitle !== undefined ? config.showtitle !== 'false' : defaultProps.showTitle;
 
   block.innerHTML = '';
 
@@ -310,12 +294,11 @@ export default async function decorate(block) {
         package2Identifier,
         package2Type,
       );
-      // For combined packages, use a generic title or package1 name
-      renderChannelIcons(block, packageData, showTitle, package1Name);
+      renderChannelIcons(block, packageData);
     } else if (package1Identifier && package1Type) {
       // Single package
       packageData = await fetchPackageChannels(package1Identifier, package1Type);
-      renderChannelIcons(block, packageData, showTitle, package1Name);
+      renderChannelIcons(block, packageData);
     }
   } catch (error) {
     // Silent error handling
