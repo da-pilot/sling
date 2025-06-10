@@ -74,10 +74,10 @@
       margin-left: auto;
       margin-right: auto;
 
-     > .button-container {
-       margin-left: 12px;
-       margin-right: 12px;
-     }
+      > .button-container {
+        margin-left: 12px;
+        margin-right: 12px;
+      }
     }
 
   &.bg-white, &.bg-primary-light, &.bg-mac-and-cheese, &.bg-pearl {
@@ -100,25 +100,53 @@
   width: 100%;
   overflow-x: auto;
 
-table {
-  width: 100%;
-  max-width: 100%;
-  border-collapse: collapse;
-  font-size: var(--body-font-size-xs);
+  table {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-font-size-xs);
 
-  th, td {
-    padding: 0 6px;
-  }
+    th, td {
+      padding: 0 6px;
+    }
 
-  thead tr {
-    border-top: 2px solid;
-    border-bottom: 2px solid;
-  }
+    thead tr {
+      border-top: 2px solid;
+      border-bottom: 2px solid;
+    }
 
-  td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
-    text-align: center;
+    td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
+      text-align: center;
+    }
   }
- }
+}
+
+/* Full column-align (left, center, right) styles for up to 6 columns */
+.column-left-1 tr:not(.single-column-row) > *:first-child, 
+.column-left-2 table tr > *:nth-child(2), 
+.column-left-3 table tr > *:nth-child(3), 
+.column-left-4 table tr > *:nth-child(4), 
+.column-left-5 table tr > *:nth-child(5), 
+.column-left-6 table tr > *:nth-child(6) {
+  text-align: left;
+}
+
+.column-center-1 tr:not(.single-column-row) > *:first-child, 
+.column-center-2 table tr > *:nth-child(2), 
+.column-center-3 table tr > *:nth-child(3), 
+.column-center-4 table tr > *:nth-child(4), 
+.column-center-5 table tr > *:nth-child(5), 
+.column-center-6 table tr > *:nth-child(6) {
+  text-align: center;
+}
+
+.column-right-1 tr:not(.single-column-row) > *:first-child, 
+.column-right-2 table tr > *:nth-child(2), 
+.column-right-3 table tr > *:nth-child(3), 
+.column-right-4 table tr > *:nth-child(4), 
+.column-right-5 table tr > *:nth-child(5), 
+.column-right-6 table tr > *:nth-child(6) {
+  text-align: right;
 }
 
 /* bordered variant */
@@ -126,7 +154,6 @@ table {
 .table.bordered table td { /* stylelint-disable-line */
   border: 1px solid;
 }
-
 
 .table:not(.playoffs, .schedule) table tbody tr {
   border-bottom: 1px solid;
@@ -152,7 +179,6 @@ table {
   background-color: var(--dark-rock-candy);
   border-color: var(--dark-rock-candy);
   color: var(--clr-white);
-
 }
 
 /* striped variant */
@@ -178,7 +204,6 @@ table {
 
 .playoffs.table table .single-column-row.lightgrey td, .schedule.table table .single-column-row.lightgrey td {
   background-color: var(--dark-color);
-
 }
 
 .schedule.table p,
