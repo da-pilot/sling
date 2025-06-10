@@ -14,8 +14,6 @@ const defaultProps = {
 const CONFIG = {
   baseURL: 'https://www.slingcommerce.com/graphql',
   channelLogoBaseURL: '/aemedge/icons/application-assets/shared/web/logos/black',
-  cachePrefix: 'sling_package_',
-  cacheExpiry: 5 * 60 * 1000, // 5 minutes
 };
 
 function normalizeConfigKeys(config) {
@@ -66,95 +64,33 @@ function readBlockConfigForViewAllChannels(block) {
   return config;
 }
 
-function getCacheKey(packageIdentifier, packageType) {
-  return `${CONFIG.cachePrefix}${packageIdentifier}_${packageType}`;
-}
-
-function getCachedData(cacheKey) {
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < CONFIG.cacheExpiry) {
-        return data;
-      }
-      localStorage.removeItem(cacheKey);
-    }
-  } catch (error) {
-    // Ignore cache errors and fetch fresh data
-  }
-  return null;
-}
-
-function setCachedData(cacheKey, data) {
-  try {
-    const cacheObject = {
-      data,
-      timestamp: Date.now(),
-      expiry: CONFIG.cacheExpiry,
-    };
-    localStorage.setItem(cacheKey, JSON.stringify(cacheObject));
-  } catch (error) {
-    // Ignore cache errors (storage might be full or disabled)
-  }
-}
-
 async function fetchPackageChannels(packageIdentifier, packageType = 'base_linear') {
-  const cacheKey = getCacheKey(packageIdentifier, packageType);
-  const cachedData = getCachedData(cacheKey);
-
-  if (cachedData) {
-    return cachedData;
-  }
-
   const query = `
-    query GetPackage($filter: PackageAttributeFilterInput) {
+    query GetPackagesWithChannels($filter: PackageAttributeFilterInput) {
       packages(filter: $filter) {
         items {
-          plan {
-            plan_code
-            plan_identifier
-            plan_name
-            __typename
-          }
-          planOffer {
-            plan_offer_identifier
-            discount
-            discount_type
-            plan_offer_name
-            offer_identifier
-            description
-            __typename
-          }
           package {
             name
-            base_price
+            canonical_identifier
             sku
+            package_type
             channels {
               identifier
               call_sign
               name
-              __typename
+              active
             }
-            plan_offer_price
-            canonical_identifier
-            __typename
           }
-          __typename
         }
-        __typename
       }
     }
   `;
 
   const variables = {
     filter: {
-      pck_type: { in: [packageType] },
-      is_channel_required: { eq: true },
+      plan_identifier: { in: ['monthly'] },
+      lob: { in: ['Domestic-live'] },
       tag: { in: ['us'] },
-      plan_identifier: { eq: 'one-month' },
-      plan_offer_identifier: { eq: 'monthly' },
-      region_id: ['5'],
     },
   };
 
@@ -162,7 +98,7 @@ async function fetchPackageChannels(packageIdentifier, packageType = 'base_linea
     const response = await fetch(CONFIG.baseURL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, variables, operationName: 'GetPackage' }),
+      body: JSON.stringify({ query, variables }),
     });
 
     if (!response.ok) {
@@ -175,33 +111,35 @@ async function fetchPackageChannels(packageIdentifier, packageType = 'base_linea
       return null;
     }
 
-    if (!data.data
-      || !data.data.packages
-      || !data.data.packages.items
-       || !data.data.packages.items.package) {
+    if (!data.data || !data.data.packages || !data.data.packages.items) {
       return null;
     }
 
-    const allPackages = data.data.packages.items.package;
+    const packageItems = data.data.packages.items;
 
-    const selectedPackage = allPackages.find(
-      (pkg) => pkg.canonical_identifier === packageIdentifier
-      || (packageIdentifier === 'sling-mss' && pkg.canonical_identifier === 'sling-mss')
-      || (packageIdentifier === 'domestic' && pkg.canonical_identifier === 'domestic')
-      || (packageIdentifier === 'sling-combo' && pkg.canonical_identifier.includes('combo')),
-    );
+    // Find matching package using reference logic
+    const matchedItem = packageItems.find((item) => {
+      const pkg = item.package;
+      const identifier = pkg.canonical_identifier || pkg.sku;
 
-    if (selectedPackage && selectedPackage.channels) {
-      const result = {
-        name: selectedPackage.name,
-        channels: selectedPackage.channels.map((channel) => ({
+      return identifier === packageIdentifier && pkg.package_type === packageType;
+    });
+
+    if (matchedItem && matchedItem.package.channels) {
+      const pkg = matchedItem.package;
+
+      // Filter active channels and map to expected format
+      const channels = pkg.channels
+        .filter((channel) => channel.active !== false)
+        .map((channel) => ({
           call_sign: channel.call_sign,
           name: channel.name,
-        })),
-      };
+        }));
 
-      setCachedData(cacheKey, result);
-      return result;
+      return {
+        name: pkg.name,
+        channels,
+      };
     }
 
     return null;
@@ -228,6 +166,7 @@ async function fetchCombinedChannels(
   const combinedChannels = [];
   const channelMap = new Map();
 
+  // Add channels from package 1
   if (package1Data && package1Data.channels) {
     package1Data.channels.forEach((channel) => {
       if (!channelMap.has(channel.call_sign)) {
@@ -237,6 +176,7 @@ async function fetchCombinedChannels(
     });
   }
 
+  // Add channels from package 2 (avoiding duplicates)
   if (package2Data && package2Data.channels) {
     package2Data.channels.forEach((channel) => {
       if (!channelMap.has(channel.call_sign)) {
@@ -246,8 +186,13 @@ async function fetchCombinedChannels(
     });
   }
 
+  const packageNames = [
+    package1Data?.name,
+    package2Data?.name,
+  ].filter(Boolean).join(' + ');
+
   return {
-    name: 'Combined Packages',
+    name: packageNames,
     channels: combinedChannels,
   };
 }
@@ -344,11 +289,8 @@ export default async function decorate(block) {
       // Single package
       packageData = await fetchPackageChannels(package1Identifier, package1Type);
       renderChannelIcons(block, packageData, showTitle, package1Name);
-    } else {
-      // No packages configured - silent error
-      console.error('View All Channels: Please configure Package 1 Identifier and Package 1 Type');
     }
   } catch (error) {
-    console.error('View All Channels: Unable to load channels', error);
+    // Silent error handling
   }
 }
