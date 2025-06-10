@@ -252,7 +252,7 @@ li {
 
   &.size-m {
     font-size: 1.125rem;
-    line-height: 1.125rem;
+    line-height: 1.85rem;
     font-weight: 400;
   }
 
@@ -1069,7 +1069,7 @@ margin-bottom:10px;
   order: 1;
 }
 
-[data-theme="white-text"] {
+.white-text,[data-theme="white-text"] {
     background: var(--clr-black);
 
     h1, h2, h3, h4, h5, h6, p, li, a {

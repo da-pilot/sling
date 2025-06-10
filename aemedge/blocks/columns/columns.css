@@ -324,10 +324,6 @@
     justify-content: center;
   }
 
-  .rewards .rewards-column {
-    color: #f5f5f6;
-  }
-
   .rewards .section.rewards-column.columns-container .default-content-wrapper {
     text-align: center;
   }
@@ -531,14 +527,7 @@
   }
 
   @media (width >=992px) {
-    .columns {
-      line-height: 30px;
-      max-width: 1168px;
-      margin: 0 auto;
-    }
-
-    .rewards .section.rewards-column.columns-container .columns-wrapper .columns {
-      line-height: 30px;
+.columns, .rewards .section.rewards-column.columns-container .columns-wrapper .columns {
       max-width: 1168px;
       margin: 0 auto;
     }
