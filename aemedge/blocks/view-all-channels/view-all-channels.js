@@ -13,9 +13,9 @@ const defaultProps = {
 
 const CONFIG = {
   baseURL: 'https://www.slingcommerce.com/graphql',
-  channelLogoBaseURL: '/aemedge/icons/channels/allloblogos/color',
+  channelLogoBaseURL: '/aemedge/icons/application-assets/shared/web/logos/black',
   cachePrefix: 'sling_package_',
-  cacheExpiry: 30 * 60 * 1000, // 30 minutes
+  cacheExpiry: 5 * 60 * 1000, // 5 minutes
 };
 
 function normalizeConfigKeys(config) {
@@ -252,7 +252,7 @@ async function fetchCombinedChannels(
   };
 }
 
-function renderChannelIcons(container, packageData, showTitle = true) {
+function renderChannelIcons(container, packageData, showTitle = true, customTitle = null) {
   if (!packageData || !packageData.channels) {
     container.innerHTML = '<p class="no-channels">No channels available</p>';
     return;
@@ -262,7 +262,8 @@ function renderChannelIcons(container, packageData, showTitle = true) {
 
   if (showTitle) {
     const header = createTag('div', { class: 'channels-header' });
-    const title = createTag('h2', {}, `${packageData.name} Channels`);
+    const titleText = customTitle || packageData.name;
+    const title = createTag('h2', {}, `${titleText} Channels`);
     header.appendChild(title);
     content.appendChild(header);
   }
@@ -317,6 +318,7 @@ export default async function decorate(block) {
 
   const package1Identifier = config.package1identifier || config['package-1-identifier'] || defaultProps.package1Identifier;
   const package1Type = config.package1type || config['package-1-type'] || defaultProps.package1Type;
+  const package1Name = config.package1name || config['package-1-name'] || defaultProps.package1Name;
 
   const package2Identifier = config.package2identifier || config['package-2-identifier'] || defaultProps.package2Identifier;
   const package2Type = config.package2type || config['package-2-type'] || defaultProps.package2Type;
@@ -336,16 +338,16 @@ export default async function decorate(block) {
         package2Identifier,
         package2Type,
       );
+      // For combined packages, use a generic title or package1 name
+      renderChannelIcons(block, packageData, showTitle, package1Name);
     } else if (package1Identifier && package1Type) {
       // Single package
       packageData = await fetchPackageChannels(package1Identifier, package1Type);
+      renderChannelIcons(block, packageData, showTitle, package1Name);
     } else {
       // No packages configured - silent error
       console.error('View All Channels: Please configure Package 1 Identifier and Package 1 Type');
-      return;
     }
-
-    renderChannelIcons(block, packageData, showTitle);
   } catch (error) {
     console.error('View All Channels: Unable to load channels', error);
   }
