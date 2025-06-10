@@ -143,7 +143,10 @@ class ChannelModal {
       }
 
       // Handle the correct response structure: data.packages.items.package (array)
-      if (!data.data || !data.data.packages || !data.data.packages.items || !data.data.packages.items.package) {
+      if (!data.data
+        || !data.data.packages
+        || !data.data.packages.items
+         || !data.data.packages.items.package) {
         console.error('Unexpected response structure:', data);
         return null;
       }
@@ -152,10 +155,12 @@ class ChannelModal {
       console.log('📦 Available packages:', allPackages.map((pkg) => `${pkg.name} (${pkg.canonical_identifier})`));
 
       // Find package by canonical_identifier
-      const selectedPackage = allPackages.find((pkg) => pkg.canonical_identifier === packageIdentifier
+      const selectedPackage = allPackages.find(
+        (pkg) => pkg.canonical_identifier === packageIdentifier
         || (packageIdentifier === 'sling-mss' && pkg.canonical_identifier === 'sling-mss')
         || (packageIdentifier === 'domestic' && pkg.canonical_identifier === 'domestic')
-        || (packageIdentifier === 'sling-combo' && pkg.canonical_identifier.includes('combo')));
+        || (packageIdentifier === 'sling-combo' && pkg.canonical_identifier.includes('combo')),
+      );
 
       if (selectedPackage && selectedPackage.channels) {
         console.log(
