@@ -163,6 +163,7 @@ export default async function decorate(block) {
     disablePwdEyeIcon: await normalizeConfigValue(config['disable-pwd-eye-icon'], false, 'disable-pwd-eye-icon'),
     focusEmail: await normalizeConfigValue(config['focus-email'], false, 'focus-email'),
     heading: await normalizeConfigValue(config.heading, '', 'heading'),
+    emailPlaceholder: 'username@domain.com',
   };
 
   // Render heading if present
@@ -185,6 +186,27 @@ export default async function decorate(block) {
   const observer = new IntersectionObserver(async (entries, obs) => {
     if (entries.some((entry) => entry.isIntersecting)) {
       await loadScript('../../../aemedge/scripts/sling-react/account-form-build.js', {}, container);
+
+      // Ensure email placeholder is set correctly after React component loads
+      setTimeout(() => {
+        const emailInput = container.querySelector('input[name="email"]');
+        if (emailInput) {
+          emailInput.placeholder = props.emailPlaceholder;
+        }
+
+        // Also set the placeholder value on the email label
+        const emailLabel = container.querySelector('label[data-test-id*="email-field-text-field-label"]');
+        if (emailLabel) {
+          emailLabel.setAttribute('placeholder', props.emailPlaceholder);
+
+          // Copy classes from zip field label to email label
+          const zipLabel = container.querySelector('label[data-test-id*="zip-field-text-field-label"]');
+          if (zipLabel) {
+            emailLabel.className = zipLabel.className;
+          }
+        }
+      }, 100);
+
       obs.unobserve(container);
     }
   }, options);

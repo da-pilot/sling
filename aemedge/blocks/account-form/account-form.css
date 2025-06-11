@@ -4,42 +4,99 @@
   display: none;
 }
 
+/* Continue Button */
 #account-form-app a[data-test-id$="button-button"],
 #account-form-app button[data-test-id$="button-button"] {
-    position: relative;
-    display: inline-flex;
-    -webkit-box-pack: center;
-    justify-content: center;
-    box-sizing: border-box;
-    font-size: 18px;
-    padding: 0.938rem 1.2rem;
-    font-weight: 800;
-    text-align: center;
-    letter-spacing: 0;
-    background: linear-gradient(108.93deg, rgb(0 114 236) 37.23%, rgb(0 185 255) 112.13%);
-    border: none;
-    border-radius: 1600px;
-    opacity: 1;
-    min-width: unset;
-    width: unset;
-    height: unset;
-    color: rgb(245 245 246);
-    box-shadow: none;
-    cursor: pointer;
-    transition: background 0.2s;
+  position: relative;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 0.938rem 1.2rem;
+  text-align: center;
+  letter-spacing: 0;
+  background: linear-gradient(108.93deg, rgb(0 114 236) 37.23%, rgb(0 185 255) 112.13%);
+  border: none;
+  border-radius: 50px;
+  opacity: 1;
+  min-width: unset;
+  width: 100%;
+  height: auto;
+  color: white;
+  box-shadow: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+#account-form-app a[data-test-id$="button-button"]:disabled,
+#account-form-app button[data-test-id$="button-button"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 #account-form-app a[data-test-id$="button-button"]:hover:enabled,
 #account-form-app button[data-test-id$="button-button"]:hover:enabled {
   outline: none;
-  box-shadow: rgb(7 7 11 / 40%) 0 24px 57px 0;
-  opacity: 1;
-  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgb(0 114 236 / 30%);
+  transform: translateY(-2px);
   cursor: pointer;
+}
+
+#account-form-app button[data-test-id$="button-button"] > span {
+  padding: 5px;
+}
+
+
+#account-form-app form input[name="email"] {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+#account-form-app form label[data-test-id*="email-field-text-field-label"] {
+  position: absolute;
+    color: rgb(23 23 37);
+    opacity: 1;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: left;
+    left: calc(2px + 0.75rem);
+    top: 0.75rem;
+    transform: none;
+    transition: 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 15px);
+}
+
+#account-form-app form input[name="zip"] {
+  font-size: 16px;
+}
+
+#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-email-field-text-field-error"] ,
+#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-password-field-text-field-error"] {
+  font-size: 0.875rem;
 }
 
 .account-form-heading {
   text-align: center;
   margin-bottom: 1.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
 }
+
+/* Password Field Helper Text */
+#account-form-app div[data-test-id*="password-field-text-field-helper-text"] {
+  font-size: 0.875rem;
+}
+
+
 
