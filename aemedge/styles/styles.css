@@ -1048,6 +1048,12 @@ margin-bottom:10px;
 }
 }
 
+.section.columns-2.account-form-container, .section.package-cards-container {
+  background:unset;
+  box-shadow: unset;
+  padding:unset;
+}
+
 .section.marquee-container, .section.banner-image-container {
   margin:0;
   padding:0;
