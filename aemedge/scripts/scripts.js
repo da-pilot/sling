@@ -560,6 +560,10 @@ export function extractStyleVariables() {
           const percentWidth = numberMatches[1];
           up.style.maxWidth = `${percentWidth}%`;
         }
+        if (alignMatches) {
+          const align = alignMatches[1];
+          up.classList.add(`align-${align}`);
+        }
         if (valignMatches) {
           const valign = valignMatches[1];
           up.classList.add(`valign-${valign}`);

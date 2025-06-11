@@ -115,10 +115,10 @@
       border-bottom: 2px solid;
     }
 
-    td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
-      text-align: center;
-    }
+  td:not([data-align="right"], [data-align="left"], [data-align="justify"], .align-right, .align-left) {
+    text-align: center;
   }
+ }
 }
 
 /* Full column-align (left, center, right) styles for up to 6 columns */
