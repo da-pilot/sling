@@ -80,7 +80,8 @@
   font-size: 16px;
 }
 
-#account-form-app form div[data-test-id="*-field-error"] {
+#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-email-field-text-field-error"] ,
+#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-password-field-text-field-error"] {
   font-size: 0.875rem;
 }
 
