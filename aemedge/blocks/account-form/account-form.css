@@ -80,7 +80,10 @@
   font-size: 16px;
 }
 
-/* Form Heading */
+#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-email-field-text-field-error"] {
+  font-size: 0.875rem;
+}
+
 .account-form-heading {
   text-align: center;
   margin-bottom: 1.5rem;
