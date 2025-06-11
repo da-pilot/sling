@@ -402,6 +402,11 @@ picture {
   text-align: center;
     background-position-x: center;
 
+    .banner-content .text-cta-container .buttons-container, 
+    .marquee-content .text-cta-container .buttons-container {
+      width: auto;
+    }
+
     .button-container.combined {
         margin-left: auto !important;
         margin-right: auto !important;
