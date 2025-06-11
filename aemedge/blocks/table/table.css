@@ -115,7 +115,7 @@ table {
     border-bottom: 2px solid;
   }
 
-  td:not([data-align="right"], [data-align="justify"], [data-align="justify"]) {
+  td:not([data-align="right"], [data-align="left"], [data-align="justify"], .align-right, .align-left) {
     text-align: center;
   }
  }
