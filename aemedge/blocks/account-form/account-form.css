@@ -58,6 +58,24 @@
   font-weight: 400;
 }
 
+#account-form-app form label[data-test-id*="email-field-text-field-label"] {
+  position: absolute;
+    color: rgb(23 23 37);
+    opacity: 1;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: left;
+    left: calc(2px + 0.75rem);
+    top: 0.75rem;
+    transform: none;
+    transition: 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 15px);
+}
+
 #account-form-app form input[name="zip"] {
   font-size: 16px;
 }
