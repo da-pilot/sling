@@ -52,11 +52,16 @@
   padding: 5px;
 }
 
-
 #account-form-app form input[name="email"] {
+  font-weight: 400;
+}
+
+#account-form-app form input[name="email"]:placeholder-shown {
   font-size: 16px;
   font-weight: 400;
 }
+
+
 
 #account-form-app form label[data-test-id*="email-field-text-field-label"] {
   position: absolute;
@@ -81,7 +86,8 @@
 }
 
 #account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-email-field-text-field-error"] ,
-#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-password-field-text-field-error"] {
+#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-password-field-text-field-error"],
+#account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-zip-field-text-field-error"] {
   font-size: 0.875rem;
 }
 
