@@ -760,7 +760,7 @@ function decorateLinkedImages() {
 }
 
 /**
- * Updates the appName in Adobe Data Layer from 'aem-marketing-site' to 'eds-marketing-site'
+ * Updates the appName in Adobe Data Layer by appending 'eds' if not already present
  * @param {number} timeoutMs - Maximum time to wait for data layer (default: 1000ms)
  * @param {number} pollIntervalMs - How often to check for data layer (default: 100ms)
  * @param {boolean} setupListener - Whether to set up ongoing listener for new entries
@@ -781,19 +781,20 @@ async function updateDataLayerAppName(
           // eslint-disable-next-line no-underscore-dangle
           const slingData = item.web.webPageDetails._sling;
           if (slingData?.appName) {
-            // Check if it's one of the old values that need updating
-            if (slingData.appName === 'aem-marketing-site' || slingData.appName === 'modal-analytics') {
-              slingData.appName = 'eds-marketing-site';
+            const currentAppName = slingData.appName;
+
+            // Only update if 'eds' is not already in the appName
+            if (!currentAppName.includes('eds')) {
+              // Append 'eds-' as prefix to maintain consistency
+              slingData.appName = `eds-${currentAppName}`;
               updated = true;
+
+              // eslint-disable-next-line no-console
+              console.log(`[EDS] Updated appName: "${currentAppName}" → "${slingData.appName}"`);
             }
           }
         }
       });
-
-      if (updated) {
-        // eslint-disable-next-line no-console
-        console.log('[EDS] Adobe Data Layer appName updated to eds-marketing-site');
-      }
 
       return { found: true, updated };
     }
