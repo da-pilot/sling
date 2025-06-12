@@ -136,7 +136,7 @@ function buildAuthUrl(configValue, fallbackUrl) {
 
   if (configValue && configValue.trim() !== '') {
     if (useAbsolute) {
-      return `https://authorization-gateway.p.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
+      return `https://webapi.p.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
     }
     return configValue;
   }
