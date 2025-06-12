@@ -761,11 +761,16 @@ function decorateLinkedImages() {
 
 /**
  * Updates the appName in Adobe Data Layer from 'aem-marketing-site' to 'eds-marketing-site'
- * @param {number} timeoutMs - Maximum time to wait for data layer (default: 10000ms)
+ * @param {number} timeoutMs - Maximum time to wait for data layer (default: 1000ms)
  * @param {number} pollIntervalMs - How often to check for data layer (default: 100ms)
+ * @param {boolean} setupListener - Whether to set up ongoing listener for new entries
  * @returns {Promise<boolean>} - Promise that resolves to true if update was successful
  */
-async function updateDataLayerAppName(timeoutMs = 1000, pollIntervalMs = 100) {
+async function updateDataLayerAppName(
+  timeoutMs = 1000,
+  pollIntervalMs = 100,
+  setupListener = true,
+) {
   const checkAndUpdate = () => {
     if (window.adobeDataLayer && Array.isArray(window.adobeDataLayer)) {
       let updated = false;
@@ -795,9 +800,38 @@ async function updateDataLayerAppName(timeoutMs = 1000, pollIntervalMs = 100) {
     return { found: false, updated: false };
   };
 
+  // Set up ongoing listener for data layer changes if requested
+  const setupDataLayerListener = () => {
+    if (window.adobeDataLayer) {
+      const listenerFlag = '_edsListenerSetup';
+      if (!window.adobeDataLayer[listenerFlag]) {
+        window.adobeDataLayer[listenerFlag] = true;
+
+        // Listen for data layer changes
+        window.adobeDataLayer.addEventListener('adobeDataLayer:change', () => {
+          // Small delay to ensure the change is fully processed
+          setTimeout(() => {
+            checkAndUpdate();
+          }, 50);
+        });
+
+        // Also set up periodic checks for new entries (every 5 seconds)
+        setInterval(() => {
+          checkAndUpdate();
+        }, 5000);
+
+        // eslint-disable-next-line no-console
+        console.log('[EDS] Adobe Data Layer listener established for ongoing appName updates');
+      }
+    }
+  };
+
   // Try immediately first
   const immediateResult = checkAndUpdate();
   if (immediateResult.found) {
+    if (setupListener) {
+      setupDataLayerListener();
+    }
     return immediateResult.updated;
   }
 
@@ -810,6 +844,9 @@ async function updateDataLayerAppName(timeoutMs = 1000, pollIntervalMs = 100) {
 
       if (result.found) {
         clearInterval(pollInterval);
+        if (setupListener) {
+          setupDataLayerListener();
+        }
         resolve(result.updated);
         return;
       }
@@ -818,7 +855,7 @@ async function updateDataLayerAppName(timeoutMs = 1000, pollIntervalMs = 100) {
       if (Date.now() - startTime >= timeoutMs) {
         clearInterval(pollInterval);
         // eslint-disable-next-line no-console
-        console.warn('Adobe Data Layer appName update timed out after', timeoutMs, 'ms');
+        console.warn('[EDS] Adobe Data Layer appName update timed out after', timeoutMs, 'ms');
         resolve(false);
       }
     }, pollIntervalMs);
@@ -921,7 +958,6 @@ async function loadEager(doc) {
   configSideKick();
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager();
-  updateDataLayerAppName();
 }
 
 /**
