@@ -1,8 +1,13 @@
 /* Account Form Block Styles */
+.account-form.block {
+  font-family: var(--body-font-family);
+}
 
 .account-form.block > div:not([id]) p {
   display: none;
 }
+
+
 
 /* Continue Button */
 #account-form-app a[data-test-id$="button-button"],
@@ -48,23 +53,20 @@
   cursor: pointer;
 }
 
-#account-form-app button[data-test-id$="button-button"] > span {
+#account-form-app button[data-test-id$="button-button"] > span > span {
   padding: 5px;
-}
-
-#account-form-app form input[name="email"] {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-#account-form-app form input[name="email"]:placeholder-shown {
-  font-size: 16px;
-  font-weight: 600;
+  font-weight: 800;
 }
 
 
+#account-form-app form input[name="email"],
+#account-form-app form input[name="zipCode"],
+#account-form-app form input[name="password"] {
+  font-family: var(--body-font-family);
+}
 
-#account-form-app form label[data-test-id*="email-field-text-field-label"] {
+#account-form-app form label[data-test-id*="email-field-text-field-label"],
+#account-form-app form label[data-test-id*="zip-field-text-field-label"] {
   position: absolute;
     color: rgb(23 23 37);
     opacity: 1;
@@ -72,7 +74,7 @@
     font-weight: 500;
     text-align: left;
     left: calc(2px + 0.75rem);
-    top: 0.75rem;
+    top: 0.5rem;
     transform: none;
     transition: 0.3s;
     pointer-events: none;
@@ -92,9 +94,17 @@
   font-size: 0.875rem;
 }
 
+#account-form-app form {
+  line-height: 1.5;
+}
+
+#account-form-app form + div {
+  line-height: 1.5;
+}
+
 .account-form-heading {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 10px;
   font-size: 2rem;
   font-weight: 700;
   color: #1f2937;
@@ -104,6 +114,3 @@
 #account-form-app div[data-test-id*="password-field-text-field-helper-text"] {
   font-size: 0.875rem;
 }
-
-
-
