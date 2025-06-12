@@ -94,7 +94,7 @@ function toPropName(name) {
     : '';
 }
 
-function readBlockConfigForAccountForm(block) {
+async function readBlockConfigForAccountForm(block) {
   const config = {};
   block.querySelectorAll(':scope > div:not([id])').forEach((row) => {
     if (row.children) {
@@ -127,7 +127,7 @@ function readBlockConfigForAccountForm(block) {
 }
 
 export default async function decorate(block) {
-  let config = readBlockConfigForAccountForm(block);
+  let config = await readBlockConfigForAccountForm(block);
   config = normalizeConfigKeys(config);
   const props = {
     testId: await normalizeConfigValue(config['test-id'], 'account-form-adobe-commerce', 'test-id'),
@@ -142,9 +142,7 @@ export default async function decorate(block) {
     resuPlanIdentifier: await normalizeConfigValue(config['resu-plan-identifier'], 'one-stair-step', 'resu-plan-identifier'),
     classificationIdentifier: await normalizeConfigValue(config['classification-identifier'], 'us', 'classification-identifier'),
     offerDetailsContent: await normalizeConfigValue(config['offer-details-content'], "I'm the offer details modal content", 'offer-details-content'),
-    createUserPath: config['create-user-path'] && config['create-user-path'].trim() !== ''
-      ? `https://authorization-gateway.p.sling.com${config['create-user-path'].startsWith('/') ? config['create-user-path'] : `/${config['create-user-path']}`}`
-      : await normalizeConfigValue(config['create-user-path'], 'https://authorization-gateway.p.sling.com/ums/v5/user?hydrate_auth2_token=true', 'create-user-path'),
+    createUserPath: await normalizeConfigValue(config['create-user-path'], 'https://www.sling.com/ums/v5/user?hydrate_auth2_token=true', 'create-user-path'),
     createUserHostName: await normalizeConfigValue(config['create-user-host-name'], 'authorization-gateway.q.sling.com', 'create-user-host-name'),
     analyticsUIEventName: await normalizeConfigValue(config['analytics-uievent-name'], 'continue', 'analytics-uievent-name'),
     analyticsUIEventParent: await normalizeConfigValue(config['analytics-uievent-parent'], 'cart-account', 'analytics-uievent-parent'),
@@ -154,9 +152,7 @@ export default async function decorate(block) {
     analyticsViewEventUserPackageName: await normalizeConfigValue(config['analytics-viewevent-user-package-name'], 'domestic', 'analytics-viewevent-user-package-name'),
     analyticsViewEventUserSubType: await normalizeConfigValue(config['analytics-viewevent-user-sub-type'], 'active', 'analytics-viewevent-user-sub-type'),
     existingAccountOverlayMessage: await normalizeConfigValue(config['existing-account-overlay-message'], '<p>Hang tight!</p>', 'existing-account-overlay-message'),
-    loginUserEndpoint: config['login-user-endpoint'] && config['login-user-endpoint'].trim() !== ''
-      ? `https://authorization-gateway.p.sling.com${config['login-user-endpoint'].startsWith('/') ? config['login-user-endpoint'] : `/${config['login-user-endpoint']}`}`
-      : await normalizeConfigValue(config['login-user-endpoint'], 'https://authorization-gateway.p.sling.com/ums/v5/sessions', 'login-user-endpoint'),
+    loginUserEndpoint: await normalizeConfigValue(config['login-user-endpoint'], 'https://www.sling.com/ums/v5/sessions', 'login-user-endpoint'),
     modalContentPrivacyPolicy: await normalizeConfigValue(config['modal-content-privacy-policy'], '', 'modal-content-privacy-policy'),
     modalContentTermsOfUse: await normalizeConfigValue(config['modal-content-terms-of-use'], '', 'modal-content-terms-of-use'),
     enableBriteVerify: await normalizeConfigValue(config['enable-brite-verify'], false, 'enable-brite-verify'),
@@ -170,7 +166,6 @@ export default async function decorate(block) {
     emailPlaceholder: 'username@domain.com',
   };
 
-  console.log(props);
   // Render heading if present
   if (props.heading) {
     const headingEl = document.createElement('h2');
@@ -178,7 +173,6 @@ export default async function decorate(block) {
     headingEl.innerHTML = props.heading;
     block.prepend(headingEl);
   }
-
   // Create a container for the React component, add props as data attribute
   const container = createTag('div', { id: 'account-form-app', 'data-sling-props': JSON.stringify(props) });
   block.append(container);
