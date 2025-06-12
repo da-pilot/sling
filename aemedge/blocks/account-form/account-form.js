@@ -143,7 +143,7 @@ export default async function decorate(block) {
     classificationIdentifier: await normalizeConfigValue(config['classification-identifier'], 'us', 'classification-identifier'),
     offerDetailsContent: await normalizeConfigValue(config['offer-details-content'], "I'm the offer details modal content", 'offer-details-content'),
     createUserPath: config['create-user-path'] && config['create-user-path'].trim() !== ''
-      ? `@https://authorization-gateway.p.sling.com${await normalizeConfigValue(config['create-user-path'], '', 'create-user-path')}`
+      ? `@https://authorization-gateway.p.sling.com${config['create-user-path'].startsWith('/') ? config['create-user-path'] : `/${config['create-user-path']}`}`
       : await normalizeConfigValue(config['create-user-path'], 'https://authorization-gateway.p.sling.com/ums/v5/user?hydrate_auth2_token=true', 'create-user-path'),
     createUserHostName: await normalizeConfigValue(config['create-user-host-name'], 'authorization-gateway.q.sling.com', 'create-user-host-name'),
     analyticsUIEventName: await normalizeConfigValue(config['analytics-uievent-name'], 'continue', 'analytics-uievent-name'),
@@ -155,7 +155,7 @@ export default async function decorate(block) {
     analyticsViewEventUserSubType: await normalizeConfigValue(config['analytics-viewevent-user-sub-type'], 'active', 'analytics-viewevent-user-sub-type'),
     existingAccountOverlayMessage: await normalizeConfigValue(config['existing-account-overlay-message'], '<p>Hang tight!</p>', 'existing-account-overlay-message'),
     loginUserEndpoint: config['login-user-endpoint'] && config['login-user-endpoint'].trim() !== ''
-      ? `@https://authorization-gateway.p.sling.com${await normalizeConfigValue(config['login-user-endpoint'], '', 'login-user-endpoint')}`
+      ? `@https://authorization-gateway.p.sling.com${config['login-user-endpoint'].startsWith('/') ? config['login-user-endpoint'] : `/${config['login-user-endpoint']}`}`
       : await normalizeConfigValue(config['login-user-endpoint'], 'https://authorization-gateway.p.sling.com/ums/v5/sessions', 'login-user-endpoint'),
     modalContentPrivacyPolicy: await normalizeConfigValue(config['modal-content-privacy-policy'], '', 'modal-content-privacy-policy'),
     modalContentTermsOfUse: await normalizeConfigValue(config['modal-content-terms-of-use'], '', 'modal-content-terms-of-use'),
