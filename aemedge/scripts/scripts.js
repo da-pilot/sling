@@ -759,10 +759,76 @@ function decorateLinkedImages() {
   });
 }
 
+/**
+ * Updates the appName in Adobe Data Layer from 'aem-marketing-site' to 'eds-marketing-site'
+ * @param {number} timeoutMs - Maximum time to wait for data layer (default: 10000ms)
+ * @param {number} pollIntervalMs - How often to check for data layer (default: 100ms)
+ * @returns {Promise<boolean>} - Promise that resolves to true if update was successful
+ */
+async function updateDataLayerAppName(timeoutMs = 1000, pollIntervalMs = 100) {
+  const checkAndUpdate = () => {
+    if (window.adobeDataLayer && Array.isArray(window.adobeDataLayer)) {
+      let updated = false;
+
+      // Iterate through all data layer objects
+      window.adobeDataLayer.forEach((item) => {
+        if (item?.web?.webPageDetails) {
+          // eslint-disable-next-line no-underscore-dangle
+          const slingData = item.web.webPageDetails._sling;
+          if (slingData?.appName) {
+            // Check if it's one of the old values that need updating
+            if (slingData.appName === 'aem-marketing-site' || slingData.appName === 'modal-analytics') {
+              slingData.appName = 'eds-marketing-site';
+              updated = true;
+            }
+          }
+        }
+      });
+
+      if (updated) {
+        // eslint-disable-next-line no-console
+        console.log('[EDS] Adobe Data Layer appName updated to eds-marketing-site');
+      }
+
+      return { found: true, updated };
+    }
+    return { found: false, updated: false };
+  };
+
+  // Try immediately first
+  const immediateResult = checkAndUpdate();
+  if (immediateResult.found) {
+    return immediateResult.updated;
+  }
+
+  // If not available immediately, wait for it with timeout
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    const pollInterval = setInterval(() => {
+      const result = checkAndUpdate();
+
+      if (result.found) {
+        clearInterval(pollInterval);
+        resolve(result.updated);
+        return;
+      }
+
+      // Check timeout
+      if (Date.now() - startTime >= timeoutMs) {
+        clearInterval(pollInterval);
+        // eslint-disable-next-line no-console
+        console.warn('Adobe Data Layer appName update timed out after', timeoutMs, 'ms');
+        resolve(false);
+      }
+    }, pollIntervalMs);
+  });
+}
+
 async function loadLaunchEager() {
   const isTarget = getMetadata('target');
   if (isTarget && isTarget.toLowerCase() === 'true') {
-    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
+    // await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
     if (window.location.host.startsWith('localhost')) {
       await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
     } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
@@ -770,8 +836,21 @@ async function loadLaunchEager() {
     } else if (window.location.host.endsWith('.page')) {
       await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
     }
+
+    // Wait for Adobe Data Layer to be populated and update appName
+    try {
+      const updated = await updateDataLayerAppName();
+      if (!updated) {
+        // eslint-disable-next-line no-console
+        console.info('No Adobe Data Layer appName values needed updating');
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error updating Adobe Data Layer appName:', error);
+    }
   }
 }
+
 /**
  * Handles section nesting when sections have the same fragment-id
  * @param {Element} section The section element to check
@@ -842,6 +921,7 @@ async function loadEager(doc) {
   configSideKick();
   // load launch eagerly when target metadata is set to true
   await loadLaunchEager();
+  updateDataLayerAppName();
 }
 
 /**
