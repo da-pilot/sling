@@ -1,5 +1,5 @@
 import {
-  createTag, loadScript,
+  createTag, loadScript, decodeAmpersand,
 } from '../../scripts/utils.js';
 
 function normalizeConfigKeys(config) {
@@ -72,8 +72,10 @@ async function normalizeConfigValue(val, fallback, key) {
       }
     }
 
-    // Removed the automatic conversion of "/" paths to sling.com URLs
-    // This will now be handled specifically for auth endpoints only
+    // Automatic URL conversion for paths starting with "/"
+    if (/^\/.+/.test(val)) {
+      return `https://www.sling.com${val}`;
+    }
     return val;
   }
   if (Array.isArray(val)) {
@@ -163,8 +165,8 @@ export default async function decorate(block) {
     showZipField: await normalizeConfigValue(config['show-zip-field'], true, 'show-zip-field'),
     legalDisclaimerText: await normalizeConfigValue(config['legal-disclaimer-text'], 'New customers age 18+ only. We may contact you about Sling Television services. See <a href="https://www.sling.com/privacy" target="_blank">privacy policy</a> and <a href="https://www.sling.com/offer-details/disclaimers/terms-of-use" target="_blank">terms of use</a>.', 'legal-disclaimer-text'),
     ctaButtonText: await normalizeConfigValue(config['cta-button-text'], 'Continue', 'cta-button-text'),
-    ctaSupportedBrowserDestinationURL: buildSlingUrl(config['cta-supported-browser-destination-url']) || 'http://watch.sling.com',
-    ctaUnsupportedBrowserDestinationURL: buildSlingUrl(config['cta-unsupported-browser-destination-url']) || 'http://www.sling.com/free14/confirmation',
+    ctaSupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-supported-browser-destination-url'])) || 'http://watch.sling.com',
+    ctaUnsupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-unsupported-browser-destination-url'])) || 'http://www.sling.com/free14/confirmation',
     baseRedirectUrl: shouldUseAbsoluteUrls() ? 'https://www.sling.com/' : await normalizeConfigValue(config['base-redirect-url'], '/', 'base-redirect-url'),
     planIdentifier: await normalizeConfigValue(config['plan-identifier'], 'monthly', 'plan-identifier'),
     resuPlanIdentifier: await normalizeConfigValue(config['resu-plan-identifier'], 'one-stair-step', 'resu-plan-identifier'),
