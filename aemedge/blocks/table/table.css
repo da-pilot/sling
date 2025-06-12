@@ -107,7 +107,11 @@
     font-size: var(--body-font-size-xs);
 
     th, td {
-      padding: 0 6px;
+      padding: 10px;
+    }
+
+    td p:last-child, tr p:last-child {
+      margin-bottom: 0;
     }
 
     thead tr {
@@ -118,7 +122,15 @@
   td:not([data-align="right"], [data-align="left"], [data-align="justify"], .align-right, .align-left) {
     text-align: center;
   }
+
+  td:not([data-align="right"], [data-align="left"], [data-align="justify"], .align-right, .align-left):first-child {
+    text-align: left;
+  }
  }
+}
+
+.table-wrapper {
+  margin: 24px auto;
 }
 
 /* Full column-align (left, center, right) styles for up to 6 columns */
