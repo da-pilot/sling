@@ -136,7 +136,7 @@ function buildAuthUrl(configValue, fallbackUrl) {
 
   if (configValue && configValue.trim() !== '') {
     if (useAbsolute) {
-      return `https://www.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
+      return `https://authorization-gateway.p.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
     }
     return configValue;
   }
@@ -183,7 +183,6 @@ export default async function decorate(block) {
     heading: await normalizeConfigValue(config.heading, '', 'heading'),
     emailPlaceholder: 'username@domain.com',
   };
-
   console.log(props);
   // Render heading if present
   if (props.heading) {
