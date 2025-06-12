@@ -72,9 +72,8 @@ async function normalizeConfigValue(val, fallback, key) {
       }
     }
 
-    if (/^\/.+/.test(val)) {
-      return `https://www.sling.com${val}`;
-    }
+    // Removed the automatic conversion of "/" paths to sling.com URLs
+    // This will now be handled specifically for auth endpoints only
     return val;
   }
   if (Array.isArray(val)) {
@@ -126,6 +125,25 @@ async function readBlockConfigForAccountForm(block) {
   return config;
 }
 
+function shouldUseAbsoluteUrls() {
+  const hostname = window.location.hostname.toLowerCase();
+  return !hostname.includes('sling.com')
+         && (hostname.includes('.aem.page') || hostname.includes('aem.live') || hostname.includes('localhost'));
+}
+
+function buildAuthUrl(configValue, fallbackUrl) {
+  const useAbsolute = shouldUseAbsoluteUrls();
+
+  if (configValue && configValue.trim() !== '') {
+    if (useAbsolute) {
+      return `https://www.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
+    }
+    return configValue;
+  }
+
+  return useAbsolute ? fallbackUrl : fallbackUrl.replace('https://www.sling.com', '');
+}
+
 export default async function decorate(block) {
   let config = await readBlockConfigForAccountForm(block);
   config = normalizeConfigKeys(config);
@@ -142,7 +160,7 @@ export default async function decorate(block) {
     resuPlanIdentifier: await normalizeConfigValue(config['resu-plan-identifier'], 'one-stair-step', 'resu-plan-identifier'),
     classificationIdentifier: await normalizeConfigValue(config['classification-identifier'], 'us', 'classification-identifier'),
     offerDetailsContent: await normalizeConfigValue(config['offer-details-content'], "I'm the offer details modal content", 'offer-details-content'),
-    createUserPath: await normalizeConfigValue(config['create-user-path'], 'https://www.sling.com/ums/v5/user?hydrate_auth2_token=true', 'create-user-path'),
+    createUserPath: buildAuthUrl(config['create-user-path'], 'https://authorization-gateway.p.sling.com/ums/v5/user?hydrate_auth2_token=true'),
     createUserHostName: await normalizeConfigValue(config['create-user-host-name'], 'authorization-gateway.q.sling.com', 'create-user-host-name'),
     analyticsUIEventName: await normalizeConfigValue(config['analytics-uievent-name'], 'continue', 'analytics-uievent-name'),
     analyticsUIEventParent: await normalizeConfigValue(config['analytics-uievent-parent'], 'cart-account', 'analytics-uievent-parent'),
@@ -152,7 +170,7 @@ export default async function decorate(block) {
     analyticsViewEventUserPackageName: await normalizeConfigValue(config['analytics-viewevent-user-package-name'], 'domestic', 'analytics-viewevent-user-package-name'),
     analyticsViewEventUserSubType: await normalizeConfigValue(config['analytics-viewevent-user-sub-type'], 'active', 'analytics-viewevent-user-sub-type'),
     existingAccountOverlayMessage: await normalizeConfigValue(config['existing-account-overlay-message'], '<p>Hang tight!</p>', 'existing-account-overlay-message'),
-    loginUserEndpoint: await normalizeConfigValue(config['login-user-endpoint'], 'https://www.sling.com/ums/v5/sessions', 'login-user-endpoint'),
+    loginUserEndpoint: buildAuthUrl(config['login-user-endpoint'], 'https://authorization-gateway.p.sling.com/ums/v5/sessions'),
     modalContentPrivacyPolicy: await normalizeConfigValue(config['modal-content-privacy-policy'], '', 'modal-content-privacy-policy'),
     modalContentTermsOfUse: await normalizeConfigValue(config['modal-content-terms-of-use'], '', 'modal-content-terms-of-use'),
     enableBriteVerify: await normalizeConfigValue(config['enable-brite-verify'], false, 'enable-brite-verify'),
@@ -166,6 +184,7 @@ export default async function decorate(block) {
     emailPlaceholder: 'username@domain.com',
   };
 
+  console.log(props);
   // Render heading if present
   if (props.heading) {
     const headingEl = document.createElement('h2');
