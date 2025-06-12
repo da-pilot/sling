@@ -145,12 +145,7 @@ function buildAuthUrl(configValue, fallbackUrl) {
 }
 
 function buildSlingUrl(configValue) {
-  const useAbsolute = shouldUseAbsoluteUrls();
-
-  if (configValue && configValue.trim() !== '' && useAbsolute) {
-    return `https://www.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
-  }
-
+  // No longer prefixing with sling.com - just return the value as-is
   return configValue;
 }
 
@@ -165,7 +160,7 @@ export default async function decorate(block) {
     ctaButtonText: await normalizeConfigValue(config['cta-button-text'], 'Continue', 'cta-button-text'),
     ctaSupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-supported-browser-destination-url']) || 'http://watch.sling.com'),
     ctaUnsupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-unsupported-browser-destination-url']) || 'http://www.sling.com/free14/confirmation'),
-    baseRedirectUrl: await normalizeConfigValue(config['base-redirect-url'], '/', 'base-redirect-url'),
+    baseRedirectUrl: shouldUseAbsoluteUrls() ? 'https://www.sling.com/' : await normalizeConfigValue(config['base-redirect-url'], '/', 'base-redirect-url'),
     planIdentifier: await normalizeConfigValue(config['plan-identifier'], 'monthly', 'plan-identifier'),
     resuPlanIdentifier: await normalizeConfigValue(config['resu-plan-identifier'], 'one-stair-step', 'resu-plan-identifier'),
     classificationIdentifier: await normalizeConfigValue(config['classification-identifier'], 'us', 'classification-identifier'),
