@@ -1,5 +1,5 @@
 import {
-  createTag, loadScript, decodeAmpersand, rewriteLinksForSlingDomain,
+  createTag, loadScript,
 } from '../../scripts/utils.js';
 
 function normalizeConfigKeys(config) {
@@ -163,8 +163,8 @@ export default async function decorate(block) {
     showZipField: await normalizeConfigValue(config['show-zip-field'], true, 'show-zip-field'),
     legalDisclaimerText: await normalizeConfigValue(config['legal-disclaimer-text'], 'New customers age 18+ only. We may contact you about Sling Television services. See <a href="https://www.sling.com/privacy" target="_blank">privacy policy</a> and <a href="https://www.sling.com/offer-details/disclaimers/terms-of-use" target="_blank">terms of use</a>.', 'legal-disclaimer-text'),
     ctaButtonText: await normalizeConfigValue(config['cta-button-text'], 'Continue', 'cta-button-text'),
-    ctaSupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-supported-browser-destination-url']) || 'http://watch.sling.com'),
-    ctaUnsupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-unsupported-browser-destination-url']) || 'http://www.sling.com/free14/confirmation'),
+    ctaSupportedBrowserDestinationURL: buildSlingUrl(config['cta-supported-browser-destination-url']) || 'http://watch.sling.com',
+    ctaUnsupportedBrowserDestinationURL: buildSlingUrl(config['cta-unsupported-browser-destination-url']) || 'http://www.sling.com/free14/confirmation',
     baseRedirectUrl: shouldUseAbsoluteUrls() ? 'https://www.sling.com/' : await normalizeConfigValue(config['base-redirect-url'], '/', 'base-redirect-url'),
     planIdentifier: await normalizeConfigValue(config['plan-identifier'], 'monthly', 'plan-identifier'),
     resuPlanIdentifier: await normalizeConfigValue(config['resu-plan-identifier'], 'one-stair-step', 'resu-plan-identifier'),
@@ -206,7 +206,7 @@ export default async function decorate(block) {
   block.append(container);
 
   // Patch cart links for sling.com redirection
-  rewriteLinksForSlingDomain(container, /^\/cart/);
+  // rewriteLinksForSlingDomain(container, /^\/cart/);
 
   // IntersectionObserver to lazy-load React app
   const options = { threshold: 0.25 };
