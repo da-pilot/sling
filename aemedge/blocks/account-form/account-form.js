@@ -144,6 +144,16 @@ function buildAuthUrl(configValue, fallbackUrl) {
   return useAbsolute ? fallbackUrl : fallbackUrl.replace('https://www.sling.com', '');
 }
 
+function buildSlingUrl(configValue) {
+  const useAbsolute = shouldUseAbsoluteUrls();
+
+  if (configValue && configValue.trim() !== '' && useAbsolute) {
+    return `https://www.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
+  }
+
+  return configValue;
+}
+
 export default async function decorate(block) {
   let config = await readBlockConfigForAccountForm(block);
   config = normalizeConfigKeys(config);
@@ -153,8 +163,8 @@ export default async function decorate(block) {
     showZipField: await normalizeConfigValue(config['show-zip-field'], true, 'show-zip-field'),
     legalDisclaimerText: await normalizeConfigValue(config['legal-disclaimer-text'], 'New customers age 18+ only. We may contact you about Sling Television services. See <a href="https://www.sling.com/privacy" target="_blank">privacy policy</a> and <a href="https://www.sling.com/offer-details/disclaimers/terms-of-use" target="_blank">terms of use</a>.', 'legal-disclaimer-text'),
     ctaButtonText: await normalizeConfigValue(config['cta-button-text'], 'Continue', 'cta-button-text'),
-    ctaSupportedBrowserDestinationURL: await normalizeConfigValue(decodeAmpersand(config['cta-supported-browser-destination-url']), 'http://watch.sling.com', 'cta-supported-browser-destination-url'),
-    ctaUnsupportedBrowserDestinationURL: await normalizeConfigValue(decodeAmpersand(config['cta-unsupported-browser-destination-url']), 'http://www.sling.com/free14/confirmation', 'cta-unsupported-browser-destination-url'),
+    ctaSupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-supported-browser-destination-url']) || 'http://watch.sling.com'),
+    ctaUnsupportedBrowserDestinationURL: buildSlingUrl(decodeAmpersand(config['cta-unsupported-browser-destination-url']) || 'http://www.sling.com/free14/confirmation'),
     baseRedirectUrl: await normalizeConfigValue(config['base-redirect-url'], '/', 'base-redirect-url'),
     planIdentifier: await normalizeConfigValue(config['plan-identifier'], 'monthly', 'plan-identifier'),
     resuPlanIdentifier: await normalizeConfigValue(config['resu-plan-identifier'], 'one-stair-step', 'resu-plan-identifier'),
