@@ -53,8 +53,9 @@
   cursor: pointer;
 }
 
-#account-form-app button[data-test-id$="button-button"] > span {
+#account-form-app button[data-test-id$="button-button"] > span > span {
   padding: 5px;
+  font-weight: 800;
 }
 
 
@@ -91,6 +92,14 @@
 #account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-password-field-text-field-error"],
 #account-form-app form div[data-test-id="account-form-account-form-adobe-commerce-zip-field-text-field-error"] {
   font-size: 0.875rem;
+}
+
+#account-form-app form {
+  line-height: 1.5;
+}
+
+#account-form-app form + div {
+  line-height: 1.5;
 }
 
 .account-form-heading {
