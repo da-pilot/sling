@@ -205,40 +205,28 @@ export default async function decorate(block) {
   const container = createTag('div', { id: 'account-form-app', 'data-sling-props': JSON.stringify(props) });
   block.append(container);
 
-  // Patch cart links for sling.com redirection
-  // rewriteLinksForSlingDomain(container, /^\/cart/);
+  // Load the React build for account-form
+  await loadScript('../../../aemedge/scripts/sling-react/account-form-build.js', {}, container);
 
-  // IntersectionObserver to lazy-load React app
-  const options = { threshold: 0.25 };
-  const observer = new IntersectionObserver(async (entries, obs) => {
-    if (entries.some((entry) => entry.isIntersecting)) {
-      await loadScript('../../../aemedge/scripts/sling-react/account-form-build.js', {}, container);
-
-      // Ensure email placeholder is set correctly after React component loads
-      setTimeout(() => {
-        const emailInput = container.querySelector('input[name="email"]');
-        if (emailInput) {
-          emailInput.placeholder = props.emailPlaceholder;
-        }
-
-        // Also set the placeholder value on the email label
-        const emailLabel = container.querySelector('label[data-test-id*="email-field-text-field-label"]');
-        if (emailLabel) {
-          emailLabel.setAttribute('placeholder', props.emailPlaceholder);
-
-          // Copy classes from zip field label to email label
-          const zipLabel = container.querySelector('label[data-test-id*="zip-field-text-field-label"]');
-          if (zipLabel) {
-            emailLabel.className = zipLabel.className;
-          }
-        }
-      }, 100);
-
-      obs.unobserve(container);
+  // Ensure email placeholder is set correctly after React component loads
+  setTimeout(() => {
+    const emailInput = container.querySelector('input[name="email"]');
+    if (emailInput) {
+      emailInput.placeholder = props.emailPlaceholder;
     }
-  }, options);
 
-  observer.observe(container);
+    // Also set the placeholder value on the email label
+    const emailLabel = container.querySelector('label[data-test-id*="email-field-text-field-label"]');
+    if (emailLabel) {
+      emailLabel.setAttribute('placeholder', props.emailPlaceholder);
+
+      // Copy classes from zip field label to email label
+      const zipLabel = container.querySelector('label[data-test-id*="zip-field-text-field-label"]');
+      if (zipLabel) {
+        emailLabel.className = zipLabel.className;
+      }
+    }
+  }, 100);
 
   // Clean up any divs without IDs first (like base-cards)
   const divsWithoutId = block.querySelectorAll('div:not([id])');
