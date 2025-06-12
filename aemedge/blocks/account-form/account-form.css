@@ -53,12 +53,13 @@
 }
 
 #account-form-app form input[name="email"] {
-  font-weight: 400;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 #account-form-app form input[name="email"]:placeholder-shown {
   font-size: 16px;
-  font-weight: 400;
+  font-weight: 600;
 }
 
 
