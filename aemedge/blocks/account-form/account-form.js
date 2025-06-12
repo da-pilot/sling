@@ -145,7 +145,12 @@ function buildAuthUrl(configValue, fallbackUrl) {
 }
 
 function buildSlingUrl(configValue) {
-  // No longer prefixing with sling.com - just return the value as-is
+  const useAbsolute = shouldUseAbsoluteUrls();
+
+  if (configValue && configValue.trim() !== '' && useAbsolute) {
+    return `https://www.sling.com${configValue.startsWith('/') ? configValue : `/${configValue}`}`;
+  }
+
   return configValue;
 }
 
