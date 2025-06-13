@@ -126,6 +126,10 @@
   td:not([data-align="right"], [data-align="left"], [data-align="justify"], .align-right, .align-left):first-child {
     text-align: left;
   }
+
+  th:not([data-align="right"], [data-align="left"], [data-align="justify"], .align-right, .align-left):first-child {
+    text-align: left;
+  }
  }
 }
 
