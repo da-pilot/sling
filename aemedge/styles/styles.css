@@ -848,9 +848,8 @@ main img {
 }
 
 /* sections */
-main > .section {
+main > .section:not(.global-banner-container) {
   padding: 0 8%;
-  margin: 64px 0;
   background-repeat: no-repeat;
 }
 
@@ -1118,7 +1117,7 @@ a.black {
 }
 
 @media (width >=768px) {
-    main .section {
+    main .section:not(.global-banner-container) {
         padding: 0 48px;
     }
 
