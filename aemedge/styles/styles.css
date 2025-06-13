@@ -848,7 +848,7 @@ main img {
 }
 
 /* sections */
-main > .section:not(.global-banner-container) {
+main > .section {
   padding: 0 8%;
   margin: 64px 0;
   background-repeat: no-repeat;
@@ -903,6 +903,11 @@ main .icon-still-have-questions img {
   height: 80px;
   width: 30px;
   vertical-align: middle;
+}
+
+.section.global-banner-container {
+  margin: 0;
+  padding: 0;
 }
 
 .section.still-have-question-section {
@@ -1118,7 +1123,7 @@ a.black {
 }
 
 @media (width >=768px) {
-    main .section:not(.global-banner-container) {
+    main .section {
         padding: 0 48px;
     }
 
