@@ -850,6 +850,7 @@ main img {
 /* sections */
 main > .section:not(.global-banner-container) {
   padding: 0 8%;
+  margin: 64px 0;
   background-repeat: no-repeat;
 }
 
