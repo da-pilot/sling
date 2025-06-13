@@ -83,13 +83,13 @@ body.modal-open {
     margin: 0;
     border: none;
     padding: 14px 16px;
+    cursor: pointer;
   }
-
+    
   .modal .close-button img{
     height: 20px;
     width: 20px;
   }
-
 
   .modal dialog .section {
     padding: 0;
