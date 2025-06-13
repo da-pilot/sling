@@ -65,7 +65,7 @@ main .block.global-banner[data-block-status="loaded"].cyan-black {
   line-height: normal;
   position: relative;
   padding: 5px 50px 0 0;
-  z-index: 11;
+  z-index: 2;
 }
 
 .static span.close {display: none}
