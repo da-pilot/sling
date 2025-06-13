@@ -905,6 +905,11 @@ main .icon-still-have-questions img {
   vertical-align: middle;
 }
 
+.section.global-banner-container {
+  margin: 0;
+  padding: 0;
+}
+
 .section.still-have-question-section {
   text-align: center;
 }
