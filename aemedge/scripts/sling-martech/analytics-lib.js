@@ -2857,7 +2857,7 @@ var isCommerceEnabledForThisPageLoad = function isCommerceEnabledForThisPageLoad
   return window.useAcFeatures === 'always';
   //|| (window.useAcFeatures === 'conditionally' && isCommerceSessionValid());   <----- checking commerce session disabled
 };
-var analytics = getAnalyticsInstance('eds-marketing-site');
+var analytics = getAnalyticsInstance('aem-marketing-site');
 
 // TODO move to a common location?
 var classifications = {

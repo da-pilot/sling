@@ -29,6 +29,17 @@ import {
   getPictureUrlByScreenWidth,
 } from './utils.js';
 
+// Analytics utils imported dynamically when needed
+
+/**
+ * Lightweight environment detection for scripts loading
+ * @returns {boolean} true if production environment
+ */
+function isProduction() {
+  const { hostname } = window.location;
+  return hostname.includes('sling.com') || hostname.includes('.aem.live');
+}
+
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
 const TEMPLATES = ['blog-article', 'blog-category']; // add your templates here
 const TEMPLATE_META = 'template';
@@ -760,136 +771,6 @@ function decorateLinkedImages() {
 }
 
 /**
- * Updates the appName in Adobe Data Layer by appending 'eds' if not already present
- * @param {number} timeoutMs - Maximum time to wait for data layer (default: 1000ms)
- * @param {number} pollIntervalMs - How often to check for data layer (default: 100ms)
- * @param {boolean} setupListener - Whether to set up ongoing listener for new entries
- * @returns {Promise<boolean>} - Promise that resolves to true if update was successful
- */
-async function updateDataLayerAppName(
-  timeoutMs = 1000,
-  pollIntervalMs = 100,
-  setupListener = true,
-) {
-  const checkAndUpdate = () => {
-    if (window.adobeDataLayer && Array.isArray(window.adobeDataLayer)) {
-      let updated = false;
-
-      // Iterate through all data layer objects
-      window.adobeDataLayer.forEach((item) => {
-        if (item?.web?.webPageDetails) {
-          // eslint-disable-next-line no-underscore-dangle
-          const slingData = item.web.webPageDetails._sling;
-          if (slingData?.appName) {
-            const currentAppName = slingData.appName;
-
-            // Only update if 'eds' is not already in the appName
-            if (!currentAppName.includes('eds')) {
-              // Append 'eds-' as prefix to maintain consistency
-              slingData.appName = `eds-${currentAppName}`;
-              updated = true;
-
-              // eslint-disable-next-line no-console
-              console.log(`[EDS] Updated appName: "${currentAppName}" → "${slingData.appName}"`);
-            }
-          }
-        }
-      });
-
-      return { found: true, updated };
-    }
-    return { found: false, updated: false };
-  };
-
-  // Set up ongoing listener for data layer changes if requested
-  const setupDataLayerListener = () => {
-    if (window.adobeDataLayer) {
-      const listenerFlag = '_edsListenerSetup';
-      if (!window.adobeDataLayer[listenerFlag]) {
-        window.adobeDataLayer[listenerFlag] = true;
-
-        // Listen for data layer changes
-        window.adobeDataLayer.addEventListener('adobeDataLayer:change', () => {
-          // Small delay to ensure the change is fully processed
-          setTimeout(() => {
-            checkAndUpdate();
-          }, 50);
-        });
-
-        // Also set up periodic checks for new entries (every 5 seconds)
-        setInterval(() => {
-          checkAndUpdate();
-        }, 5000);
-
-        // eslint-disable-next-line no-console
-        console.log('[EDS] Adobe Data Layer listener established for ongoing appName updates');
-      }
-    }
-  };
-
-  // Try immediately first
-  const immediateResult = checkAndUpdate();
-  if (immediateResult.found) {
-    if (setupListener) {
-      setupDataLayerListener();
-    }
-    return immediateResult.updated;
-  }
-
-  // If not available immediately, wait for it with timeout
-  return new Promise((resolve) => {
-    const startTime = Date.now();
-
-    const pollInterval = setInterval(() => {
-      const result = checkAndUpdate();
-
-      if (result.found) {
-        clearInterval(pollInterval);
-        if (setupListener) {
-          setupDataLayerListener();
-        }
-        resolve(result.updated);
-        return;
-      }
-
-      // Check timeout
-      if (Date.now() - startTime >= timeoutMs) {
-        clearInterval(pollInterval);
-        // eslint-disable-next-line no-console
-        console.warn('[EDS] Adobe Data Layer appName update timed out after', timeoutMs, 'ms');
-        resolve(false);
-      }
-    }, pollIntervalMs);
-  });
-}
-
-async function loadLaunchEager() {
-  const isTarget = getMetadata('target');
-  if (isTarget && isTarget.toLowerCase() === 'true') {
-    // await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
-    if (window.location.host.startsWith('localhost')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
-    } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
-    } else if (window.location.host.endsWith('.page')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
-    }
-
-    // Wait for Adobe Data Layer to be populated and update appName
-    try {
-      const updated = await updateDataLayerAppName();
-      if (!updated) {
-        // eslint-disable-next-line no-console
-        console.info('No Adobe Data Layer appName values needed updating');
-      }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error updating Adobe Data Layer appName:', error);
-    }
-  }
-}
-
-/**
  * Handles section nesting when sections have the same fragment-id
  * @param {Element} section The section element to check
  */
@@ -931,6 +812,59 @@ export function decorateMain(main) {
 }
 
 /**
+ * Loads data layer utilities if not already loaded
+ * @returns {Promise<boolean>} - True if loaded, false if already exists
+ */
+async function loadDataLayerUtils() {
+  // Check if already loaded
+  if (window.SlingDataLayer) {
+    return false;
+  }
+
+  const dataLayerScript = isProduction()
+    ? '/aemedge/scripts/datalayer-utils.min.js'
+    : '/aemedge/scripts/datalayer-utils.js';
+
+  await loadScript(dataLayerScript);
+  return true;
+}
+
+async function loadLaunchEager() {
+  const targetEnabled = getMetadata('target');
+  if (targetEnabled && targetEnabled.toLowerCase() === 'true') {
+    await loadDataLayerUtils();
+
+    // Load environment-specific Launch scripts to avoid bloating production analytics
+    if (window.location.host.startsWith('localhost')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
+    } else if (window.location.host.includes('sling.com') || window.location.host.endsWith('.live')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
+    } else if (window.location.host.endsWith('.page')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
+    }
+  }
+}
+
+/**
+ * Loads a block named 'header' into header
+ * @param {Element} header header element
+ * @returns {Promise}
+ */
+async function loadHeader(header) {
+  let block = 'header';
+  const template = getMetadata('template');
+  if (template
+    && (template === 'blog-article'
+      || template === 'blog-category' || template === 'blog-author')) {
+    block = 'whatson-header';
+  }
+  const headerBlock = buildBlock(`${block}`, '');
+  header.append(headerBlock);
+  decorateBlock(headerBlock);
+  return loadBlock(headerBlock);
+}
+
+/**
    * Loads everything needed to get to LCP.
    * @param {Element} doc The container element
    */
@@ -962,28 +896,9 @@ async function loadEager(doc) {
 }
 
 /**
-   * Loads a block named 'header' into header
-   * @param {Element} header header element
-   * @returns {Promise}
+   * Loads everything that doesn't need to be delayed.
+   * @param {Element} doc The container element
    */
-async function loadHeader(header) {
-  let block = 'header';
-  const template = getMetadata('template');
-  if (template
-    && (template === 'blog-article'
-      || template === 'blog-category' || template === 'blog-author')) {
-    block = 'whatson-header';
-  }
-  const headerBlock = buildBlock(`${block}`, '');
-  header.append(headerBlock);
-  decorateBlock(headerBlock);
-  return loadBlock(headerBlock);
-}
-
-/**
- * Loads everything that doesn't need to be delayed.
- * @param {Element} doc The container element
- */
 async function loadLazy(doc) {
   autolinkModals(doc);
   const main = doc.querySelector('main');
