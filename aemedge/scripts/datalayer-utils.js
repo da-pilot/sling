@@ -181,7 +181,7 @@
             // eslint-disable-next-line no-underscore-dangle
             _sling: {
               appName,
-              analyticsVersion: '1.0.0-datalayer-utils',
+              analyticsVersion: '7.0.39',
             },
           },
         },
@@ -198,6 +198,10 @@
         type = 'generic',
         lang = 'en',
         domain = window.location.hostname,
+        siteSection = lineOfBusiness,
+        siteSubSection = classification,
+        qsp = '',
+        isErrorPage = false,
       } = pageInfo;
 
       const data = {
@@ -205,13 +209,84 @@
           webPageDetails: {
             name,
             type,
+            qsp,
             language: lang,
+            siteSection,
+            siteSubSection,
+            domain,
+            isErrorPage,
             // eslint-disable-next-line no-underscore-dangle
             _sling: {
               lineOfBusiness,
               classification,
               domain,
             },
+          },
+        },
+      };
+      window.adobeDataLayer.push(data);
+    },
+
+    // Push cart data to data layer (extracted from analytics-lib.js)
+    pushCartData(cartInfo = {}) {
+      const {
+        category = 'acquisition',
+        subCategory = 'simple-shop',
+        referrer = 'unknown',
+        planName = 'monthly',
+        offerName = '',
+        deviceBundle = '',
+        subType = 'paid',
+        basePreselect = [],
+        extrasPreselect = [],
+      } = cartInfo;
+
+      const packagePreselect = [...basePreselect, ...extrasPreselect];
+      const formattedPackagePreselect = packagePreselect.join('|');
+
+      const data = {
+        commerce: {
+          cart: {
+            // eslint-disable-next-line no-underscore-dangle
+            _sling: {
+              category,
+              subCategory,
+              referrer,
+              planName,
+              offerName,
+              deviceBundle,
+              subType,
+              basePreselect,
+              extrasPreselect,
+              packagePreselect,
+              formattedPackagePreselect,
+            },
+          },
+        },
+      };
+      window.adobeDataLayer.push(data);
+    },
+
+    // Push cart step event (extracted from analytics-lib.js)
+    pushCartStep(stepName = 'account') {
+      const eventName = `cart_step_${stepName}`;
+      const data = {
+        event: eventName,
+        web: {
+          currentEvent: eventName,
+        },
+      };
+      window.adobeDataLayer.push(data);
+    },
+
+    // Update page type to cart if needed
+    updatePageType(type = 'cart') {
+      const currentPathname = window.location.pathname;
+      const data = {
+        web: {
+          webPageDetails: {
+            name: currentPathname,
+            type,
           },
         },
       };
@@ -295,7 +370,7 @@
   // Initialize the data layer
   initializeDataLayer({ dataLayer: window.adobeDataLayer });
 
-  // Auto-initialize when DOM is ready
+  // Auto-initialize when DOM is ready (matching production behavior)
   setTimeout(async () => {
     console.log('[DataLayer-Utils] Auto-initializing data layer');
     const appName = 'eds-marketing-site';
@@ -316,6 +391,19 @@
     }
 
     if (!skipAnalytics) {
+      // Detect if this is a cart page and push cart events to match production
+      const isCartPage = window.location.pathname.includes('/cart')
+                        || document.querySelector('.account-form, .package-cards');
+
+      if (isCartPage) {
+        // Push cart data first
+        DataLayerHelpers.pushCartData();
+        // Then cart step event
+        DataLayerHelpers.pushCartStep('account');
+        // Update page type to cart
+        DataLayerHelpers.updatePageType('cart');
+      }
+
       if (cancelStep !== 'screen_load') {
         console.log('[DataLayer] STEP EVENT');
         DataLayerHelpers.pushStepEvent(cancelStep, pageData);
