@@ -817,7 +817,7 @@ export function decorateMain(main) {
  */
 async function loadDataLayerUtils() {
   // Check if already loaded
-  if (window.SlingDataLayer) {
+  if (window.adobeDataLayer && window.adobeDataLayer.version) {
     return false;
   }
 
