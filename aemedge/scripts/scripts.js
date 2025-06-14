@@ -834,8 +834,8 @@ async function loadDataLayerUtils() {
 
   // Initialize analytics-lib.js with appName
   if (window.MyLibrary && window.MyLibrary.getInstance) {
-    console.log('[Scripts.js] Initializing analytics-lib.js with appName: aem-marketing-site');
-    window.slingAnalytics = window.MyLibrary.getInstance('aem-marketing-site');
+    console.log('[Scripts.js] Initializing analytics-lib.js with appName: eds-aem-marketing-site');
+    window.slingAnalytics = window.MyLibrary.getInstance('eds-aem-marketing-site');
 
     // Trigger initial page load to populate data layer
     if (window.slingAnalytics && window.slingAnalytics.screenLoad) {

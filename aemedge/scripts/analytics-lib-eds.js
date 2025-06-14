@@ -207,7 +207,22 @@
       qsp = '',
       isErrorPage = false,
     } = {}) {
-      const data = {
+      // First push: Platform and app info
+      const platformData = {
+        web: {
+          webPageDetails: {
+            platform: 'web',
+            _sling: {
+              appName: this.appName,
+              analyticsVersion: version,
+            },
+          },
+        },
+      };
+      this.dataLayer.push(platformData);
+
+      // Second push: Page details
+      const pageData = {
         web: {
           webPageDetails: {
             name,
@@ -221,7 +236,22 @@
           },
         },
       };
-      this.dataLayer.push(data);
+      this.dataLayer.push(pageData);
+
+      // Third push: Day of week
+      const dayOfWeekData = {
+        web: {
+          webPageDetails: {
+            _sling: {
+              pageViewDayOfWeek: new Date().toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase(),
+            },
+          },
+        },
+      };
+      this.dataLayer.push(dayOfWeekData);
+
+      // Fourth push: URL parameters
+      this.updateUrlParamsData();
     },
 
     /**
@@ -317,7 +347,7 @@
       };
       this.dataLayer.push(eventData);
 
-      // Additional page tracking data
+      // Additional page tracking data with user testing ID
       const pageTrackingData = {
         web: {
           webPageDetails: {
@@ -331,6 +361,12 @@
               urlParams: this.getUrlParamsForTracking(),
             },
           },
+          user: {
+            testing: this.generateTestingId(),
+          },
+        },
+        useridentity: {
+          testing: this.generateTestingId(),
         },
       };
       this.dataLayer.push(pageTrackingData);
@@ -357,6 +393,62 @@
       this.dataLayer.push(resetPageViews);
 
       this.screenLoadFired = true;
+
+      // Add performance tracking after a delay
+      setTimeout(() => {
+        this.addPerformanceData();
+      }, 100);
+    },
+
+    /**
+     * Generate testing ID for user tracking
+     */
+    generateTestingId() {
+      // Generate a simple testing ID similar to production format
+      const timestamp = Date.now().toString().slice(-6);
+      return `E-${timestamp}`;
+    },
+
+    /**
+     * Add performance data to data layer
+     */
+    addPerformanceData() {
+      if (window.performance && window.performance.timing) {
+        const { timing } = window.performance;
+        const loadTime = timing.loadEventEnd - timing.navigationStart;
+
+        if (loadTime > 0) {
+          const loadTimeBucket = this.getLoadTimeBucket(loadTime);
+          const performanceData = {
+            web: {
+              webPageDetails: {
+                loadTime,
+                _sling: {
+                  loadTimeBucket,
+                },
+              },
+            },
+          };
+          this.dataLayer.push(performanceData);
+        }
+      }
+    },
+
+    /**
+     * Get load time bucket for categorization
+     */
+    getLoadTimeBucket(loadTime) {
+      if (loadTime < 1000) return '0-1sec';
+      if (loadTime < 2000) return '1-2sec';
+      if (loadTime < 3000) return '2-3sec';
+      if (loadTime < 4000) return '3-4sec';
+      if (loadTime < 5000) return '4-5sec';
+      if (loadTime < 6000) return '5-6sec';
+      if (loadTime < 7000) return '6-7sec';
+      if (loadTime < 8000) return '7-8sec';
+      if (loadTime < 9000) return '8-9sec';
+      if (loadTime < 10000) return '9-10sec';
+      return '10sec+';
     },
 
     /**
