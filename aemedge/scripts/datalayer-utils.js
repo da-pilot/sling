@@ -2,13 +2,16 @@
 // Handles data layer initialization, manipulation, and basic event tracking
 
 (function () {
+  console.log('[DataLayer-Utils] Starting data layer initialization');
+
   // Adobe Client Data Layer - Core functionality only
   if (window.adobeDataLayer && window.adobeDataLayer.version) {
-    console.warn('Adobe Client Data Layer already loaded');
+    console.warn('[DataLayer-Utils] Adobe Client Data Layer already loaded');
     return;
   }
 
   // Initialize Adobe Data Layer
+  console.log('[DataLayer-Utils] Initializing Adobe Data Layer');
   window.adobeDataLayer = window.adobeDataLayer || [];
 
   /**
@@ -47,9 +50,9 @@
                 }
               } else {
                 // No appName exists, set default
-                slingData.appName = 'aem-marketing-site';
+                slingData.appName = 'eds-marketing-site';
                 updated = true;
-                console.log('[DataLayer] Set default appName: "aem-marketing-site"');
+                console.log('[DataLayer] Set default appName: "eds-marketing-site"');
               }
             }
           }
@@ -294,19 +297,22 @@
 
   // Auto-initialize when DOM is ready
   setTimeout(async () => {
-    const appName = 'aem-marketing-site';
+    console.log('[DataLayer-Utils] Auto-initializing data layer');
+    const appName = 'eds-marketing-site';
     const pageData = DataLayerHelpers.getPageData();
     const skipAnalytics = !!document.querySelector('.skipAnalytics');
     const cancelStep = document.querySelector('meta[name="cancel-step"]')?.content || 'screen_load';
 
+    console.log('[DataLayer-Utils] Pushing initial debug data with appName:', appName);
     // Push initial debug data
     DataLayerHelpers.pushDebugData(appName);
 
     // Update appName in data layer automatically
+    console.log('[DataLayer-Utils] Updating appName in data layer');
     try {
       await updateAppName();
     } catch (error) {
-      console.warn('[DataLayer] Failed to update appName:', error);
+      console.warn('[DataLayer-Utils] Failed to update appName:', error);
     }
 
     if (!skipAnalytics) {
