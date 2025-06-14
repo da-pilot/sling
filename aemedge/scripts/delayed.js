@@ -35,8 +35,8 @@ async function loadDataLayerUtils() {
 // Load Adobe Launch when target metadata is not configured
 const targetEnabled = getMetadata('target');
 console.log('[Delayed.js] Target metadata value:', targetEnabled);
-if (!targetEnabled) {
-  console.log('[Delayed.js] Loading data layer and Launch via delayed.js');
+if (!targetEnabled || targetEnabled.toLowerCase() !== 'true') {
+  console.log('[Delayed.js] Loading data layer and Launch via delayed.js (target not explicitly true)');
   // Load data layer utilities BEFORE Adobe Launch
   await loadDataLayerUtils();
 
