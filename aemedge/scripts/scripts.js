@@ -822,32 +822,55 @@ async function loadDataLayerUtils() {
     return false;
   }
 
-  // TEMPORARILY TESTING analytics-lib.js instead of datalayer-utils.js
-  // const dataLayerScript = isProduction()
-  //   ? '/aemedge/scripts/datalayer-utils.min.js'
-  //   : '/aemedge/scripts/datalayer-utils.js';
+  // Load the EDS analytics library (minified for production, full version for dev/staging)
+  const isProduction = window.location.hostname.endsWith('.live') || window.location.hostname.includes('sling.com');
+  const dataLayerScript = isProduction
+    ? '/aemedge/scripts/analytics-lib-eds.min.js'
+    : '/aemedge/scripts/analytics-lib-eds.js';
 
-  const dataLayerScript = '/aemedge/scripts/analytics-lib-eds.js';
+  console.log('[Scripts.js] Loading analytics-lib-eds.js:', dataLayerScript);
 
-  console.log('[Scripts.js] Loading analytics-lib.js for testing:', dataLayerScript);
-  await loadScript(dataLayerScript);
-
-  // Initialize analytics-lib.js with appName
-  if (window.MyLibrary && window.MyLibrary.getInstance) {
-    console.log('[Scripts.js] Initializing analytics-lib.js with appName: eds-aem-marketing-site');
-    window.slingAnalytics = window.MyLibrary.getInstance('eds-aem-marketing-site');
-
-    // Trigger initial page load to populate data layer
-    if (window.slingAnalytics && window.slingAnalytics.screenLoad) {
-      console.log('[Scripts.js] Triggering screenLoad event');
-      window.slingAnalytics.screenLoad({
-        name: window.location.pathname,
-        type: 'generic',
-      });
-    }
+  try {
+    await loadScript(dataLayerScript);
+    console.log('[Scripts.js] Analytics script loaded successfully');
+  } catch (error) {
+    console.error('[Scripts.js] Failed to load analytics script:', error);
+    return false;
   }
 
-  console.log('[Scripts.js] Analytics-lib.js loaded and initialized');
+  // Check if analytics is available
+  console.log('[Scripts.js] Checking for analytics:', !!window.analytics);
+  console.log('[Scripts.js] Available window properties:', Object.keys(window).filter((key) => key.includes('Sling') || key.includes('analytics')));
+
+  // Initialize analytics-lib-eds.js with appName
+  if (window.analytics && window.analytics.getInstance) {
+    console.log('[Scripts.js] Initializing analytics-lib-eds.js with appName: eds-aem-marketing-site');
+
+    // Check if analytics instance already exists (to prevent duplicates from delayed.js)
+    if (!window.slingAnalytics) {
+      window.slingAnalytics = window.analytics.getInstance('eds-aem-marketing-site');
+      console.log('[Scripts.js] Analytics instance created:', !!window.slingAnalytics);
+
+      // Trigger initial page load to populate data layer
+      if (window.slingAnalytics && window.slingAnalytics.screenLoad) {
+        console.log('[Scripts.js] Triggering screenLoad event');
+        window.slingAnalytics.screenLoad({
+          name: window.location.pathname,
+          type: 'generic',
+        });
+        console.log('[Scripts.js] ScreenLoad triggered successfully');
+      } else {
+        console.error('[Scripts.js] screenLoad method not found on analytics instance');
+      }
+    } else {
+      console.log('[Scripts.js] Analytics instance already exists, skipping duplicate initialization');
+    }
+  } else {
+    console.error('[Scripts.js] analytics not found - analytics-lib-eds.js may not have loaded properly');
+    console.log('[Scripts.js] window.analytics:', window.analytics);
+  }
+
+  console.log('[Scripts.js] Analytics-lib-eds.js loading completed');
   return true;
 }
 
