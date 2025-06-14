@@ -163,13 +163,6 @@ class AnalyticsADL {
     this.appName = appName;
     this.dataLayer = dataLayer;
     this.screenLoadCalled = false;
-
-    // Wrap dataLayer.push to add debugging
-    const originalPush = this.dataLayer.push;
-    this.dataLayer.push = (...args) => {
-      analyticsLog('[Analytics] Data layer push:', args[0]);
-      return originalPush.apply(this.dataLayer, args);
-    };
   }
 
   updateDebugData() {
@@ -320,15 +313,10 @@ class AnalyticsADL {
   screenLoad(options = {}) {
     // Prevent duplicate screenLoad calls globally (across all instances)
     if (window.slingScreenLoadCalled || this.screenLoadCalled) {
-      analyticsLog('[Analytics] screenLoad already called globally, skipping duplicate call');
-      analyticsLog('[Analytics] Call stack:', new Error().stack);
       return;
     }
     this.screenLoadCalled = true;
     window.slingScreenLoadCalled = true;
-
-    analyticsLog('[Analytics] screenLoad method called with options:', options);
-    analyticsLog('[Analytics] Call stack:', new Error().stack);
 
     // Match production event name exactly: 'screen_load' not 'screenLoad'
     this.dataLayer.push({
@@ -376,8 +364,6 @@ class AnalyticsADL {
 
     // Add performance data tracking (will push load time data when page loads)
     this.updatePerformanceData();
-
-    analyticsLog('[Analytics] screenLoad method completed successfully');
   }
 
   // Commerce methods
@@ -459,11 +445,7 @@ class AnalyticsADL {
 let instance;
 
 function getInstance(appName) {
-  analyticsLog('[Analytics] getInstance called with appName:', appName);
-  analyticsLog('[Analytics] Existing instance:', !!instance);
-
   if (!instance) {
-    analyticsLog('[Analytics] Creating new analytics instance');
     // Initialize Adobe Data Layer if it doesn't exist
     window.adobeDataLayer = window.adobeDataLayer || [];
 
