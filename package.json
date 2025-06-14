@@ -6,7 +6,11 @@
   "scripts": {
     "lint:js": "eslint .",
     "lint:css": "stylelint aemedge/blocks/**/*.css aemedge/styles/*.css",
-    "lint": "npm run lint:js && npm run lint:css"
+    "lint": "npm run lint:js && npm run lint:css",
+    "build:analytics": "terser aemedge/scripts/analytics-lib-eds.js -c -m -o aemedge/scripts/analytics-lib-eds.min.js",
+    "watch:analytics": "chokidar 'aemedge/scripts/analytics-lib-eds.js' -c 'npm run build:analytics'",
+    "build": "npm run build:analytics",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -22,10 +26,13 @@
     "@babel/core": "7.24.0",
     "@babel/eslint-parser": "7.23.10",
     "chai": "5.1.0",
+    "chokidar-cli": "^3.0.0",
     "eslint": "8.57.0",
     "eslint-config-airbnb-base": "15.0.0",
     "eslint-plugin-import": "2.29.1",
+    "husky": "^9.1.7",
     "stylelint": "16.2.1",
-    "stylelint-config-standard": "36.0.0"
+    "stylelint-config-standard": "36.0.0",
+    "terser": "^5.31.0"
   }
 }

@@ -29,6 +29,17 @@ import {
   getPictureUrlByScreenWidth,
 } from './utils.js';
 
+// Analytics utils imported dynamically when needed
+
+/**
+ * Lightweight environment detection for scripts loading
+ * @returns {boolean} true if production environment
+ */
+// function isProduction() {
+//   const { hostname } = window.location;
+//   return hostname.includes('sling.com') || hostname.includes('.aem.live');
+// }
+
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
 const TEMPLATES = ['blog-article', 'blog-category']; // add your templates here
 const TEMPLATE_META = 'template';
@@ -759,19 +770,6 @@ function decorateLinkedImages() {
   });
 }
 
-async function loadLaunchEager() {
-  const isTarget = getMetadata('target');
-  if (isTarget && isTarget.toLowerCase() === 'true') {
-    await loadScript('/aemedge/scripts/sling-martech/analytics-lib.js');
-    if (window.location.host.startsWith('localhost')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
-    } else if (window.location.host.startsWith('www.sling.com') || window.location.host.endsWith('.live')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
-    } else if (window.location.host.endsWith('.page')) {
-      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
-    }
-  }
-}
 /**
  * Handles section nesting when sections have the same fragment-id
  * @param {Element} section The section element to check
@@ -814,6 +812,87 @@ export function decorateMain(main) {
 }
 
 /**
+ * Loads data layer utilities if not already loaded
+ * @returns {Promise<boolean>} - True if loaded, false if already exists
+ */
+async function loadDataLayerUtils() {
+  // Check if already loaded
+  if (window.adobeDataLayer && window.adobeDataLayer.version) {
+    console.log('[Scripts.js] Data layer already loaded');
+    return false;
+  }
+
+  // Load the EDS analytics library (minified for production, full version for dev/staging)
+  const isProduction = window.location.hostname.endsWith('.live') || window.location.hostname.includes('sling.com');
+  const dataLayerScript = isProduction
+    ? '/aemedge/scripts/analytics-lib-eds.min.js'
+    : '/aemedge/scripts/analytics-lib-eds.js';
+
+  try {
+    await loadScript(dataLayerScript);
+  } catch (error) {
+    console.error('[Scripts.js] Failed to load analytics script:', error);
+    return false;
+  }
+
+  // Initialize analytics-lib-eds.js with appName
+  if (window.analytics && window.analytics.getInstance) {
+    // Check if analytics instance already exists (to prevent duplicates from delayed.js)
+    if (!window.slingAnalytics) {
+      window.slingAnalytics = window.analytics.getInstance('eds-aem-marketing-site');
+
+      // Trigger initial page load to populate data layer
+      if (window.slingAnalytics && window.slingAnalytics.screenLoad) {
+        window.slingAnalytics.screenLoad({
+          name: window.location.pathname,
+          type: 'generic',
+        });
+      } else {
+        console.error('[Scripts.js] screenLoad method not found on analytics instance');
+      }
+    }
+  } else {
+    console.error('[Scripts.js] analytics not found - analytics-lib-eds.js may not have loaded properly');
+  }
+  return true;
+}
+
+async function loadLaunchEager() {
+  const targetEnabled = getMetadata('target');
+  if (targetEnabled && targetEnabled.toLowerCase() === 'true') {
+    await loadDataLayerUtils();
+
+    // Load environment-specific Launch scripts to avoid bloating production analytics
+    if (window.location.host.startsWith('localhost')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-b69ac51c7dcd-development.min.js');
+    } else if (window.location.host.includes('sling.com') || window.location.host.endsWith('.live')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-c846c0e0cbc6.min.js');
+    } else if (window.location.host.endsWith('.page')) {
+      await loadScript('https://assets.adobedtm.com/f4211b096882/26f71ad376c4/launch-6367a8aeb307-staging.min.js');
+    }
+  }
+}
+
+/**
+ * Loads a block named 'header' into header
+ * @param {Element} header header element
+ * @returns {Promise}
+ */
+async function loadHeader(header) {
+  let block = 'header';
+  const template = getMetadata('template');
+  if (template
+    && (template === 'blog-article'
+      || template === 'blog-category' || template === 'blog-author')) {
+    block = 'whatson-header';
+  }
+  const headerBlock = buildBlock(`${block}`, '');
+  header.append(headerBlock);
+  decorateBlock(headerBlock);
+  return loadBlock(headerBlock);
+}
+
+/**
    * Loads everything needed to get to LCP.
    * @param {Element} doc The container element
    */
@@ -845,28 +924,9 @@ async function loadEager(doc) {
 }
 
 /**
-   * Loads a block named 'header' into header
-   * @param {Element} header header element
-   * @returns {Promise}
+   * Loads everything that doesn't need to be delayed.
+   * @param {Element} doc The container element
    */
-async function loadHeader(header) {
-  let block = 'header';
-  const template = getMetadata('template');
-  if (template
-    && (template === 'blog-article'
-      || template === 'blog-category' || template === 'blog-author')) {
-    block = 'whatson-header';
-  }
-  const headerBlock = buildBlock(`${block}`, '');
-  header.append(headerBlock);
-  decorateBlock(headerBlock);
-  return loadBlock(headerBlock);
-}
-
-/**
- * Loads everything that doesn't need to be delayed.
- * @param {Element} doc The container element
- */
 async function loadLazy(doc) {
   autolinkModals(doc);
   const main = doc.querySelector('main');
