@@ -35,10 +35,10 @@ import {
  * Lightweight environment detection for scripts loading
  * @returns {boolean} true if production environment
  */
-function isProduction() {
-  const { hostname } = window.location;
-  return hostname.includes('sling.com') || hostname.includes('.aem.live');
-}
+// function isProduction() {
+//   const { hostname } = window.location;
+//   return hostname.includes('sling.com') || hostname.includes('.aem.live');
+// }
 
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
 const TEMPLATES = ['blog-article', 'blog-category']; // add your templates here
@@ -822,13 +822,32 @@ async function loadDataLayerUtils() {
     return false;
   }
 
-  const dataLayerScript = isProduction()
-    ? '/aemedge/scripts/datalayer-utils.min.js'
-    : '/aemedge/scripts/datalayer-utils.js';
+  // TEMPORARILY TESTING analytics-lib.js instead of datalayer-utils.js
+  // const dataLayerScript = isProduction()
+  //   ? '/aemedge/scripts/datalayer-utils.min.js'
+  //   : '/aemedge/scripts/datalayer-utils.js';
 
-  console.log('[Scripts.js] Loading data layer script:', dataLayerScript);
+  const dataLayerScript = '/aemedge/scripts/sling-martech/analytics-lib.js';
+
+  console.log('[Scripts.js] Loading analytics-lib.js for testing:', dataLayerScript);
   await loadScript(dataLayerScript);
-  console.log('[Scripts.js] Data layer script loaded');
+
+  // Initialize analytics-lib.js with appName
+  if (window.MyLibrary && window.MyLibrary.getInstance) {
+    console.log('[Scripts.js] Initializing analytics-lib.js with appName: aem-marketing-site');
+    window.slingAnalytics = window.MyLibrary.getInstance('aem-marketing-site');
+
+    // Trigger initial page load to populate data layer
+    if (window.slingAnalytics && window.slingAnalytics.screenLoad) {
+      console.log('[Scripts.js] Triggering screenLoad event');
+      window.slingAnalytics.screenLoad({
+        name: window.location.pathname,
+        type: 'generic',
+      });
+    }
+  }
+
+  console.log('[Scripts.js] Analytics-lib.js loaded and initialized');
   return true;
 }
 
