@@ -827,7 +827,7 @@ async function loadDataLayerUtils() {
   //   ? '/aemedge/scripts/datalayer-utils.min.js'
   //   : '/aemedge/scripts/datalayer-utils.js';
 
-  const dataLayerScript = '/aemedge/scripts/sling-martech/analytics-lib.js';
+  const dataLayerScript = '/aemedge/scripts/analytics-lib-eds.js';
 
   console.log('[Scripts.js] Loading analytics-lib.js for testing:', dataLayerScript);
   await loadScript(dataLayerScript);
