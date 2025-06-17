@@ -177,21 +177,33 @@ function autolinkModals(element) {
 }
 
 export function buildMultipleButtons(main) {
+  // Detect all button pairs to identify sibling buttons
   const buttons = main.querySelectorAll('.button-container:not(.subtext)');
-
   buttons.forEach((button) => {
     const parent = button.parentElement;
     const siblingButton = button.nextElementSibling;
 
+    // If siblingButton is subtext, create a combined button container
     if (siblingButton && siblingButton.classList.contains('subtext') && !parent.classList.contains('combined')) {
       const buttonContainer = createTag('div', { class: 'button-container combined' });
       parent.insertBefore(buttonContainer, button);
       buttonContainer.append(button, siblingButton);
     }
 
+    // If siblingButton is a regular button and not subtext, check for nextSibling
     if (siblingButton && siblingButton.classList.contains('button-container') && !siblingButton.classList.contains('subtext')) {
       const nextSibling = siblingButton.nextElementSibling;
+
+      // If nextSibling exists and not subtext or parent isn't already buttons-container,
+      // then create a new buttons container
       if (nextSibling && !nextSibling.classList.contains('subtext') && !parent.classList.contains('buttons-container')) {
+        const buttonContainer = createTag('div', { class: 'buttons-container' });
+        parent.insertBefore(buttonContainer, button);
+        buttonContainer.append(button, siblingButton);
+      }
+
+      // If no nextSibling, create a new buttons container
+      if (!nextSibling && !parent.classList.contains('buttons-container')) {
         const buttonContainer = createTag('div', { class: 'buttons-container' });
         parent.insertBefore(buttonContainer, button);
         buttonContainer.append(button, siblingButton);
@@ -199,8 +211,9 @@ export function buildMultipleButtons(main) {
     }
   });
 
-  const buttonGroups = main.querySelectorAll('div.button-container.combined');
-  buttonGroups.forEach((buttonGroup) => {
+  // Combine buttons with subtext into single vertical container div to place by sibling button
+  const combinedButtonGroups = main.querySelectorAll('div.button-container.combined');
+  combinedButtonGroups.forEach((buttonGroup) => {
     const parent = buttonGroup.parentElement;
     const siblingButton = buttonGroup.nextElementSibling;
     const siblingUp = buttonGroup.previousElementSibling;
