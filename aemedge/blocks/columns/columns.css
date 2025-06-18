@@ -638,7 +638,7 @@
 
   @media (width >=1200px) {
     .tabs.columns {
-      width: 88%;
+      max-width: 88%;
       margin: 0 auto;
     }
 
