@@ -642,6 +642,10 @@
       margin: 0 auto;
     }
 
+    .tabs .columns {
+      max-width: 100%;
+  }
+  
     .tabs-panel .columns > div {
       flex-direction: row;
     }
