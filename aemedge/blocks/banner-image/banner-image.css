@@ -18,7 +18,7 @@
 .banner-content {
     color: var(--clr-white);
     border: none;
-    padding: 48px 8%;
+    padding: 40px 8%;
     display: flex;
     -webkit-box-pack: justify;
     flex-flow: column;
@@ -156,7 +156,6 @@
 
     .banner-content {
         flex-direction: row;
-        padding: 80px 8%;
         align-items: center;
         justify-content: space-between;
 
