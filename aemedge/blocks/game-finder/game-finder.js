@@ -2,7 +2,24 @@ import {
   createTag, readBlockConfig, decodeAmpersand, rewriteLinksForSlingDomain,
 } from '../../scripts/utils.js';
 
+const hideOrphanNoGamesDivs = (container) => {
+  container.querySelectorAll('div').forEach((div) => {
+    if (div.textContent.trim().startsWith('No games are available on Sling for this date.')) {
+      const prev = div.previousElementSibling;
+      if (
+        !prev
+        || !/^[\w]+,\s+[\w]+\s+\d{1,2},\s+\d{4}$/.test(prev.textContent.trim())
+      ) {
+        div.style.display = 'none';
+      } else {
+        div.style.display = '';
+      }
+    }
+  });
+};
+
 export default async function decorate(block) {
+  localStorage.setItem('user_dma', '524');
   const defultProps = {
     showFilter: false,
     channelsLogoPath: '/aemedge/icons/channels/AllLOBLogos/color',
@@ -10,8 +27,11 @@ export default async function decorate(block) {
     filterOnlyFirstTwoPosition: false,
     showDetailsModal: false,
     agentView: false,
-    packageFilterDefault: 'All Games',
+    packageFilterDefault: 'Available on Sling',
     matchupImgFormat: 'png',
+    blackoutText: '*Blackout restrictions apply. All games subject to broadcast restrictions as determined by geographic location.',
+    packageNotAvailableText: 'Not Available',
+    teamSearchPlaceholder: 'Find my team',
   };
   const config = await readBlockConfig(block);
   // Clean up config values
@@ -47,4 +67,10 @@ export default async function decorate(block) {
   // Clean up any divs without IDs first
   const divsWithoutId = block.querySelectorAll('div:not([id])');
   divsWithoutId.forEach((div) => div.remove());
+
+  // --- MutationObserver logic ---
+  const observer = new MutationObserver(() => hideOrphanNoGamesDivs(container));
+  observer.observe(container, { childList: true, subtree: true });
+  // Run once on initial load
+  hideOrphanNoGamesDivs(container);
 }
