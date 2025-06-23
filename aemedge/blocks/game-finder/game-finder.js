@@ -2,6 +2,22 @@ import {
   createTag, readBlockConfig, decodeAmpersand, rewriteLinksForSlingDomain,
 } from '../../scripts/utils.js';
 
+function hideOrphanNoGamesDivs(container) {
+  container.querySelectorAll('div').forEach(function(div) {
+    if (div.textContent.trim().startsWith('No games are available on Sling for this date.')) {
+      let prev = div.previousElementSibling;
+      if (
+        !prev ||
+        !/^\w+,\s+\w+\s+\d{1,2},\s+\d{4}$/.test(prev.textContent.trim())
+      ) {
+        div.style.display = 'none';
+      } else {
+        div.style.display = '';
+      }
+    }
+  });
+}
+
 export default async function decorate(block) {
   localStorage.setItem('user_dma', '524');
   const defultProps = {
@@ -46,9 +62,11 @@ export default async function decorate(block) {
   const slingProps = { ...defultProps, ...cleanedConfig };
   const container = createTag('div', { id: 'gmfinder-app', 'data-sling-props': JSON.stringify(slingProps) });
   block.append(container);
-  // Patch cart links for sling.com redirection
   rewriteLinksForSlingDomain(container, /^\/cart/);
-  // Clean up any divs without IDs first
   const divsWithoutId = block.querySelectorAll('div:not([id])');
   divsWithoutId.forEach((div) => div.remove());
+
+  const observer = new MutationObserver(() => hideOrphanNoGamesDivs(container));
+  observer.observe(container, { childList: true, subtree: true });
+  hideOrphanNoGamesDivs(container);
 }
