@@ -19,7 +19,6 @@ function hideOrphanNoGamesDivs(container) {
 }
 
 export default async function decorate(block) {
-  localStorage.setItem('user_dma', '524');
   const defultProps = {
     showFilter: false,
     channelsLogoPath: '/aemedge/icons/channels/AllLOBLogos/color',
