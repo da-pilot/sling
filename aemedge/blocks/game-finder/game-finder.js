@@ -3,6 +3,7 @@ import {
 } from '../../scripts/utils.js';
 
 export default async function decorate(block) {
+  localStorage.setItem('user_dma', '524');
   const defultProps = {
     showFilter: false,
     channelsLogoPath: '/aemedge/icons/channels/AllLOBLogos/color',
@@ -10,8 +11,11 @@ export default async function decorate(block) {
     filterOnlyFirstTwoPosition: false,
     showDetailsModal: false,
     agentView: false,
-    packageFilterDefault: 'All Games',
+    packageFilterDefault: 'Available on Sling',
     matchupImgFormat: 'png',
+    blackoutText:'*Blackout restrictions apply. All games subject to broadcast restrictions as determined by geographic location.',
+    packageNotAvailableText: "Not Available",
+    teamSearchPlaceholder: "Find my team"
   };
   const config = await readBlockConfig(block);
   // Clean up config values
