@@ -5,20 +5,19 @@ import {
 function hideOrphanNoGamesDivs(container) {
   container.querySelectorAll('div').forEach(function(div) {
     if (div.textContent.trim().startsWith('No games are available on Sling for this date.')) {
-      let prev = div.previousElementSibling;
+      const prev = div.previousElementSibling;
       if (
         !prev ||
         !/^\w+,\s+\w+\s+\d{1,2},\s+\d{4}$/.test(prev.textContent.trim())
       ) {
-        div.style.display = 'none';
-      } else {
-        div.style.display = '';
+        div.remove();
       }
     }
   });
 }
 
 export default async function decorate(block) {
+  localStorage.setItem('user_dma', '524');
   const defultProps = {
     showFilter: false,
     channelsLogoPath: '/aemedge/icons/channels/AllLOBLogos/color',
