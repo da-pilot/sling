@@ -939,10 +939,9 @@ main .icon-still-have-questions img {
 
 /* Section with Dark or Centered content */
 .section.dark {
-  background-color: var(--dark-background-color);
   color: var(--light-color);
   margin: 0;
-  padding: 64px 8%;
+  padding: 64px 0;
   background-size: cover;
 }
 
@@ -1160,10 +1159,6 @@ a.black {
 
     .section.wide-columns .columns > div > div:nth-of-type(2) {
         width: 50%;
-    }
-
-    .section.dark {
-        padding: 64px 32px;
     }
 
     .section.dark.supported-devices {
