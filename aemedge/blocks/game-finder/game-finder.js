@@ -10,7 +10,9 @@ function hideOrphanNoGamesDivs(container) {
         !prev ||
         !/^\w+,\s+\w+\s+\d{1,2},\s+\d{4}$/.test(prev.textContent.trim())
       ) {
-        div.remove();
+        div.style.display = 'none';
+      } else {
+        div.style.display = '';
       }
     }
   });
