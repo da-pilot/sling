@@ -1,6 +1,6 @@
 /* eslint-disable import/no-unresolved */
 import DA_SDK from 'https://da.live/nx/utils/sdk.js';
-import { getTags } from '../../../aemedge/scripts/tags.js';
+import { getTags } from '../../../eds/scripts/tags.js';
 
 let selectedOrder = [];
 

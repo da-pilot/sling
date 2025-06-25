@@ -6,7 +6,7 @@ import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import { crawl } from 'https://da.live/nx/public/utils/tree.js';
 
 // Base path for fragments
-const FRAGMENTS_BASE = '/aemedge/fragments';
+const FRAGMENTS_BASE = '/eds/fragments';
 
 /**
  * Shows a message in the feedback container with optional error styling and auto-hide

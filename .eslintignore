@@ -1,5 +1,5 @@
 helix-importer-ui
-aemedge/scripts/sling-react/*.js
-aemedge/scripts/sling-martech/*.js
+eds/scripts/sling-react/*.js
+eds/scripts/sling-martech/*.js
 aio/
 *.min.js

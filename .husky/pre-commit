@@ -1,10 +1,10 @@
 # Check if analytics-lib-eds.js was modified in this commit
-if git diff --cached --name-only | grep -q "aemedge/scripts/analytics-lib-eds.js"; then
+if git diff --cached --name-only | grep -q "eds/scripts/analytics-lib-eds.js"; then
   echo "🔧 Analytics file modified, rebuilding minified version..."
-  cd aemedge && npm run build:analytics && cd ..
+  cd eds && npm run build:analytics && cd ..
   
   # Add the updated minified file to the commit
-  git add aemedge/scripts/analytics-lib-eds.min.js
+  git add eds/scripts/analytics-lib-eds.min.js
   echo "✅ Minified analytics file updated and staged"
 else
   echo "ℹ️  No analytics changes detected, skipping minification"
