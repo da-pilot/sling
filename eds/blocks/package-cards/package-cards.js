@@ -7,7 +7,7 @@ const observer = new IntersectionObserver(await loadReactLib, options);
 async function loadReactLib(entries) {
   if (entries.some(async (entry) => {
     if (entry.isIntersecting) {
-      await loadScript('../../../aemedge/scripts/sling-react/package-cards-build.js', {}, entry.target);
+      await loadScript('../../../eds/scripts/sling-react/package-cards-build.js', {}, entry.target);
       observer.unobserve(entry.target);
     }
   }));
@@ -87,7 +87,7 @@ export default async function decorate(block) {
       'data-sling-package-cards-card-one-config': JSON.stringify(cardone),
       'data-sling-package-cards-card-two-config': JSON.stringify(cardtwo),
       'data-sling-package-cards-card-two-type': config['Card-Two-Type'] || 'extra',
-      'data-sling-package-cards-logo-base-path': '/aemedge/icons/application-assets/shared/web/logos/black',
+      'data-sling-package-cards-logo-base-path': '/eds/icons/application-assets/shared/web/logos/black',
       'data-sling-package-cards-analytics-modal-name': config['Analytics-Modal-Name'] || 'analytics-modal-name',
     },
   );

@@ -11,7 +11,7 @@ const observer = new IntersectionObserver(loadReactLib, options);
 async function loadReactLib(entries) {
   if (entries.some(async (entry) => {
     if (entry.isIntersecting) {
-      await loadScript('../../../aemedge/scripts/sling-react/channel-shopper-build.js', {}, entry.target);
+      await loadScript('../../../eds/scripts/sling-react/channel-shopper-build.js', {}, entry.target);
       observer.unobserve(entry.target);
     }
   }));
@@ -31,7 +31,7 @@ export default async function decorate(block) {
     recommendationText: config.recommendationText?.trim() ? config.recommendationText : 'Choose a channel to view a recommendation',
     localBadgeText: config.localBadgeText?.trim() ? config.localBadgeText : 'Local',
     checkoutButtonText: config.checkoutButtonText?.trim() ? config.checkoutButtonText : 'Checkout',
-    channelIconUrl: '/aemedge/icons/channels/allloblogos/color',
+    channelIconUrl: '/eds/icons/channels/allloblogos/color',
     ctaUrl: config.ctaUrl ? decodeAmpersand(config.ctaUrl) : '/cart/magento/account',
     maxChannelsSelected: typeof config.maxChannelsSelected === 'number' ? config.maxChannelsSelected : 5,
     limitHitErrorText: config.limitHitErrorText?.trim() ? config.limitHitErrorText : 'Unselect a channel to add another. To view all channels in your recommended plan, click the \'more\' button(s).',

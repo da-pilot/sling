@@ -93,7 +93,7 @@ const getVideoId = (url) => {
 
 // YouTube embed with lite-youtube
 const embedYoutube = async (url) => {
-  await loadScript('/aemedge/blocks/embed/lite-yt-embed/lite-yt-embed.js');
+  await loadScript('/eds/blocks/embed/lite-yt-embed/lite-yt-embed.js');
   const videoId = getVideoId(url);
   const wrapper = document.createElement('div');
   wrapper.setAttribute('itemscope', '');
@@ -119,7 +119,7 @@ const embedYoutube = async (url) => {
 
 // Vimeo embed with lite-vimeo-embed
 const embedVimeo = async (url) => {
-  await loadScript('/aemedge/blocks/embed/lite-vimeo-embed/lite-vimeo-embed.js');
+  await loadScript('/eds/blocks/embed/lite-vimeo-embed/lite-vimeo-embed.js');
   const videoId = getVideoId(url);
   const wrapper = document.createElement('div');
   wrapper.setAttribute('itemscope', '');

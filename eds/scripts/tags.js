@@ -1,6 +1,6 @@
 import ffetch from './ffetch.js';
 
-const tagsEndpoint = '/aemedge/tags.json';
+const tagsEndpoint = '/eds/tags.json';
 const colorsEndpoint = '/library/style-variables.json';
 
 let tagsPromise;

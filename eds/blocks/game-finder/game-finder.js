@@ -22,8 +22,8 @@ export default async function decorate(block) {
   localStorage.setItem('user_dma', '524');
   const defultProps = {
     showFilter: false,
-    channelsLogoPath: '/aemedge/icons/channels/AllLOBLogos/color',
-    modalChannelsLogoPath: '/aemedge/icons/application-assets/shared/web/logos/black',
+    channelsLogoPath: '/eds/icons/channels/AllLOBLogos/color',
+    modalChannelsLogoPath: '/eds/icons/application-assets/shared/web/logos/black',
     filterOnlyFirstTwoPosition: false,
     showDetailsModal: false,
     agentView: false,

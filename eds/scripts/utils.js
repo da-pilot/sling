@@ -246,13 +246,13 @@ export async function getBlogs(categories, num, limit = '') {
     ? window.allBlogs.filter(
       (e) => (e.template === 'blog-article'
         && e.image !== ''
-        && !e.image.startsWith('//aemedge/default-meta-image.png')
+        && !e.image.startsWith('//eds/default-meta-image.png')
         && (e.hideFromHome !== 'yes')),
     )
     : window.allBlogs.filter(
       (e) => (e.template === 'blog-article'
         && e.image !== ''
-        && !e.image.startsWith('//aemedge/default-meta-image.png')),
+        && !e.image.startsWith('//eds/default-meta-image.png')),
     );
 
   if ((categories && categories.length > 0)) {
@@ -277,7 +277,7 @@ export async function getBlogsByPaths(paths, limit = '') {
     window.allBlogs = await fetchData(`/whatson/query-index.json${limit ? `?limit=${limit}` : ''}`);
   }
   const blogArticles = window.allBlogs.filter(
-    (e) => (e.template !== 'blog-category' && e.image !== '' && !e.image.startsWith('//aemedge/default-meta-image.png')),
+    (e) => (e.template !== 'blog-category' && e.image !== '' && !e.image.startsWith('//eds/default-meta-image.png')),
   );
   let filterArticles = [];
   if (paths && paths.length > 0) {
@@ -581,7 +581,7 @@ const gmobserver = new IntersectionObserver(loadGameFinderApp, gmoptions);
 function loadGameFinderApp(entries) {
   if (entries.some(async (entry) => {
     if (entry.isIntersecting) {
-      await loadScript('/aemedge/scripts/sling-react/game-finder-build.js', {}, entry.target);
+      await loadScript('/eds/scripts/sling-react/game-finder-build.js', {}, entry.target);
       gmobserver.unobserve(entry.target);
     }
   }));
@@ -601,7 +601,7 @@ const pcobserver = new IntersectionObserver(loadPackageCard, pcoptions);
 function loadPackageCard(entries) {
   if (entries.some(async (entry) => {
     if (entry.isIntersecting) {
-      await loadScript('/aemedge/scripts/sling-react/package-cards-build.js', {}, entry.target);
+      await loadScript('/eds/scripts/sling-react/package-cards-build.js', {}, entry.target);
       pcobserver.unobserve(entry.target);
     }
   }));

@@ -31,10 +31,10 @@ export default async function decorate(block) {
   const footerMeta = getMetadata('footer');
   block.textContent = '';
   // load footer fragment
-  const footerPath = footerMeta ? new URL(footerMeta, window.location).pathname : '/aemedge/footer';
+  const footerPath = footerMeta ? new URL(footerMeta, window.location).pathname : '/eds/footer';
   const fragment = await loadFragment(footerPath);
   if (footerMeta) {
-    const footerVariant = footerMeta.split('/').pop(); // Gets 'footer-latino-es' from '/aemedge/footer-latino-es'
+    const footerVariant = footerMeta.split('/').pop(); // Gets 'footer-latino-es' from '/eds/footer-latino-es'
     if (footerVariant && footerVariant !== 'footer') {
       block.classList.add(footerVariant);
     }
@@ -64,7 +64,7 @@ export default async function decorate(block) {
         block.classList.add('landing');
         const img = document.createElement('img');
         img.classList.add('icon-arrow-down');
-        img.src = '/aemedge/icons/arrow-down.svg';
+        img.src = '/eds/icons/arrow-down.svg';
         heading.appendChild(img);
         heading.addEventListener('click', () => {
           const navItems = heading.parentElement.querySelectorAll('.nav-items-wrapper .nav-item');

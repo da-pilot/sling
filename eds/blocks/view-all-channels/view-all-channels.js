@@ -9,7 +9,7 @@ const defaultProps = {
 
 const CONFIG = {
   baseURL: 'https://www.slingcommerce.com/graphql',
-  channelLogoBaseURL: '/aemedge/icons/application-assets/shared/web/logos/black',
+  channelLogoBaseURL: '/eds/icons/application-assets/shared/web/logos/black',
 };
 
 function normalizeConfigKeys(config) {

@@ -80,7 +80,7 @@ export default async function decorate(block) {
       // const container = createTag('div');
       const container = createTag('div', { 'data-sling-props': JSON.stringify(slingProps), id: 'chat-app' });
       block.append(container);
-      loadScript('../../../aemedge/scripts/sling-react/chat-build.js');
+      loadScript('../../../eds/scripts/sling-react/chat-build.js');
     }
   }, { threshold: 0 });
   observer.observe(block);

@@ -43,7 +43,7 @@ import {
 const LCP_BLOCKS = ['category']; // add your LCP blocks to the list
 const TEMPLATES = ['blog-article', 'blog-category']; // add your templates here
 const TEMPLATE_META = 'template';
-const EXT_IMAGE_URL = /dish\.scene7\.com|\/aemedge\/svgs\/|delivery-p\d+-e\d+\.adobeaemcloud\.com\/adobe\/assets\//;
+const EXT_IMAGE_URL = /dish\.scene7\.com|\/eds\/svgs\/|delivery-p\d+-e\d+\.adobeaemcloud\.com\/adobe\/assets\//;
 
 /**
  * Decorates all blocks in a container element.
@@ -838,8 +838,8 @@ async function loadDataLayerUtils() {
   // Load the EDS analytics library (minified for production, full version for dev/staging)
   const isProduction = window.location.hostname.endsWith('.live') || window.location.hostname.includes('sling.com');
   const dataLayerScript = isProduction
-    ? '/aemedge/scripts/analytics-lib-eds.min.js'
-    : '/aemedge/scripts/analytics-lib-eds.js';
+    ? '/eds/scripts/analytics-lib-eds.min.js'
+    : '/eds/scripts/analytics-lib-eds.js';
 
   try {
     await loadScript(dataLayerScript);
@@ -1034,7 +1034,7 @@ function setupBlockObserver() {
               // Import the block module and call rebindEvents
               const importPath = window.hlx?.codeBasePath
                 ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
-                : `/aemedge/blocks/${blockType}/${blockType}.js`;
+                : `/eds/blocks/${blockType}/${blockType}.js`;
 
               import(importPath)
                 .then((module) => {
@@ -1094,7 +1094,7 @@ function setupBlockObserver() {
         // Import the block module and call rebindEvents
         const importPath = window.hlx?.codeBasePath
           ? `${window.hlx.codeBasePath}/blocks/${blockType}/${blockType}.js`
-          : `/aemedge/blocks/${blockType}/${blockType}.js`;
+          : `/eds/blocks/${blockType}/${blockType}.js`;
 
         import(importPath)
           .then((module) => {

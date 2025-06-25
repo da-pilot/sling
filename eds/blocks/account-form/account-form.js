@@ -185,7 +185,7 @@ export default async function decorate(block) {
   const options = { threshold: 0.25 };
   const observer = new IntersectionObserver(async (entries, obs) => {
     if (entries.some((entry) => entry.isIntersecting)) {
-      await loadScript('../../../aemedge/scripts/sling-react/account-form-build.js', {}, container);
+      await loadScript('../../../eds/scripts/sling-react/account-form-build.js', {}, container);
 
       // Ensure email placeholder is set correctly after React component loads
       setTimeout(() => {

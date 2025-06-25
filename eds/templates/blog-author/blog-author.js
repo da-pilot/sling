@@ -11,7 +11,7 @@ export async function getBlogsByAuthor(author) {
     window.allBlogs = await fetchData('/whatson/query-index.json');
   }
   const blogArticles = window.allBlogs.filter(
-    (e) => (e.template !== 'blog-category' && e.image !== '' && !e.image.startsWith('//aemedge/default-meta-image.png')),
+    (e) => (e.template !== 'blog-category' && e.image !== '' && !e.image.startsWith('//eds/default-meta-image.png')),
   );
   let filterArticles = [];
   if (author) {

@@ -1,7 +1,7 @@
 import { createTag, fetchPlaceholders } from '../../scripts/utils.js';
 import { toClassName } from '../../scripts/aem.js';
 // read the config and construct the DOM
-const placeholders = await fetchPlaceholders('aemedge', 'messages');
+const placeholders = await fetchPlaceholders('eds', 'messages');
 function showErrorMessage() {
   return `
     <div type="error" class="error channel-data">

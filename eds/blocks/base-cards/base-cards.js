@@ -46,7 +46,7 @@ function observeBaseCardsApp() {
 
 async function loadReactLib(entries) {
   if (entries.some((entry) => entry.isIntersecting)) {
-    await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, entries.find((entry) => entry.isIntersecting).target);
+    await loadScript('../../../eds/scripts/sling-react/base-cards-build.js', {}, entries.find((entry) => entry.isIntersecting).target);
     observer.unobserve(entries.find((entry) => entry.isIntersecting).target);
     observeBaseCardsApp();
   }
@@ -76,8 +76,8 @@ export default async function decorate(block) {
     comboServiceGoodForTwo: config['Combo-Service-Second-Good-For-Text']?.trim() ? config['Combo-Service-Second-Good-For-Text'] : 'Entertainment',
     showLocalsBanners: typeof config['Show-locals-banner-on-blue-and-combo-card'] === 'boolean' ? config['Show-locals-banner-on-blue-and-combo-card'] : true,
     classification: 'us',
-    iconURLBase: config['Icons-Root-Path']?.trim() ? config['Icons-Root-Path'] : '/aemedge/icons/channels/allloblogos/color',
-    grayIconURLBase: config['Gray-Icons-Root-Path']?.trim() ? config['Gray-Icons-Root-Path'] : '/aemedge/icons/channels/allloblogos/color',
+    iconURLBase: config['Icons-Root-Path']?.trim() ? config['Icons-Root-Path'] : '/eds/icons/channels/allloblogos/color',
+    grayIconURLBase: config['Gray-Icons-Root-Path']?.trim() ? config['Gray-Icons-Root-Path'] : '/eds/icons/channels/allloblogos/color',
     ctaStyle: 'primary',
     ctaTheme: 'light',
     ctaSubText: 'Offer Details',
@@ -95,7 +95,7 @@ export default async function decorate(block) {
       subheaderText: "Don't see a channel you like? More channels are available in add-ons.",
       slingComboAuthoredName: 'Get Both',
       monthText: ' ',
-      compareIconURLBase: '/aemedge/icons/channels/allloblogos/color',
+      compareIconURLBase: '/eds/icons/channels/allloblogos/color',
       hideFooterCTA: true,
       footerCtaLink: config['Footer-CTA-Link']?.trim() ? decodeAmpersand(config['Footer-CTA-Link']) : '/cart/magento/account?classification=us&plan=one-month&plan_offer=extra-stair-step-2',
       footerCtaText: config['Footer-CTA-Text']?.trim() ? config['Footer-CTA-Text'] : 'Try Us Today',
@@ -141,7 +141,7 @@ export default async function decorate(block) {
   observer.observe(block);
   // listen to zipcode changes and redecorate
   document.addEventListener('zipupdate', async () => {
-    await loadScript('../../../aemedge/scripts/sling-react/base-cards-build.js', {}, block);
+    await loadScript('../../../eds/scripts/sling-react/base-cards-build.js', {}, block);
     observeBaseCardsApp();
     // Patch cart links again after zip update
     const zipUpdateContainer = document.querySelector('.base-cards.block #base-cards-app');

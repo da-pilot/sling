@@ -63,7 +63,7 @@ indices:
       - '**/drafts/**'
       - '**/fragments/**'
       - '**/tools/**'
-      - '/aemedge/icons/**'
+      - '/eds/icons/**'
     target: /query-index.json
     properties:
       title:

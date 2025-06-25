@@ -24,8 +24,8 @@ async function loadDataLayerUtils() {
   // Load the EDS analytics library (minified for production, full version for dev/staging)
   const isProduction = window.location.hostname.endsWith('.live') || window.location.hostname.includes('sling.com');
   const dataLayerScript = isProduction
-    ? '/aemedge/scripts/analytics-lib-eds.min.js'
-    : '/aemedge/scripts/analytics-lib-eds.js';
+    ? '/eds/scripts/analytics-lib-eds.min.js'
+    : '/eds/scripts/analytics-lib-eds.js';
 
   await loadScript(dataLayerScript);
 

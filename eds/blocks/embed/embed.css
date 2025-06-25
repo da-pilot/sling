@@ -86,7 +86,7 @@ lite-vimeo, lite-youtube {
         left: 50%;
         z-index: 1;
         background-color: transparent;
-        background-image: url('/aemedge/icons/play-button.svg');
+        background-image: url('/eds/icons/play-button.svg');
         transition: all .4s;
         border: none;
         min-width: unset;

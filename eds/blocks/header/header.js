@@ -127,7 +127,7 @@ function showsubmenu(nav, backbutton) {
 export default async function decorate(block) {
   // load nav as fragment
   const navMeta = getMetadata('nav');
-  const navPath = navMeta ? new URL(navMeta, window.location).pathname : '/aemedge/nav';
+  const navPath = navMeta ? new URL(navMeta, window.location).pathname : '/eds/nav';
   const fragment = await loadFragment(navPath);
   // decorate nav DOM
   block.textContent = '';
