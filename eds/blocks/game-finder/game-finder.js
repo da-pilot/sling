@@ -22,7 +22,7 @@ export default async function decorate(block) {
   localStorage.setItem('user_dma', '524');
   const defultProps = {
     showFilter: false,
-    channelsLogoPath: '/eds/icons/channels/AllLOBLogos/color',
+    channelsLogoPath: '/eds/icons/channels/allloblogos/color',
     modalChannelsLogoPath: '/eds/icons/application-assets/shared/web/logos/black',
     filterOnlyFirstTwoPosition: false,
     showDetailsModal: false,
