@@ -696,7 +696,7 @@ export async function fetchZipcodeAndDMA() {
   const ZIPCODE_ENDPOINT = 'https://p-geo.movetv.com/geo';
   const DEFAULT_ZIPCODE = '90020';
   const DEFAULT_DMA = '803';
-  
+
   try {
     const response = await fetch(ZIPCODE_ENDPOINT);
     if (!response.ok) {
@@ -708,6 +708,7 @@ export async function fetchZipcodeAndDMA() {
       dma: data?.dma || DEFAULT_DMA,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn('Failed to fetch geo data, using defaults:', error);
     return {
       zipcode: DEFAULT_ZIPCODE,
@@ -723,17 +724,18 @@ export async function fetchZipcodeAndDMA() {
  */
 export async function fetchDMAForZipcode(zipcode) {
   const DEFAULT_DMA = '803';
-  
+
   try {
     const { query, variables, operationName } = GQL_QUERIES.zipcodeAddressVerificationV2;
     const response = await fetchGQL(query, variables(zipcode), operationName);
-    
+
     if (response?.data?.zipcodeAddressVerificationV2?.dma) {
       return response.data.zipcodeAddressVerificationV2.dma;
     }
-    
+
     return DEFAULT_DMA;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn('Failed to fetch DMA for zipcode, using default:', error);
     return DEFAULT_DMA;
   }
@@ -804,6 +806,7 @@ export function configSideKick() {
     // Find the closest block or section element
     const currentElement = event.currentTarget.closest('.block, .section');
     if (!currentElement) {
+      // eslint-disable-next-line no-console
       console.error('No block or section found for export');
       return;
     }
@@ -819,6 +822,7 @@ export function configSideKick() {
     const fragmentId = currentElement.getAttribute('data-fragment-id');
 
     if (!elementName) {
+      // eslint-disable-next-line no-console
       console.error('No name found for element');
       return;
     }
@@ -861,6 +865,7 @@ export function configSideKick() {
       const script = await loadDialogScript('/tools/htmloffer/htmloffer.js');
       document.body.appendChild(script);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error loading HTML offer dialog:', error);
     }
   };
@@ -888,6 +893,7 @@ export function configSideKick() {
     .join(' ');
 
   const showBlocks = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     console.info('showblocks event triggered with payload:', payload);
     // Store the payload for login status check
     window.lastSidekickPayload = payload;
@@ -925,6 +931,7 @@ export function configSideKick() {
   };
 
   const showSections = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     console.info('showsections event:', payload);
     // Store the payload for login status check
     window.lastSidekickPayload = payload;
@@ -973,7 +980,10 @@ export function configSideKick() {
     const handlers = {
       showblocks: showBlocks,
       showsections: showSections,
-      eventdetials: (e) => console.info(e.detail),
+      eventdetials: (e) => {
+        // eslint-disable-next-line no-console
+        console.info(e.detail);
+      },
     };
 
     events.forEach((event) => {

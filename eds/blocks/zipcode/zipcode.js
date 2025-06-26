@@ -1,4 +1,10 @@
-import { createTag, getZipcode, ZIPCODE_KEY, DMA_KEY, fetchDMAForZipcode } from '../../scripts/utils.js';
+import {
+  createTag,
+  getZipcode,
+  ZIPCODE_KEY,
+  DMA_KEY,
+  fetchDMAForZipcode,
+} from '../../scripts/utils.js';
 
 const closeForm = (e, block) => {
   e.preventDefault();
@@ -10,23 +16,24 @@ const closeForm = (e, block) => {
 const updateZip = async (e, block) => {
   e.preventDefault();
   const zipinput = block.querySelector(':scope  .zip-input').value;
-  
+
   try {
     const dma = await fetchDMAForZipcode(zipinput);
-    
+
     localStorage.setItem(ZIPCODE_KEY, zipinput);
     localStorage.setItem(DMA_KEY, dma);
-    
+
     block.querySelector('.geo-form-container').remove();
-    
+
     const options = { bubbles: true, detail: { zipcode: zipinput, dma } };
     const zipUpdateEvent = new CustomEvent('zipupdate', options);
     document.dispatchEvent(zipUpdateEvent);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to update zipcode and DMA:', error);
     localStorage.setItem(ZIPCODE_KEY, zipinput);
     block.querySelector('.geo-form-container').remove();
-    
+
     const options = { bubbles: true, detail: { zipcode: zipinput } };
     const zipUpdateEvent = new CustomEvent('zipupdate', options);
     document.dispatchEvent(zipUpdateEvent);
@@ -69,10 +76,10 @@ export default async function decorate(block) {
   block.innerHTML = `
   <div class="geo-container">
         <div class="geo-pin">
-            <img src ="/eds/icons/geo-pin.svg" alt="Current Zipcode" /> 
+            <img src ="/eds/icons/geo-pin.svg" alt="Current Zipcode" />
         </div>
         <div class="geo-text">
-            <span>${zipCode}</span> 
+            <span>${zipCode}</span>
         </div>
         <div class="geo-selector">
             <img src ="/eds/icons/geo-down-arrow.svg" alt="Change Zipcode"/>
