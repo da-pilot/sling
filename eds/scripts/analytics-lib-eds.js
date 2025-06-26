@@ -11,18 +11,21 @@ function isProduction() {
 
 function analyticsLog(...args) {
   if (!isProduction()) {
+    // eslint-disable-next-line no-console
     console.log(...args);
   }
 }
 
 function analyticsWarn(msg) {
   if (!isProduction()) {
+    // eslint-disable-next-line no-console
     console.warn(`[Analytics Warning] ${msg}`);
   }
 }
 
 function analyticsError(msg) {
   if (!isProduction()) {
+    // eslint-disable-next-line no-console
     console.error(`[Analytics Error] ${msg}`);
   }
 }
@@ -455,9 +458,9 @@ function getInstance(appName) {
         const fn = target[prop];
         if (!fn) {
           analyticsError(`Property ${prop} accessed, but does not exist. If this is a function call, it will silently fail as a no-op. This needs to be fixed in the calling code.`);
-          return function () { /* intentionally empty */ };
+          return function noOp() { /* intentionally empty */ };
         }
-        return function (...args) {
+        return function proxyFunction(...args) {
           try {
             return target[prop](...args);
           } catch (e) {
@@ -573,21 +576,21 @@ function getInstance(appName) {
 window.slingUtils = window.slingUtils || {};
 window.slingUtils.lazy = window.slingUtils.lazy || {};
 window.slingUtils.lazy.registerComponent = window.slingUtils.lazy.registerComponent
-  || function () {};
+  || function registerComponent() {};
 
 // Adobe Data Layer compatibility methods
 if (window.adobeDataLayer && !window.adobeDataLayer.getState) {
-  window.adobeDataLayer.getState = function (path) {
+  window.adobeDataLayer.getState = function getState(path) {
     // Simple state getter - in a real implementation this would traverse the data layer
     return path ? undefined : {};
   };
 
-  window.adobeDataLayer.addEventListener = function (event) {
+  window.adobeDataLayer.addEventListener = function addEventListener(event) {
     // Simple event listener - in a real implementation this would register listeners
     analyticsLog('addEventListener called:', event);
   };
 
-  window.adobeDataLayer.removeEventListener = function (event) {
+  window.adobeDataLayer.removeEventListener = function removeEventListener(event) {
     // Simple event listener removal
     analyticsLog('removeEventListener called:', event);
   };

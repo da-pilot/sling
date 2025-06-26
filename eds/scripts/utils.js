@@ -8,6 +8,7 @@ export const PRODUCTION_DOMAINS = ['sling.com'];
 
 const domainCheckCache = {};
 export const ZIPCODE_KEY = 'user_zip';
+export const DMA_KEY = 'user_dma';
 /**
  * Checks a url to determine if it is a known domain.
  * @param {string | URL} url the url to check
@@ -686,18 +687,79 @@ export function getPictureUrlByScreenWidth(pictures) {
   if (screenWidth >= 768) return pictures[1];
   return pictures[2];
 }
-export async function getZipcode() {
+
+/**
+ * Fetches zipcode and DMA from the geo endpoint (IP-based)
+ * @returns {Promise<Object>} Object containing zipcode and dma
+ */
+export async function fetchZipcodeAndDMA() {
   const ZIPCODE_ENDPOINT = 'https://p-geo.movetv.com/geo';
   const DEFAULT_ZIPCODE = '90020';
+  const DEFAULT_DMA = '803';
+
+  try {
+    const response = await fetch(ZIPCODE_ENDPOINT);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return {
+      zipcode: data?.zip_code || DEFAULT_ZIPCODE,
+      dma: data?.dma || DEFAULT_DMA,
+    };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to fetch geo data, using defaults:', error);
+    return {
+      zipcode: DEFAULT_ZIPCODE,
+      dma: DEFAULT_DMA,
+    };
+  }
+}
+
+/**
+ * Fetches DMA for a specific zipcode using GraphQL
+ * @param {string} zipcode - The zipcode to get DMA for
+ * @returns {Promise<string>} The DMA value
+ */
+export async function fetchDMAForZipcode(zipcode) {
+  const DEFAULT_DMA = '803';
+
+  try {
+    const { query, variables, operationName } = GQL_QUERIES.zipcodeAddressVerificationV2;
+    const response = await fetchGQL(query, variables(zipcode), operationName);
+
+    if (response?.data?.zipcodeAddressVerificationV2?.dma) {
+      return response.data.zipcodeAddressVerificationV2.dma;
+    }
+
+    return DEFAULT_DMA;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to fetch DMA for zipcode, using default:', error);
+    return DEFAULT_DMA;
+  }
+}
+
+export async function getZipcode() {
   let zipcode = localStorage.getItem(ZIPCODE_KEY);
   if (!zipcode) {
-    const response = await fetch(ZIPCODE_ENDPOINT);
-    const data = await response.json();
-    zipcode = data?.zip_code || DEFAULT_ZIPCODE;
+    const { zipcode: fetchedZipcode, dma } = await fetchZipcodeAndDMA();
+    zipcode = fetchedZipcode;
     localStorage.setItem(ZIPCODE_KEY, zipcode);
+    localStorage.setItem(DMA_KEY, dma);
   }
   return zipcode;
 }
+
+/**
+ * Gets the current DMA value from localStorage
+ * @returns {string} The DMA value
+ */
+export function getDMA() {
+  return localStorage.getItem(DMA_KEY) || '803';
+}
+
 export function configSideKick() {
   const createStyleLink = (href) => {
     const link = document.createElement('link');
@@ -744,6 +806,7 @@ export function configSideKick() {
     // Find the closest block or section element
     const currentElement = event.currentTarget.closest('.block, .section');
     if (!currentElement) {
+      // eslint-disable-next-line no-console
       console.error('No block or section found for export');
       return;
     }
@@ -759,6 +822,7 @@ export function configSideKick() {
     const fragmentId = currentElement.getAttribute('data-fragment-id');
 
     if (!elementName) {
+      // eslint-disable-next-line no-console
       console.error('No name found for element');
       return;
     }
@@ -801,6 +865,7 @@ export function configSideKick() {
       const script = await loadDialogScript('/tools/htmloffer/htmloffer.js');
       document.body.appendChild(script);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error loading HTML offer dialog:', error);
     }
   };
@@ -828,6 +893,7 @@ export function configSideKick() {
     .join(' ');
 
   const showBlocks = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     console.info('showblocks event triggered with payload:', payload);
     // Store the payload for login status check
     window.lastSidekickPayload = payload;
@@ -865,6 +931,7 @@ export function configSideKick() {
   };
 
   const showSections = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     console.info('showsections event:', payload);
     // Store the payload for login status check
     window.lastSidekickPayload = payload;
@@ -913,7 +980,10 @@ export function configSideKick() {
     const handlers = {
       showblocks: showBlocks,
       showsections: showSections,
-      eventdetials: (e) => console.info(e.detail),
+      eventdetials: (e) => {
+        // eslint-disable-next-line no-console
+        console.info(e.detail);
+      },
     };
 
     events.forEach((event) => {

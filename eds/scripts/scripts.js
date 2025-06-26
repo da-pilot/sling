@@ -831,6 +831,7 @@ export function decorateMain(main) {
 async function loadDataLayerUtils() {
   // Check if already loaded
   if (window.adobeDataLayer && window.adobeDataLayer.version) {
+    // eslint-disable-next-line no-console
     console.log('[Scripts.js] Data layer already loaded');
     return false;
   }
@@ -844,6 +845,7 @@ async function loadDataLayerUtils() {
   try {
     await loadScript(dataLayerScript);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('[Scripts.js] Failed to load analytics script:', error);
     return false;
   }
@@ -861,10 +863,12 @@ async function loadDataLayerUtils() {
           type: 'generic',
         });
       } else {
+        // eslint-disable-next-line no-console
         console.error('[Scripts.js] screenLoad method not found on analytics instance');
       }
     }
   } else {
+    // eslint-disable-next-line no-console
     console.error('[Scripts.js] analytics not found - analytics-lib-eds.js may not have loaded properly');
   }
   return true;
