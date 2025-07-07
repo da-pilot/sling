@@ -1171,11 +1171,11 @@ a.black {
         padding: 64px 32px;
     }
 
-    .section.dark.supported-devices {
+    .section.supported-devices {
       padding: 64px 32px;
     }
 
-    .section.dark.supported-devices h2 {
+    .section.supported-devices h2 {
       font-size: 2.25rem;
     }
 
