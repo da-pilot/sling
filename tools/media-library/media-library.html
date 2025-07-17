@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Library</title>
+  <!-- Adobe Fonts (matching DA Live) -->
+  <link rel="stylesheet" href="https://use.typekit.net/hah7vzn.css">
+  <link rel="stylesheet" href="media-library.css">
+  <style>
+    /* Prevent loading flash */
+    body { opacity: 0; transition: opacity 0.3s ease; }
+    body.loaded { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="media-library">
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar" role="navigation" aria-label="Asset navigation">
+      <div class="sidebar-header">
+        <h2>Assets</h2>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-header" id="all-assets-header">All Assets</div>
+        <div class="folder-tree" id="folderTree" role="list">
+          <div class="folder-item active" data-filter="all" role="listitem" tabindex="0" aria-selected="true">
+            <span class="folder-icon" aria-hidden="true">📁</span>
+            <span class="folder-name">All Assets</span>
+            <span class="asset-count" id="totalCount" aria-label="Total asset count">0</span>
+          </div>
+          <div class="folder-item" data-filter="internal" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">🏠</span>
+            <span class="folder-name">Internal</span>
+            <span class="asset-count" id="internalCount" aria-label="Internal asset count">0</span>
+          </div>
+          <div class="folder-item" data-filter="external" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">🌐</span>
+            <span class="folder-name">External</span>
+            <span class="asset-count" id="externalCount" aria-label="External asset count">0</span>
+          </div>
+          <div class="folder-item" data-filter="missing-alt" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">⚠️</span>
+            <span class="folder-name">Missing Alt Text</span>
+            <span class="asset-count" id="missingAltCount" aria-label="Assets missing alt text">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-header">Asset Types</div>
+        <div class="folder-tree" role="list">
+          <div class="folder-item" data-filter="image" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">🖼️</span>
+            <span class="folder-name">Images</span>
+            <span class="asset-count" id="imageCount" aria-label="Image count">0</span>
+          </div>
+          <div class="folder-item" data-filter="video" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">🎬</span>
+            <span class="folder-name">Videos</span>
+            <span class="asset-count" id="videoCount" aria-label="Video count">0</span>
+          </div>
+          <div class="folder-item" data-filter="document" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">📄</span>
+            <span class="folder-name">Documents</span>
+            <span class="asset-count" id="documentCount" aria-label="Document count">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="section-header" id="used-on-page-header">Used on This Page</div>
+        <div class="folder-tree" role="list">
+          <div class="folder-item" data-filter="used-on-page" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">📋</span>
+            <span class="folder-name">All Used</span>
+            <span class="asset-count" id="usedOnPageCount" aria-label="Assets used on current page">0</span>
+          </div>
+          <div class="folder-item" data-filter="used-internal" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">🏠</span>
+            <span class="folder-name">Internal Used</span>
+            <span class="asset-count" id="usedInternalCount" aria-label="Internal assets used on current page">0</span>
+          </div>
+          <div class="folder-item" data-filter="used-external" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">🌐</span>
+            <span class="folder-name">External Used</span>
+            <span class="asset-count" id="usedExternalCount" aria-label="External assets used on current page">0</span>
+          </div>
+          <div class="folder-item" data-filter="used-missing-alt" role="listitem" tabindex="0">
+            <span class="folder-icon" aria-hidden="true">⚠️</span>
+            <span class="folder-name">Missing Alt on Page</span>
+            <span class="asset-count" id="usedMissingAltCount" aria-label="Images used on this page missing alt text">0</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <!-- Main Content Area -->
+    <main class="main-content" role="main">
+      <!-- Top Bar -->
+      <div class="top-bar">
+        <div class="search-container">
+          <input type="text" class="search-input" placeholder="Search assets..." id="searchInput" aria-label="Search assets" autocomplete="off">
+          <div class="search-suggestions" id="searchSuggestions" role="listbox" aria-hidden="true"></div>
+          <div class="quick-search-labels" id="quickSearchLabels" role="list" aria-label="Quick search options"></div>
+        </div>
+        <div class="top-controls">
+          <div class="scan-indicator" id="scanIndicator" aria-label="Scan progress" title="Scanning assets" style="display: none;">
+            <svg class="sync-spinner" width="20" height="20" viewBox="0 0 512 512" fill="currentColor" style="vertical-align: middle;">
+              <path d="M370.9 133.3C346.6 110.1 311.7 96 272 96c-79.5 0-144 64.5-144 144h48l-80 80-80-80h48c0-114.9 93.1-208 208-208 54.5 0 104.1 20.9 142.1 55.1l-53.2 53.2zM464 256c0 79.5-64.5 144-144 144-39.7 0-74.6-14.1-98.9-37.3l53.2-53.2C217.9 401.1 272 416 320 416c79.5 0 144-64.5 144-144h-48l80-80 80 80h-48z"/>
+            </svg>
+          </div>
+          <button class="view-btn active" id="gridViewBtn" data-view="grid" title="Grid View" aria-pressed="true">⊞</button>
+          <button class="view-btn" id="listViewBtn" data-view="list" title="List View" aria-pressed="false">☰</button>
+          <button id="hierarchyToggle" class="view-btn" title="Switch to folder view" disabled>
+            <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 18 18" width="16">
+              <path d="M16.5,4l-7.16577.00378L7.68188,2.3031A1.00063,1.00063,0,0,0,6.9646,2H2A1,1,0,0,0,1,3V14.5a.5.5,0,0,0,.5.5h15a.5.5,0,0,0,.5-.5V4.5A.50018.50018,0,0,0,16.5,4ZM2,3H6.9646L8.908,5H2ZM12.35352,8.85352l-3,3a.49984.49984,0,0,1-.707,0l-3-3a.5.5,0,0,1,.707-.707L9,10.793l2.64648-2.64649a.5.5,0,0,1,.707.707Z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb" aria-label="Current location">
+        <span class="breadcrumb-item">All Assets</span>
+      </nav>
+      <!-- Assets Grid -->
+      <div class="assets-container" id="assetsContainer">
+        <div class="assets-grid" id="assetsGrid" role="grid" aria-label="Asset grid">
+          <div class="loading" id="assetsLoadingMessage" role="status" aria-live="polite">
+            <div class="loading-content">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">
+                <h3>Initializing Media Library...</h3>
+                <p>Scanning your project for images, videos, and documents. This may take a few moments on first launch.</p>
+                <div class="loading-steps">
+                  <div class="loading-step">🔍 Discovering content files...</div>
+                  <div class="loading-step">📁 Scanning for media assets...</div>
+                  <div class="loading-step">🔄 Processing external links...</div>
+                  <div class="loading-step">✅ Building asset library...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Asset Preview Modal -->
+  <div class="modal-overlay" id="previewModal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="previewTitle">Asset Preview</h3>
+        <button class="modal-close" id="previewClose">&times;</button>
+      </div>
+      <div class="modal-body" id="previewBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="previewInsert">Insert Asset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script type="module" src="media-library.js"></script>
+</body>
+</html> 
