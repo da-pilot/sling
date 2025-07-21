@@ -31,6 +31,7 @@ async function validatePromoCode(block) {
     });
     if (res.ok) {
       const gqlResponse = await res.json();
+      // eslint-disable-next-line no-console
       console.log(gqlResponse);
     } else {
       if (res.status === 409) {
@@ -38,9 +39,11 @@ async function validatePromoCode(block) {
           promoCodeContainer.insertAdjacentHTML('afterbegin', showErrorMessage());
         }
       }
+      // eslint-disable-next-line no-console
       console.log('response from api call', res.status);
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.log('exception in api call', error);
   }
 }
@@ -101,6 +104,7 @@ export default function decorate(block) {
       try {
         await validatePromoCode(block);
       } catch (error) {
+        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.log(error);
       }

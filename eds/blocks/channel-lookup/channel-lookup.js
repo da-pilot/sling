@@ -54,6 +54,7 @@ async function getChannelsByZipCode(block) {
         `);
       }
     } else {
+      // eslint-disable-next-line no-console
       console.log('response from api call', res.status);
       if (block.querySelector('.channel-data')) {
         block.querySelector('.channel-data').remove();
@@ -61,6 +62,7 @@ async function getChannelsByZipCode(block) {
       formContainer.insertAdjacentHTML('beforeend', showWarningMessage());
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.log('exception in api call', error);
   }
 }
@@ -93,6 +95,7 @@ export default async function decorate(block) {
       try {
         await getChannelsByZipCode(block);
       } catch (error) {
+        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.log(error);
       }

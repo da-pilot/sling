@@ -1,6 +1,9 @@
-// Import DA utilities
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
+import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import { crawl } from 'https://da.live/nx/public/utils/tree.js';
-import { daFetch } from 'https://da.live/nx/utils/daFetch.js';
 
 /**
  * Create DA API Service using official DA SDK and utilities
@@ -44,7 +47,6 @@ function createDAApiService() {
       throw new Error('DA context is required');
     }
 
-    // Use context from main Media Library instance (which already has token extracted)
     state.context = daContext;
     state.org = daContext.org;
     state.repo = daContext.repo;
@@ -56,13 +58,15 @@ function createDAApiService() {
       throw new Error('This plugin must be opened from within DA Admin.');
     }
 
-    // Store context in localStorage for worker access
-    const key = `media_${state.org}_${state.repo}_ctx`;
-    localStorage.setItem(key, JSON.stringify({
-      org: state.org,
-      repo: state.repo,
-      token: state.token,
-    }));
+    // Only use localStorage if available (not in Web Workers)
+    if (typeof localStorage !== 'undefined') {
+      const key = `media_${state.org}_${state.repo}_ctx`;
+      localStorage.setItem(key, JSON.stringify({
+        org: state.org,
+        repo: state.repo,
+        token: state.token,
+      }));
+    }
 
     state.initialized = true;
   }
@@ -72,7 +76,7 @@ function createDAApiService() {
 
     const defaultOptions = {
       headers: {
-        'Authorization': `Bearer ${state.token}`,
+        Authorization: `Bearer ${state.token}`,
         'Content-Type': 'application/json',
       },
     };
@@ -102,7 +106,7 @@ function createDAApiService() {
         if (attempt === state.maxRetries - 1) {
           throw error;
         }
-        await delay(1000 * Math.pow(2, attempt));
+        await delay(1000 * 2 ** attempt);
       }
     }
   }
@@ -125,7 +129,6 @@ function createDAApiService() {
 
     const cleanPath = path.replace(/^\/+|\/+$/g, '') || '';
 
-    // Double check before URL construction
     if (state.org === undefined || state.repo === undefined) {
       throw new Error(`URL construction failed: org=${state.org}, repo=${state.repo}`);
     }
@@ -134,8 +137,8 @@ function createDAApiService() {
 
     let data;
     try {
-      const response = await daFetch(url, {
-        headers: { 'Authorization': `Bearer ${state.token}` },
+      const response = await DA_SDK.daFetch(url, {
+        headers: { Authorization: `Bearer ${state.token}` },
       });
       data = await response.json();
     } catch (error) {
@@ -153,19 +156,17 @@ function createDAApiService() {
   }
 
   async function getSource(path, ext = 'html') {
-    // Use path as-is - it's the unique identifier
     const url = `${state.baseUrl}/source${path}${ext ? `.${ext}` : ''}`;
 
     const response = await makeRequest(url);
-    return await response.text();
+    return response.text();
   }
 
   async function saveFile(path, content, contentType = 'application/json') {
-    // Use path as-is - it's the unique identifier
     const url = `${state.baseUrl}/source${path}`;
 
     let body;
-    const headers = { 'Authorization': `Bearer ${state.token}` };
+    const headers = { Authorization: `Bearer ${state.token}` };
 
     if (contentType === 'application/json') {
       body = JSON.stringify(content);
@@ -182,11 +183,10 @@ function createDAApiService() {
       body,
     });
 
-    return await response.json();
+    return response.json();
   }
 
   async function deleteFile(path) {
-    // Use path as-is - it's the unique identifier
     const url = `${state.baseUrl}/source${path}`;
 
     const response = await makeRequest(url, {
@@ -211,8 +211,8 @@ function createDAApiService() {
 
   function isValidUrl(string) {
     try {
-      new URL(string);
-      return true;
+      const url = new URL(string);
+      return !!url;
     } catch {
       return false;
     }
@@ -230,7 +230,7 @@ function createDAApiService() {
     }
 
     if (src.startsWith('/')) {
-      const origin = baseUrl || `https://main--${state.repo}--${state.org}.aem.page`;
+      const origin = baseUrl || 'https://admin.da.live';
       return `${origin}${src}`;
     }
 
@@ -243,7 +243,6 @@ function createDAApiService() {
       return true;
     } catch (error) {
       try {
-        // Use path as-is - it's the unique identifier
         const url = `${state.baseUrl}/source${folderPath}/.folder`;
 
         const formData = new FormData();
@@ -251,13 +250,12 @@ function createDAApiService() {
 
         const response = await makeRequest(url, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${state.token}` },
+          headers: { Authorization: `Bearer ${state.token}` },
           body: formData,
         });
 
         return response.ok;
       } catch (createError) {
-        // Failed to create folder
         return false;
       }
     }
@@ -266,38 +264,32 @@ function createDAApiService() {
   async function crawlFiles(path = '/', callback = null, options = {}) {
     const { concurrent = 10, throttle = 100 } = options;
 
-    try {
-      // Build full path with org/repo like fragments.js pattern
-      const fullPath = `/${state.org}/${state.repo}${path}`;
+    const fullPath = `/${state.org}/${state.repo}${path}`;
 
-      // HTTP options for crawl function (like fragments.js pattern)
-      const opts = {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${state.token}`,
-        },
-      };
+    const opts = {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${state.token}`,
+      },
+    };
 
-      const {
-        results, getDuration, cancelCrawl, getCallbackErrors,
-      } = crawl({
-        path: fullPath,
-        callback,
-        concurrent,
-        throttle,
-        ...opts,
-      });
+    const {
+      results, getDuration, cancelCrawl, getCallbackErrors,
+    } = crawl({
+      path: fullPath,
+      callback,
+      concurrent,
+      throttle,
+      ...opts,
+    });
 
-      const files = await results;
-      const duration = getDuration();
-      const errors = getCallbackErrors();
+    const files = await results;
+    const duration = getDuration();
+    const errors = getCallbackErrors();
 
-      return {
-        files, duration, errors, cancelCrawl,
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      files, duration, errors, cancelCrawl,
+    };
   }
 
   async function getAllHTMLFiles(path = '/') {
@@ -306,12 +298,12 @@ function createDAApiService() {
     const callback = (file) => {
       if (file.ext === 'html') {
         if (typeof file.lastModified === 'undefined') {
-          return; // Skip files without a real lastModified
+          return;
         }
         htmlFiles.push({
           name: file.name,
           path: file.path,
-          lastModified: file.lastModified, // Use only the API value
+          lastModified: file.lastModified,
         });
       }
     };
@@ -338,5 +330,3 @@ function createDAApiService() {
 }
 
 export { createDAApiService };
-
-

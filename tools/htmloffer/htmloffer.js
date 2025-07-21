@@ -259,14 +259,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const responseData = await response.json();
 
       if (!response.ok) {
+        // eslint-disable-next-line no-console
         console.error('Export error:', responseData);
         throw new Error(responseData.error || 'Failed to export offer');
       }
 
       showMessage(`Offer "<strong>${responseData.name}</strong>" successfully exported`);
+      // eslint-disable-next-line no-console
       console.log('Exported offer:', responseData);
     } catch (err) {
       showMessage(err.message || 'An error occurred while processing the offer', 'error');
+      // eslint-disable-next-line no-console
       console.error('Export error:', err);
     } finally {
       enableFormAfterExport();

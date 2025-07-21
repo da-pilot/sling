@@ -660,6 +660,7 @@ async function loadTemplate(main) {
     }
   } catch (err) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.error(`Failed to load template with error : ${err}`);
   }
 }
@@ -765,6 +766,7 @@ function buildAutoBlocks(main) {
     if (getPageType() !== 'blog') buildFragmentBlocks(main);
   } catch (error) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.error('Auto Blocking failed', error);
   }
 }
@@ -832,6 +834,7 @@ async function loadDataLayerUtils() {
   // Check if already loaded
   if (window.adobeDataLayer && window.adobeDataLayer.version) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log('[Scripts.js] Data layer already loaded');
     return false;
   }
@@ -845,6 +848,7 @@ async function loadDataLayerUtils() {
   try {
     await loadScript(dataLayerScript);
   } catch (error) {
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error('[Scripts.js] Failed to load analytics script:', error);
     return false;
@@ -864,10 +868,12 @@ async function loadDataLayerUtils() {
         });
       } else {
         // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         console.error('[Scripts.js] screenLoad method not found on analytics instance');
       }
     }
   } else {
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error('[Scripts.js] analytics not found - analytics-lib-eds.js may not have loaded properly');
   }

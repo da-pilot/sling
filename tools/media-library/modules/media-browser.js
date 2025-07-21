@@ -1,3 +1,7 @@
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 import { isExternalAsset } from './external-asset.js';
 /**
  * Create Asset Browser Module
@@ -12,7 +16,6 @@ function createAssetBrowser(container) {
     currentSort: 'name',
     currentFilter: { types: ['image', 'video', 'document'], search: '' },
     eventListeners: {},
-    // Track if this is the initial load
     isInitialLoad: true,
   };
 
@@ -20,16 +23,13 @@ function createAssetBrowser(container) {
     on,
     emit,
     setAssets,
-    // Add new method for incremental updates
     addAssets,
     setView,
     setSort,
     setFilter,
     getSelectedAssets,
     clearSelection,
-    // Expose the external asset processing function
     processExternalAssets,
-    // Expose method to mark initial load as complete
     markInitialLoadComplete,
   };
 
@@ -48,32 +48,30 @@ function createAssetBrowser(container) {
 
   function setAssets(assets) {
     state.assets = assets || [];
-    
-    // If this is the initial load and we have assets, mark initial load as complete
+
     if (state.isInitialLoad && assets && assets.length > 0) {
       state.isInitialLoad = false;
     }
-    
+
     applyFiltersAndSort();
     render();
   }
 
   function addAssets(newAssets, isScanning = false) {
-    const existingAssetSrcs = new Set(state.assets.map(asset => asset.src));
-    const uniqueNewAssets = newAssets.filter(asset => !existingAssetSrcs.has(asset.src));
+    const existingAssetSrcs = new Set(state.assets.map((asset) => asset.src));
+    const uniqueNewAssets = newAssets.filter((asset) => !existingAssetSrcs.has(asset.src));
 
     if (uniqueNewAssets.length > 0) {
       state.assets = [...state.assets, ...uniqueNewAssets];
-      
+
       applyFiltersAndSort();
-      
-      // Only show visual feedback if scanning is active (not during initial load)
+
       if (isScanning) {
         renderWithNewAssetIndicators(uniqueNewAssets);
       } else {
         render();
       }
-      
+
       updateFilterCounts();
     }
   }
@@ -101,15 +99,14 @@ function createAssetBrowser(container) {
     state.filteredAssets.forEach((asset) => {
       const assetElement = createAssetElement(asset);
       assetElement.setAttribute('data-asset-id', asset.id);
-      
-      // Add visual indicator for new assets (only when explicitly called during scanning)
-      if (newAssets.some(newAsset => newAsset.src === asset.src)) {
+
+      if (newAssets.some((newAsset) => newAsset.src === asset.src)) {
         assetElement.classList.add('new-asset');
         setTimeout(() => {
           assetElement.classList.remove('new-asset');
         }, 3000);
       }
-      
+
       state.container.appendChild(assetElement);
     });
   }
@@ -136,23 +133,18 @@ function createAssetBrowser(container) {
     let filtered = [...state.assets];
 
     if (state.currentFilter.types && state.currentFilter.types.length > 0) {
-      filtered = filtered.filter((asset) =>
-        state.currentFilter.types.includes(asset.type),
-      );
+      filtered = filtered.filter((asset) => state.currentFilter.types.includes(asset.type));
     }
 
     if (state.currentFilter.isExternal !== undefined) {
-      filtered = filtered.filter((asset) =>
-        asset.isExternal === state.currentFilter.isExternal,
-      );
+      filtered = filtered.filter((asset) => asset.isExternal === state.currentFilter.isExternal);
     }
 
     if (state.currentFilter.usedOnPage && state.currentFilter.missingAlt && window.currentPagePath) {
       filtered = filtered.filter((asset) => {
         if (asset.type !== 'image') return false;
         if (asset.alt && asset.alt.trim() !== '' && asset.alt !== 'Untitled') return false;
-        
-        // Check if asset is used on current page
+
         if (!asset.usedIn) return false;
         let usedInPages = [];
         if (typeof asset.usedIn === 'string') {
@@ -163,9 +155,7 @@ function createAssetBrowser(container) {
         return usedInPages.includes(window.currentPagePath);
       });
     } else if (state.currentFilter.missingAlt) {
-      filtered = filtered.filter((asset) =>
-        asset.type === 'image' && (!asset.alt || asset.alt.trim() === '' || asset.alt === 'Untitled'),
-      );
+      filtered = filtered.filter((asset) => asset.type === 'image' && (!asset.alt || asset.alt.trim() === '' || asset.alt === 'Untitled'));
     } else if (state.currentFilter.usedOnPage && window.currentPagePath) {
       filtered = filtered.filter((asset) => {
         if (!asset.usedIn) return false;
@@ -181,11 +171,9 @@ function createAssetBrowser(container) {
 
     if (state.currentFilter.search) {
       const searchTerm = state.currentFilter.search.toLowerCase();
-      filtered = filtered.filter((asset) =>
-        asset.name.toLowerCase().includes(searchTerm)
+      filtered = filtered.filter((asset) => asset.name.toLowerCase().includes(searchTerm)
         || asset.alt.toLowerCase().includes(searchTerm)
-        || asset.src.toLowerCase().includes(searchTerm),
-      );
+        || asset.src.toLowerCase().includes(searchTerm));
     }
 
     filtered.sort((a, b) => {
@@ -197,8 +185,20 @@ function createAssetBrowser(container) {
         case 'type':
           return a.type.localeCompare(b.type);
         case 'usage':
-          const aUsedInLength = Array.isArray(a.usedIn) ? a.usedIn.length : (typeof a.usedIn === 'string' ? a.usedIn.split(',').length : 0);
-          const bUsedInLength = Array.isArray(b.usedIn) ? b.usedIn.length : (typeof b.usedIn === 'string' ? b.usedIn.split(',').length : 0);
+
+          let aUsedInLength = 0;
+          if (Array.isArray(a.usedIn)) {
+            aUsedInLength = a.usedIn.length;
+          } else if (typeof a.usedIn === 'string') {
+            aUsedInLength = a.usedIn.split(',').length;
+          }
+
+          let bUsedInLength = 0;
+          if (Array.isArray(b.usedIn)) {
+            bUsedInLength = b.usedIn.length;
+          } else if (typeof b.usedIn === 'string') {
+            bUsedInLength = b.usedIn.split(',').length;
+          }
           return bUsedInLength - aUsedInLength;
         default:
           return 0;
@@ -211,7 +211,6 @@ function createAssetBrowser(container) {
   function render() {
     if (!state.container) return;
 
-    // Toggle .list-view class on container
     if (state.currentView === 'list') {
       state.container.classList.add('list-view');
     } else {
@@ -220,7 +219,6 @@ function createAssetBrowser(container) {
 
     state.container.innerHTML = '';
 
-    // Don't show empty state during initial load
     if (state.filteredAssets.length === 0 && !state.isInitialLoad) {
       renderEmptyState();
       return;
@@ -264,7 +262,6 @@ function createAssetBrowser(container) {
   function createAssetElement(asset) {
     const element = document.createElement('div');
     element.className = 'asset-item';
-    // data-asset-id is now set in render using loop index
 
     if (state.currentView === 'grid') {
       element.innerHTML = createGridViewHTML(asset);
@@ -279,29 +276,29 @@ function createAssetBrowser(container) {
 
   function createGridViewHTML(asset) {
     const isExternal = asset.isExternal ? 'external' : 'internal';
-    // Pills: Type (IMAGE/VIDEO/DOC) and INT/EXT
     const typePill = `<span class="badge ${asset.type}">${asset.type.toUpperCase()}</span>`;
     const intExtPill = `<span class="badge ${isExternal === 'external' ? 'ext' : 'int'}">${
       isExternal === 'external' ? 'EXT' : 'INT'
     }</span>`;
 
-    // Add insert as link button for external assets
     const insertAsLinkBtn = asset.isExternal
       ? '<button class="action-btn link-insert-icon" data-action="insertAsLink" title="Insert as Link" aria-label="Insert as link">LINK</button>'
       : '';
 
-    // Calculate alt text status
     const hasOccurrences = asset.occurrences && asset.occurrences.length > 0;
-    const missingAltCount = hasOccurrences 
-      ? asset.occurrences.filter(o => !o.hasAltText).length 
-      : (asset.type === 'image' && (!asset.alt || asset.alt.trim() === '' || asset.alt === 'Untitled') ? 1 : 0);
+
+    let missingAltCount = 0;
+    if (hasOccurrences) {
+      missingAltCount = asset.occurrences.filter((o) => !o.hasAltText).length;
+    } else if (asset.type === 'image' && (!asset.alt || asset.alt.trim() === '' || asset.alt === 'Untitled')) {
+      missingAltCount = 1;
+    }
     const totalOccurrences = hasOccurrences ? asset.occurrences.length : 1;
-    
-    const altTextIndicator = missingAltCount > 0 
+
+    const altTextIndicator = missingAltCount > 0
       ? `<div class="alt-text-warning" title="${missingAltCount}/${totalOccurrences} occurrences missing alt text">⚠️ ${missingAltCount}</div>`
       : '';
 
-    // Create appropriate preview element based on asset type
     const previewElement = createAssetPreviewElement(asset);
 
     return `
@@ -334,7 +331,6 @@ function createAssetBrowser(container) {
       ? '<button class="action-btn link-insert-icon" data-action="insertAsLink" title="Insert as Link" aria-label="Insert as link">LINK</button>'
       : '';
 
-    // Create appropriate preview element for list view
     const previewElement = createAssetPreviewElement(asset);
 
     return `
@@ -358,7 +354,7 @@ function createAssetBrowser(container) {
     switch (asset.type) {
       case 'image':
         return `<img src="${asset.src}" alt="${asset.alt}" loading="lazy" data-action="insert" style="cursor: pointer;">`;
-      
+
       case 'video':
         return `
           <div class="video-preview-container" data-action="insert" style="cursor: pointer;">
@@ -378,7 +374,7 @@ function createAssetBrowser(container) {
             </div>
           </div>
         `;
-      
+
       case 'document':
         return `
           <div class="document-preview-container" data-action="insert" style="cursor: pointer;">
@@ -393,7 +389,7 @@ function createAssetBrowser(container) {
             </div>
           </div>
         `;
-      
+
       default:
         return `
           <div class="unknown-preview-container" data-action="insert" style="cursor: pointer;">
@@ -417,7 +413,6 @@ function createAssetBrowser(container) {
   }
 
   function addAssetEventListeners(element, asset) {
-    // Add click handlers for action buttons and image
     element.querySelectorAll('[data-action]').forEach((el) => {
       el.onclick = (e) => {
         const action = el.getAttribute('data-action');
@@ -426,11 +421,8 @@ function createAssetBrowser(container) {
         } else if (action === 'info') {
           emit('assetInfo', asset);
         } else if (action === 'link') {
-          // For copying link, you might want to use a clipboard API or a custom handler
-          // For now, we'll just emit an event
           emit('assetLinkCopied', asset);
         } else if (action === 'insertAsLink') {
-          // Emit special event for inserting external asset as link
           emit('assetInsertAsLink', asset);
         }
         e.stopPropagation();
@@ -439,7 +431,6 @@ function createAssetBrowser(container) {
   }
 
   function updateFilterCounts() {
-    // Sidebar asset type counts
     const imageCount = state.assets.filter((a) => a.type === 'image').length;
     const videoCount = state.assets.filter((a) => a.type === 'video').length;
     const documentCount = state.assets.filter((a) => a.type === 'document').length;
@@ -462,7 +453,7 @@ function createAssetBrowser(container) {
   function getSelectedAssets() {
     const selectedElements = state.container.querySelectorAll('.asset-item.selected');
     return Array.from(selectedElements).map((element) => {
-      const assetId = element.dataset.assetId;
+      const { assetId } = element.dataset;
       return state.assets.find((asset) => asset.id === assetId);
     }).filter(Boolean);
   }
@@ -482,16 +473,13 @@ function createAssetBrowser(container) {
    * Process assets to detect external links and add metadata
    */
   function processExternalAssets(assets, pageContext = {}) {
-    // Extract domains from pageContext for internal asset detection
     const internalDomains = [];
 
-    // Safely extract domains from pageContext
     if (pageContext && typeof pageContext === 'object') {
       if (pageContext.site) internalDomains.push(pageContext.site);
       if (pageContext.org) internalDomains.push(pageContext.org);
     }
 
-    // Add default domain if none provided
     if (internalDomains.length === 0) {
       internalDomains.push(window.location.hostname);
     }

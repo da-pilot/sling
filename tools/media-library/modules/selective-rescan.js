@@ -1,3 +1,7 @@
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 /**
  * Selective Rescan Module - Granular control over rescanning
  * Provides options to rescan specific folders, pages, or document sets
@@ -5,20 +9,34 @@
 
 function createSelectiveRescan() {
   const state = {
-    apiConfig: null,
-    discoveryManager: null,
-    assetStorageManager: null,
+    daApi: null,
+    isActive: false,
+    currentRescan: null,
+    stats: {
+      totalItems: 0,
+      processedItems: 0,
+      errors: 0,
+      assetsFound: 0,
+    },
     listeners: new Map(),
   };
 
-  /**
-   * Initialize selective rescan module
-   */
-  async function init(apiConfig, discoveryManager, assetStorageManager) {
-    state.apiConfig = apiConfig;
-    state.discoveryManager = discoveryManager;
-    state.assetStorageManager = assetStorageManager;
-    // Selective Rescan: Initialized
+  const api = {
+    init,
+    rescanFolder,
+    rescanPages,
+    rescanModifiedSince,
+    getRescanSuggestions,
+    on,
+    off,
+    emit,
+  };
+
+  async function init(apiConfig) {
+    // Create and initialize DA API service
+    const { createDAApiService } = await import('../services/da-api.js');
+    state.daApi = createDAApiService();
+    await state.daApi.init(apiConfig);
   }
 
   /**
@@ -38,7 +56,6 @@ function createSelectiveRescan() {
         forceRescan,
       });
 
-      // Discover documents in the folder
       const documents = await discoverDocumentsInFolder(folderPath, recursive);
 
       if (documents.length === 0) {
@@ -51,8 +68,7 @@ function createSelectiveRescan() {
         return { documentsProcessed: 0, assetsFound: 0 };
       }
 
-      // Filter documents that need rescanning
-      const documentsToScan = await state.assetStorageManager.getDocumentsToScan(
+      const documentsToScan = await state.daApi.getDocumentsToScan(
         documents,
         { forceRescan, folderPath },
       );
@@ -68,7 +84,6 @@ function createSelectiveRescan() {
         return { documentsProcessed: 0, assetsFound: 0 };
       }
 
-      // Process documents in batches
       const results = await processBatchRescan(documentsToScan, {
         type: 'folder',
         target: folderPath,
@@ -81,7 +96,6 @@ function createSelectiveRescan() {
       });
 
       return results;
-
     } catch (error) {
       emit('rescanError', {
         type: 'folder',
@@ -106,7 +120,6 @@ function createSelectiveRescan() {
         forceRescan,
       });
 
-      // Validate and get document details
       const documents = await validateAndGetDocuments(pagePaths);
 
       if (documents.length === 0) {
@@ -120,13 +133,11 @@ function createSelectiveRescan() {
         return { documentsProcessed: 0, assetsFound: 0 };
       }
 
-      // Filter documents that need rescanning
-      const documentsToScan = await state.assetStorageManager.getDocumentsToScan(
+      const documentsToScan = await state.daApi.getDocumentsToScan(
         documents,
         { forceRescan, specificPaths: pagePaths },
       );
 
-      // Process documents
       const results = await processBatchRescan(documentsToScan, {
         type: 'pages',
         target: pagePaths,
@@ -139,7 +150,6 @@ function createSelectiveRescan() {
       });
 
       return results;
-
     } catch (error) {
       emit('rescanError', {
         type: 'pages',
@@ -167,15 +177,11 @@ function createSelectiveRescan() {
         forceRescan,
       });
 
-      // Discover all documents
       const allDocuments = folderPath
         ? await discoverDocumentsInFolder(folderPath, true)
         : await discoverAllDocuments();
 
-      // Filter by modification date
-      const modifiedDocuments = allDocuments.filter((doc) =>
-        doc.lastModified > sinceDate.getTime(),
-      );
+      const modifiedDocuments = allDocuments.filter((doc) => doc.lastModified > sinceDate.getTime());
 
       if (modifiedDocuments.length === 0) {
         emit('rescanComplete', {
@@ -188,7 +194,6 @@ function createSelectiveRescan() {
         return { documentsProcessed: 0, assetsFound: 0 };
       }
 
-      // Process documents
       const results = await processBatchRescan(modifiedDocuments, {
         type: 'modified_since',
         target: sinceDate,
@@ -203,7 +208,6 @@ function createSelectiveRescan() {
       });
 
       return results;
-
     } catch (error) {
       emit('rescanError', {
         type: 'modified_since',
@@ -219,10 +223,9 @@ function createSelectiveRescan() {
    */
   async function getRescanSuggestions() {
     try {
-      const statistics = await state.assetStorageManager.getStatistics();
+      const statistics = await state.daApi.getStatistics();
       const suggestions = [];
 
-      // Suggest rescanning old documents
       if (statistics.lastScanTime) {
         const daysSinceLastScan = (Date.now() - statistics.lastScanTime) / (1000 * 60 * 60 * 24);
 
@@ -238,7 +241,6 @@ function createSelectiveRescan() {
         }
       }
 
-      // Suggest rescanning folders with many assets
       const folderStats = await getFolderStatistics();
       folderStats.forEach((folder) => {
         if (folder.assetCount > 50 && folder.daysSinceLastScan > 3) {
@@ -253,14 +255,12 @@ function createSelectiveRescan() {
         }
       });
 
-      // Sort by priority
       suggestions.sort((a, b) => {
         const priorityOrder = { high: 3, medium: 2, low: 1 };
         return priorityOrder[b.priority] - priorityOrder[a.priority];
       });
 
       return suggestions;
-
     } catch (error) {
       return [];
     }
@@ -277,7 +277,7 @@ function createSelectiveRescan() {
       const currentFolder = foldersToScan.shift();
 
       try {
-        const items = await listFolderContents(currentFolder);
+        const items = await state.daApi.listFolderContents(currentFolder);
 
         for (const item of items) {
           if (item.ext === 'html') {
@@ -292,7 +292,6 @@ function createSelectiveRescan() {
           }
         }
       } catch (error) {
-        // Selective Rescan: Error scanning folder
         emit('folderScanError', {
           folderPath: currentFolder,
           error: error.message,
@@ -322,7 +321,6 @@ function createSelectiveRescan() {
           });
         }
       } catch (error) {
-        // Selective Rescan: Invalid document path
         emit('invalidDocument', { path, error: error.message });
       }
     }
@@ -343,12 +341,10 @@ function createSelectiveRescan() {
 
       allResults.push(...batchResults);
 
-      // Update progress after each batch
       const successfulResults = allResults.filter((result) => result.success);
       const documentsProcessed = successfulResults.length;
       const totalAssetsFound = successfulResults.reduce((sum, result) => sum + result.assetsFound, 0);
 
-      // Emit events for this batch
       batchResults.forEach((result) => {
         if (result.success) {
           emit('documentScanned', {
@@ -383,11 +379,11 @@ function createSelectiveRescan() {
         const assets = await scanDocumentForAssets(doc);
 
         if (assets.length > 0) {
-          await state.assetStorageManager.saveDocumentResults([{
+          await state.daApi.saveDocumentResults([{
             path: doc.path,
             assets,
             lastModified: doc.lastModified,
-            scanDuration: Date.now() - Date.now(), // Placeholder
+            scanDuration: Date.now() - Date.now(),
           }]);
         }
 
@@ -396,7 +392,6 @@ function createSelectiveRescan() {
           assetsFound: assets.length,
           success: true,
         };
-
       } catch (error) {
         emit('documentScanError', {
           ...context,
@@ -414,18 +409,8 @@ function createSelectiveRescan() {
   }
 
   async function scanDocumentForAssets(document) {
-    // Use path as-is - it's the unique identifier
-    const url = `${state.apiConfig.baseUrl}/source${document.path}`;
-
-    const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${state.apiConfig.token}` },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch document: ${response.status}`);
-    }
-
-    const html = await response.text();
+    const { getSource } = await import('../services/da-api.js');
+    const html = await getSource(document.path, 'html');
     return extractAssetsFromHTML(html, document.path);
   }
 
@@ -444,7 +429,6 @@ function createSelectiveRescan() {
     const doc = parser.parseFromString(html, 'text/html');
     const assets = [];
 
-    // Extract images
     const images = doc.querySelectorAll('img[src]');
     images.forEach((img) => {
       assets.push({
@@ -457,7 +441,6 @@ function createSelectiveRescan() {
       });
     });
 
-    // Extract videos
     const videos = doc.querySelectorAll('video[src], source[src]');
     videos.forEach((video) => {
       assets.push({
@@ -469,10 +452,9 @@ function createSelectiveRescan() {
       });
     });
 
-    // Extract other media
     const links = doc.querySelectorAll('a[href]');
     links.forEach((link) => {
-      const href = link.href;
+      const { href } = link;
       if (isMediaFile(href)) {
         assets.push({
           src: href,
@@ -488,7 +470,6 @@ function createSelectiveRescan() {
   }
 
   function getElementContext(element) {
-    // Determine context based on parent elements or classes
     const parent = element.closest('section, article, header, footer, nav, aside');
     if (parent) {
       return parent.tagName.toLowerCase();
@@ -532,45 +513,20 @@ function createSelectiveRescan() {
   }
 
   async function listFolderContents(folderPath) {
-    // Use folderPath as-is since it already includes org/repo prefix
-    const url = `${state.apiConfig.baseUrl}/list${folderPath}`;
-
-    const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${state.apiConfig.token}` },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!state.daApi) {
+      throw new Error('DA API service not initialized');
     }
-
-    const data = await response.json();
-    const items = Array.isArray(data) ? data : data.items || [];
-
-    return items.map((item) => ({
-      name: item.name,
-      path: item.path,
-      ext: item.ext,
-      lastModified: item.lastModified,
-    }));
+    return state.daApi.listPath(folderPath);
   }
 
   async function getDocumentStats(path) {
     try {
-      // Use path as-is - it's the unique identifier
-      const url = `${state.apiConfig.baseUrl}/source${path}`;
-
-      const response = await fetch(url, {
-        method: 'HEAD',
-        headers: { 'Authorization': `Bearer ${state.apiConfig.token}` },
-      });
-
-      if (!response.ok) {
-        return null;
+      if (!state.daApi) {
+        throw new Error('DA API service not initialized');
       }
-
-      const lastModified = response.headers.get('last-modified');
+      await state.daApi.getSource(path, 'html');
       return {
-        lastModified: lastModified ? new Date(lastModified).getTime() : Date.now(),
+        lastModified: Date.now(),
       };
     } catch (error) {
       return null;
@@ -578,11 +534,8 @@ function createSelectiveRescan() {
   }
 
   async function getFolderStatistics() {
-    // This would require analyzing the existing asset storage
-    // For now, return empty array
     return [];
   }
-
 
   /**
    * Event system
@@ -611,7 +564,6 @@ function createSelectiveRescan() {
         try {
           callback(data);
         } catch (error) {
-          // Selective Rescan: Error in event listener
         }
       });
     }

@@ -69,5 +69,6 @@ async function loadDelayedAnalytics() {
 // Execute the delayed loading
 loadDelayedAnalytics().catch((error) => {
   // eslint-disable-next-line no-console
+  // eslint-disable-next-line no-console
   console.error('[Delayed.js] Error loading delayed analytics:', error);
 });

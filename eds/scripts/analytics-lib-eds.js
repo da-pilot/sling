@@ -12,6 +12,7 @@ function isProduction() {
 function analyticsLog(...args) {
   if (!isProduction()) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log(...args);
   }
 }
@@ -19,12 +20,14 @@ function analyticsLog(...args) {
 function analyticsWarn(msg) {
   if (!isProduction()) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.warn(`[Analytics Warning] ${msg}`);
   }
 }
 
 function analyticsError(msg) {
   if (!isProduction()) {
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error(`[Analytics Error] ${msg}`);
   }

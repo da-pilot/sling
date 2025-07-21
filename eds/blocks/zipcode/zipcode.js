@@ -30,6 +30,7 @@ const updateZip = async (e, block) => {
     document.dispatchEvent(zipUpdateEvent);
   } catch (error) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.error('Failed to update zipcode and DMA:', error);
     localStorage.setItem(ZIPCODE_KEY, zipinput);
     block.querySelector('.geo-form-container').remove();

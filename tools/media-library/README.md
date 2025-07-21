@@ -1,14 +1,32 @@
 # Media Library
 
-A lightweight media library plugin for DA (Digital Asset) projects that scans HTML content to discover and manage media assets like images and videos.
+A lightweight, client-side plugin for DA (Digital Asset) projects that automatically discovers, organizes, and manages media assets (images, videos, documents) used throughout a website or web application.
 
 ## Overview
 
-Media Library automatically scans your DA project's HTML content to find media assets (images, videos, documents) and provides a user-friendly interface to browse, search, and insert these assets into your content.
+The **Media Library** transforms a scattered collection of media files across a project into a well-organized, searchable asset management system that integrates seamlessly with the DA content creation workflow.
+
+### 🎯 **Core Purpose**
+- **Scans HTML content** across an entire DA project to find all media assets
+- **Creates a searchable index** of discovered assets with metadata
+- **Provides a user interface** to browse, search, and insert these assets into content
+
+### 🔍 **Asset Discovery Process**
+1. **Folder Discovery**: Recursively scans project folders to find HTML files
+2. **Content Analysis**: Parses HTML to extract media references (images, videos, documents)
+3. **Metadata Extraction**: Gathers file information, dimensions, and usage data
+4. **Queue Processing**: Uses web workers for efficient background processing of large projects
+
+### 🏗️ **Technical Architecture**
+- **Vanilla JavaScript**: No frameworks, pure client-side implementation
+- **Web Workers**: Background processing for scanning operations
+- **IndexedDB**: Local storage for metadata and scan state
+- **Queue System**: Handles large projects efficiently with batch processing
+- **Real-time Updates**: Progress indicators and live status updates
 
 ## Features
 
-### Core Functionality
+### 🎯 **Core Functionality**
 - **Automatic Asset Discovery**: Scans HTML files to find media assets
 - **Queue-Based Scanning**: Handles large projects efficiently with background processing
 - **Asset Browser**: Grid and list views with search and filtering
@@ -16,20 +34,20 @@ Media Library automatically scans your DA project's HTML content to find media a
 - **Usage Tracking**: Monitor where assets are used across the project
 - **Accessibility**: Alt text warnings and validation for image accessibility
 
-### Asset Management
+### 📁 **Asset Management**
 - **Multiple Asset Types**: Support for images, videos, documents, and other media files
 - **Metadata Extraction**: Automatic extraction of file information, dimensions, and usage data
 - **Preview System**: Thumbnail generation and full-size previews
 - **Search & Filter**: Find assets by name, type, usage status, and accessibility compliance
 - **Category Filtering**: Filter by asset source (Internal/External), type (Images/Videos/Documents), and accessibility status
 
-### Scanning & Discovery
+### 🔍 **Scanning & Discovery**
 - **Full Project Scan**: Comprehensive asset discovery across the entire project
 - **Current Page Scan**: Targeted scanning of assets used on the current page
 - **Real-time Progress**: Visual indicators for scan operations
 - **Selective Rescan**: Refresh specific folders or asset types
 
-### User Interface
+### 🎨 **User Interface**
 - **Responsive Design**: Works across desktop and tablet devices
 - **Sidebar Filters**: Organized filter categories for different asset types and statuses
 - **Modal Interfaces**: Asset preview, usage tracking, and insertion modals
@@ -67,7 +85,7 @@ To test the plugin locally while maintaining access to DA APIs:
 
 The plugin will automatically detect the local development mode and show a "Local Development (Connected)" status indicator.
 
-### How It Works
+### 🔄 **How It Works**
 
 1. **Initialization**: The plugin connects to your DA project and loads existing metadata
 2. **Content Scanning**: Scans all HTML files in your project to discover media assets
@@ -75,13 +93,13 @@ The plugin will automatically detect the local development mode and show a "Loca
 4. **Metadata Creation**: Builds a searchable index of all discovered assets
 5. **Browser Interface**: Provides a user-friendly interface to browse and manage assets
 
-### Asset Types Supported
+### 📄 **Asset Types Supported**
 
 - **Images**: JPG, PNG, GIF, SVG, WebP
 - **Videos**: MP4, WebM, OGV
 - **Documents**: PDF, DOC, DOCX, XLS, XLSX
 
-### Interface Features
+### 🎛️ **Interface Features**
 
 - **Search**: Find assets by name or path
 - **Filters**: Filter by asset type (images, videos, documents)
@@ -89,6 +107,14 @@ The plugin will automatically detect the local development mode and show a "Loca
 - **Grid/List Views**: Switch between different viewing modes
 - **Asset Preview**: Preview assets before insertion
 - **One-Click Insertion**: Insert assets directly into your content
+
+## 🚀 **Key Benefits**
+
+- **Automatic Discovery**: No manual asset cataloging required
+- **Content Integration**: One-click insertion into DA content
+- **Project-Wide View**: See all media assets in one centralized location
+- **Accessibility Support**: Helps maintain WCAG compliance
+- **Performance**: Efficient scanning and caching for large projects
 
 ## Troubleshooting
 

@@ -36,6 +36,7 @@ function showMessage(text, isError = false) {
       showMessage('Property values inserted successfully');
     } catch (error) {
       showMessage('Failed to insert property values', true);
+      // eslint-disable-next-line no-console
       console.error(error);
     }
   });

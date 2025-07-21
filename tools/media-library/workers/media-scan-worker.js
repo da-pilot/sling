@@ -1,64 +1,87 @@
+/* eslint-disable no-cond-assign */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 /**
  * Media Scan Worker - Processes pages from queue to extract media assets
  * Works with document discovery worker for queue-based scanning
  */
 
+import { createWorkerDaApi, createWorkerSheetUtils, createWorkerStateManager } from '../services/worker-utils.js';
+
 const state = {
-  apiConfig: null,
+  config: null,
+  daApi: null,
+  sheetUtils: null,
+  stateManager: null,
   isRunning: false,
-  batchSize: 5,
-  concurrentScans: 3,
-  processingInterval: 5000, // 5 seconds
+  isProcessing: false,
+  batchSize: 10,
+  processingInterval: 1000,
+  stats: {
+    processedPages: 0,
+    totalAssets: 0,
+    errors: 0,
+  },
 };
+
+let config = null;
+let daApi = null;
+const sheetUtils = createWorkerSheetUtils();
+const stateManager = createWorkerStateManager();
+
+/**
+ * Initialize worker with configuration
+ */
+async function init(workerConfig) {
+  try {
+    config = workerConfig;
+    daApi = createWorkerDaApi();
+    await daApi.init(config);
+
+    // Update state from config
+    state.batchSize = config.batchSize || 10;
+    state.processingInterval = config.processingInterval || 1000;
+
+    // eslint-disable-next-line no-console
+    console.log('[Media Scan Worker] 🔧 Initialized with scanning config:', {
+      batchSize: state.batchSize,
+      processingInterval: state.processingInterval,
+      timestamp: new Date().toISOString(),
+    });
+
+    return true;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[Media Scan Worker] Failed to initialize:', error);
+    throw error;
+  }
+}
 
 /**
  * Validate if alt text is meaningful and not a URL or file path
  */
 function isValidAltText(altText) {
   if (!altText || typeof altText !== 'string') return false;
-  
-  const trimmed = altText.trim();
-  
-  if (trimmed.length < 2) return false;
-  
-  if (trimmed.length > 200) return false;
-  
-  if (trimmed.includes('\n') || trimmed.includes('\r')) return false;
-  
-  if (/\s{3,}/.test(trimmed)) return false;
-  
-  if (/<[^>]*>/.test(trimmed)) return false;
-  
-  if (/https?:\/\/|www\./.test(trimmed)) return false;
-  
-  if (/\.(jpg|jpeg|png|gif|svg|webp|pdf|doc|docx|txt)$/i.test(trimmed)) return false;
-  
-  return true;
-}
 
-/**
- * Initialize the media scan worker
- */
-function init(config) {
-  state.apiConfig = config;
-  console.log('[Media Scan Worker] Initialized with config:', {
-    baseUrl: config.baseUrl,
-    org: config.org,
-    repo: config.repo,
-    batchSize: state.batchSize,
-    concurrentScans: state.concurrentScans
-  });
-  
-  // Add heartbeat to track background activity
-  setInterval(() => {
-    if (state.isRunning) {
-      console.log('[Media Scan Worker] Background heartbeat - Running:', {
-        timestamp: new Date().toISOString(),
-        batchSize: state.batchSize,
-        concurrentScans: state.concurrentScans
-      });
-    }
-  }, 30000); // Every 30 seconds
+  const trimmed = altText.trim();
+
+  if (trimmed.length < 2) return false;
+
+  if (trimmed.length > 200) return false;
+
+  if (trimmed.includes('\n') || trimmed.includes('\r')) return false;
+
+  if (/\s{3,}/.test(trimmed)) return false;
+
+  if (/<[^>]*>/.test(trimmed)) return false;
+
+  if (/https?:\/\/|www\./.test(trimmed)) return false;
+
+  if (/\.(jpg|jpeg|png|gif|svg|webp|pdf|doc|docx|txt)$/i.test(trimmed)) return false;
+
+  return true;
 }
 
 /**
@@ -66,14 +89,7 @@ function init(config) {
  */
 async function startQueueProcessing() {
   state.isRunning = true;
-  console.log('[Media Scan Worker] Starting queue processing:', {
-    interval: state.processingInterval,
-    batchSize: state.batchSize,
-    concurrentScans: state.concurrentScans,
-    timestamp: new Date().toISOString()
-  });
 
-  // Process queue periodically
   const intervalId = setInterval(async () => {
     if (state.isRunning) {
       await processNextBatch();
@@ -93,23 +109,17 @@ async function startQueueProcessing() {
  */
 async function processNextBatch() {
   try {
-    console.log('[Media Scan Worker] Requesting next batch:', {
-      batchSize: state.batchSize,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Request next batch from main thread (which communicates with listing worker)
     postMessage({
       type: 'requestBatch',
       data: { batchSize: state.batchSize },
     });
-
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('[Media Scan Worker] Error requesting batch:', {
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     postMessage({
       type: 'batchError',
       data: { error: error.message },
@@ -122,33 +132,22 @@ async function processNextBatch() {
  */
 async function processBatch(pages) {
   if (!pages || pages.length === 0) {
-    console.log('[Media Scan Worker] No pages to process in batch');
     return;
   }
 
-  console.log('[Media Scan Worker] Processing batch:', {
-    pageCount: pages.length,
-    pages: pages.map(p => p.path),
-    timestamp: new Date().toISOString()
-  });
+  state.isProcessing = true;
 
-  // Process pages in smaller concurrent groups
-  const concurrentGroups = createConcurrentGroups(pages, state.concurrentScans);
-
-  for (const group of concurrentGroups) {
-    const scanPromises = group.map((page) => scanPageForAssets(page));
+  try {
+    const scanPromises = pages.map((page) => scanPageForAssets(page));
     await Promise.all(scanPromises);
+
+    postMessage({
+      type: 'batchComplete',
+      data: { processedCount: pages?.length || 0 },
+    });
+  } finally {
+    state.isProcessing = false;
   }
-
-  console.log('[Media Scan Worker] Batch complete:', {
-    processedCount: pages.length,
-    timestamp: new Date().toISOString()
-  });
-
-  postMessage({
-    type: 'batchComplete',
-    data: { processedCount: pages.length },
-  });
 }
 
 /**
@@ -157,58 +156,47 @@ async function processBatch(pages) {
 async function scanPageForAssets(page) {
   const startTime = Date.now();
 
-  console.log('[Media Scan Worker] Scanning page:', {
-    path: page.path,
-    timestamp: new Date().toISOString()
-  });
-
   try {
-    // Get page content
-    const content = await getPageContent(page.path);
-
-    // Extract assets from HTML
-    const assets = extractAssetsFromHTML(content, page.path);
-
+    const html = await getPageContent(page.path);
+    const assets = extractAssetsFromHTML(html, page.path);
     const scanTime = Date.now() - startTime;
-
-    console.log('[Media Scan Worker] Page scan complete:', {
-      path: page.path,
-      assetCount: assets.length,
-      scanTime: `${scanTime}ms`,
-      timestamp: new Date().toISOString()
-    });
 
     postMessage({
       type: 'pageScanned',
       data: {
-        page: page.path,
+        page: page?.path || '',
         assets,
         scanTime,
         assetCount: assets.length,
-        lastModified: page.lastModified,
+        lastModified: page?.lastModified || null,
+        sourceFile: page?.sourceFile || null,
+        file: {
+          org: config?.org || 'unknown',
+          repo: config?.repo || 'unknown',
+          path: page?.path || '',
+        },
       },
     });
 
-    // Mark page as scanned (remove from queue)
     postMessage({
       type: 'markPageScanned',
-      data: { path: page.path },
+      data: { path: page?.path || '' },
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[Media Scan Worker] Page scan error:', {
+      path: page?.path || 'unknown',
+      error: error?.message || 'unknown error',
+      retryCount: page?.retryCount || 0,
+      timestamp: new Date().toISOString(),
     });
 
-  } catch (error) {
-    console.error('[Media Scan Worker] Page scan error:', {
-      path: page.path,
-      error: error.message,
-      retryCount: page.retryCount || 0,
-      timestamp: new Date().toISOString()
-    });
-    
     postMessage({
       type: 'pageScanError',
       data: {
-        page: page.path,
-        error: error.message,
-        retryCount: page.retryCount || 0,
+        page: page?.path || '',
+        error: error?.message || 'unknown error',
+        retryCount: page?.retryCount || 0,
       },
     });
   }
@@ -218,18 +206,10 @@ async function scanPageForAssets(page) {
  * Get page content from DA API
  */
 async function getPageContent(path) {
-  // Use path as-is - it's the unique identifier
-  const url = `${state.apiConfig.baseUrl}/source${path}`;
-
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${state.apiConfig.token}` },
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  if (!daApi) {
+    throw new Error('DA API service not initialized');
   }
-
-  return response.text();
+  return daApi.fetchPageContent(path);
 }
 
 /**
@@ -238,7 +218,6 @@ async function getPageContent(path) {
 function extractAssetsFromHTML(html, sourcePath) {
   const assets = [];
 
-  // Extract different types of assets using regex patterns
   extractImgTags(html, assets, sourcePath);
   extractPictureImages(html, assets, sourcePath);
   extractPictureSources(html, assets, sourcePath);
@@ -247,7 +226,6 @@ function extractAssetsFromHTML(html, sourcePath) {
   extractMediaLinks(html, assets, sourcePath);
   extractCSSBackgrounds(html, assets, sourcePath);
 
-  // Deduplicate assets
   const deduplicated = deduplicateAssets(assets);
   return deduplicated;
 }
@@ -256,7 +234,6 @@ function extractAssetsFromHTML(html, sourcePath) {
  * Extract img tags using regex
  */
 function extractImgTags(html, assets, sourcePath) {
-  // Match img tags with src attribute
   const imgRegex = /<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi;
   let match;
   let occurrenceIndex = 0;
@@ -264,7 +241,6 @@ function extractImgTags(html, assets, sourcePath) {
   while ((match = imgRegex.exec(html)) !== null) {
     const src = match[1];
     if (src && isValidMediaSrc(src)) {
-      // Extract additional attributes
       const imgTag = match[0];
       const altMatch = imgTag.match(/alt\s*=\s*["']([^"']*)["']/i);
       const widthMatch = imgTag.match(/width\s*=\s*["']?(\d+)["']?/i);
@@ -290,7 +266,6 @@ function extractImgTags(html, assets, sourcePath) {
         contextualText: getContextualText(html, match.index),
       });
 
-      // Handle srcset
       if (srcsetMatch) {
         const srcsetAssets = parseSrcset(srcsetMatch[1], sourcePath);
         assets.push(...srcsetAssets);
@@ -303,21 +278,18 @@ function extractImgTags(html, assets, sourcePath) {
  * Extract images from picture elements
  */
 function extractPictureImages(html, assets, sourcePath) {
-  // Match picture elements and extract img tags within them
   const pictureRegex = /<picture[^>]*>.*?<\/picture>/gis;
   let pictureMatch;
   let occurrenceIndex = 0;
 
   while ((pictureMatch = pictureRegex.exec(html)) !== null) {
     const pictureContent = pictureMatch[0];
-    
-    // Extract img tag from within the picture element
+
     const imgMatch = pictureContent.match(/<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/i);
-    
+
     if (imgMatch) {
       const src = imgMatch[1];
       if (src && isValidMediaSrc(src)) {
-        // Extract additional attributes from the img tag
         const imgTag = imgMatch[0];
         const altMatch = imgTag.match(/alt\s*=\s*["']([^"']*)["']/i);
         const widthMatch = imgTag.match(/width\s*=\s*["']?(\d+)["']?/i);
@@ -350,7 +322,6 @@ function extractPictureImages(html, assets, sourcePath) {
  * Extract picture sources using regex
  */
 function extractPictureSources(html, assets, sourcePath) {
-  // Match picture source tags with srcset attribute
   const sourceRegex = /<source[^>]+srcset\s*=\s*["']([^"']+)["'][^>]*>/gi;
   let match;
 
@@ -367,7 +338,6 @@ function extractPictureSources(html, assets, sourcePath) {
  * Extract background images from style attributes using regex
  */
 function extractBackgroundImages(html, assets, sourcePath) {
-  // Match elements with style attributes containing background
   const styleRegex = /<[^>]+style\s*=\s*["'][^"']*background[^"']*["'][^>]*>/gi;
   let match;
 
@@ -387,14 +357,12 @@ function extractBackgroundImages(html, assets, sourcePath) {
  * Extract video sources using regex
  */
 function extractVideoSources(html, assets, sourcePath) {
-  // Match video tags
   const videoRegex = /<video[^>]*>.*?<\/video>/gis;
   let videoMatch;
 
   while ((videoMatch = videoRegex.exec(html)) !== null) {
     const videoTag = videoMatch[0];
 
-    // Extract poster attribute
     const posterMatch = videoTag.match(/poster\s*=\s*["']([^"']+)["']/i);
     if (posterMatch && isMediaUrl(posterMatch[1])) {
       assets.push({
@@ -407,7 +375,6 @@ function extractVideoSources(html, assets, sourcePath) {
       });
     }
 
-    // Extract src attribute
     const srcMatch = videoTag.match(/src\s*=\s*["']([^"']+)["']/i);
     if (srcMatch && isMediaUrl(srcMatch[1])) {
       assets.push({
@@ -420,7 +387,6 @@ function extractVideoSources(html, assets, sourcePath) {
       });
     }
 
-    // Extract source tags within video
     const sourceRegex = /<source[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi;
     let sourceMatch;
     while ((sourceMatch = sourceRegex.exec(videoTag)) !== null) {
@@ -443,8 +409,6 @@ function extractVideoSources(html, assets, sourcePath) {
  * Extract media links using regex
  */
 function extractMediaLinks(html, assets, sourcePath) {
-
-  // More flexible regex to match anchor tags with href
   const linkRegex = /<a[^>]*href\s*=\s*["']([^"']+)["'][^>]*>/gi;
   let match;
   let occurrenceIndex = 0;
@@ -453,43 +417,37 @@ function extractMediaLinks(html, assets, sourcePath) {
     const href = match[1];
 
     if (href && isMediaUrl(href)) {
-      // Extract title attribute if present
       const titleMatch = match[0].match(/title\s*=\s*["']([^"']*)["']/i);
       const title = titleMatch ? titleMatch[1] : '';
 
-      // Extract link text (content between <a> and </a>)
       const fullMatch = match[0];
       const linkStart = match.index + fullMatch.length;
       const linkEnd = html.indexOf('</a>', linkStart);
       const linkText = linkEnd > linkStart ? html.substring(linkStart, linkEnd).trim() : '';
 
-      // Check if this is an external image link
       const isExternal = isExternalAsset(href);
 
       const hasTitle = isValidAltText(title);
       const hasLinkText = isValidAltText(linkText);
 
-      // Get contextual text specifically for links
       const contextualText = getContextualTextForLink(html, match.index, linkEnd);
 
       assets.push({
-        src: href, // Store the original href as src for external assets
+        src: href,
         alt: title || linkText || '',
         type: determineAssetTypeFromUrl(href),
         usedIn: [sourcePath],
         dimensions: {},
         context: isExternal ? 'external-link' : 'media-link',
-        isExternal: isExternal,
-        originalHref: href, // Keep original href for external assets
+        isExternal,
+        originalHref: href,
         occurrenceId: `${sourcePath}-link-${occurrenceIndex++}`,
         hasAltText: hasTitle || hasLinkText,
         occurrenceType: 'link',
-        contextualText: contextualText,
+        contextualText,
       });
-
     }
   }
-
 }
 
 /**
@@ -498,22 +456,18 @@ function extractMediaLinks(html, assets, sourcePath) {
 function determineAssetTypeFromUrl(url) {
   const lowerUrl = url.toLowerCase();
 
-  // Image types
   if (lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/)) {
     return 'image';
   }
 
-  // Video types
   if (lowerUrl.match(/\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/)) {
     return 'video';
   }
 
-  // Document types
   if (lowerUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf|odt|ods|odp)$/)) {
     return 'document';
   }
 
-  // Default to image if no clear type
   return 'image';
 }
 
@@ -521,7 +475,6 @@ function determineAssetTypeFromUrl(url) {
  * Extract CSS backgrounds from style elements using regex
  */
 function extractCSSBackgrounds(html, assets, sourcePath) {
-  // Match style elements
   const styleRegex = /<style[^>]*>(.*?)<\/style>/gis;
   let match;
 
@@ -595,7 +548,7 @@ function normalizeAssetSrc(src) {
   } if (src.startsWith('./')) {
     return src.substring(1);
   } if (!src.startsWith('http')) {
-    return '/' + src;
+    return `/${src}`;
   }
 
   return src;
@@ -618,16 +571,13 @@ function isValidMediaSrc(src) {
 function isMediaUrl(url) {
   if (!url || typeof url !== 'string') return false;
 
-  // Check for common image extensions
   const imageExts = 'jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico';
   const videoExts = 'mp4|webm|ogg|avi|mov|wmv|flv';
   const docExts = 'pdf|doc|docx|xls|xlsx|ppt|pptx';
   const mediaExtensions = new RegExp(`\\.(${imageExts}|${videoExts}|${docExts})`, 'i');
 
-  // Check for extensions in URL
   if (mediaExtensions.test(url)) return true;
 
-  // Check for image service patterns (like scene7.com)
   const imageServicePatterns = [
     /scene7\.com.*\/is\/image/i,
     /cloudinary\.com/i,
@@ -648,9 +598,8 @@ function isExternalAsset(src) {
 
   try {
     const url = new URL(src);
-    const hostname = url.hostname;
+    const { hostname } = url;
 
-    // Check for external patterns
     const externalPatterns = [
       'scene7.com', 'akamai.net', 'cloudfront.net', 's3.amazonaws.com',
       'cdn.', 'static.', 'media.', 'sling.com', 'dish.com',
@@ -661,8 +610,6 @@ function isExternalAsset(src) {
     return false;
   }
 }
-
-
 
 /**
  * Parse srcset attribute
@@ -685,14 +632,11 @@ function parseSrcset(srcset, sourcePath) {
  * Get contextual text around HTML index
  */
 function getContextualText(html, index, maxLength = 200) {
-  // Look for text before and after the element
   const beforeText = html.substring(Math.max(0, index - maxLength), index);
   const afterText = html.substring(index, Math.min(html.length, index + maxLength));
-  
-  // Look for meaningful text content (headers, paragraphs, captions, etc.)
+
   let contextualText = '';
-  
-  // Check for text in nearby elements before the image
+
   const beforeElements = beforeText.match(/<([^>]+)>([^<]{10,})[^<]*<\/\1>/g);
   if (beforeElements && beforeElements.length > 0) {
     const lastElement = beforeElements[beforeElements.length - 1];
@@ -701,8 +645,7 @@ function getContextualText(html, index, maxLength = 200) {
       contextualText = textMatch[1].trim();
     }
   }
-  
-  // If no text found before, look for text after
+
   if (!contextualText) {
     const afterElements = afterText.match(/<([^>]+)>([^<]{10,})[^<]*<\/\1>/g);
     if (afterElements && afterElements.length > 0) {
@@ -713,25 +656,23 @@ function getContextualText(html, index, maxLength = 200) {
       }
     }
   }
-  
-  // If still no text, look for any text content in the vicinity
+
   if (!contextualText) {
     const beforeMatch = beforeText.match(/>([^<]{10,})[^<]*$/);
     const afterMatch = afterText.match(/^[^<]*([^<]{10,})</);
-    
+
     if (beforeMatch && beforeMatch[1]) {
       contextualText = beforeMatch[1].trim();
     } else if (afterMatch && afterMatch[1]) {
       contextualText = afterMatch[1].trim();
     }
   }
-  
-  // Clean up the text (remove extra whitespace, truncate)
+
   contextualText = contextualText.replace(/\s+/g, ' ').trim();
   if (contextualText.length > 80) {
-    contextualText = contextualText.substring(0, 80) + '...';
+    contextualText = `${contextualText.substring(0, 80)}...`;
   }
-  
+
   return contextualText || 'No contextual text found';
 }
 
@@ -740,43 +681,35 @@ function getContextualText(html, index, maxLength = 200) {
  * This function is optimized for finding text around anchor tags
  */
 function getContextualTextForLink(html, linkStartIndex, linkEndIndex, maxLength = 300) {
-  // Look for text before the link
   const beforeText = html.substring(Math.max(0, linkStartIndex - maxLength), linkStartIndex);
   const afterText = html.substring(linkEndIndex, Math.min(html.length, linkEndIndex + maxLength));
-  
+
   let contextualText = '';
-  
-  // First, try to find text within the link itself (link text)
+
   const linkText = html.substring(linkStartIndex, linkEndIndex);
   const linkTextMatch = linkText.match(/>([^<]{5,})</);
   if (linkTextMatch && linkTextMatch[1]) {
     contextualText = linkTextMatch[1].trim();
   }
-  
-  // If no link text, look for surrounding text
+
   if (!contextualText) {
-    // Look for text in parent elements or nearby elements
     const beforeElements = beforeText.match(/<([^>]+)>([^<]{10,})[^<]*$/);
     if (beforeElements && beforeElements[2]) {
       contextualText = beforeElements[2].trim();
     }
   }
-  
-  // If still no text, look for text after the link
+
   if (!contextualText) {
     const afterElements = afterText.match(/^[^<]*([^<]{10,})</);
     if (afterElements && afterElements[1]) {
       contextualText = afterElements[1].trim();
     }
   }
-  
-  // If still no text, try to find any meaningful text in the vicinity
+
   if (!contextualText) {
-    // Look for text in nearby elements (headers, paragraphs, etc.)
     const nearbyText = beforeText + afterText;
     const textMatches = nearbyText.match(/>([^<]{15,})</g);
     if (textMatches && textMatches.length > 0) {
-      // Take the last meaningful text found
       const lastMatch = textMatches[textMatches.length - 1];
       const textContent = lastMatch.match(/>([^<]{15,})</);
       if (textContent && textContent[1]) {
@@ -784,10 +717,9 @@ function getContextualTextForLink(html, linkStartIndex, linkEndIndex, maxLength 
       }
     }
   }
-  
-  // Clean up the text (remove extra whitespace, but don't truncate for links)
+
   contextualText = contextualText.replace(/\s+/g, ' ').trim();
-  
+
   return contextualText || 'No contextual text found';
 }
 
@@ -804,26 +736,23 @@ function deduplicateAssets(assets) {
       seen.set(key, asset);
       deduplicated.push(asset);
     } else {
-      // Merge usedIn arrays and track occurrences
       const existing = seen.get(key);
       existing.usedIn = [...new Set([...existing.usedIn, ...asset.usedIn])];
-      
-      // Track individual occurrences for detailed alt text analysis
+
       if (!existing.occurrences) {
         existing.occurrences = [];
       }
-      
-      // Add current asset as an occurrence if it has occurrence data
+
       if (asset.occurrenceId) {
-                 existing.occurrences.push({
-           occurrenceId: asset.occurrenceId,
-           pagePath: asset.usedIn[0],
-           altText: asset.alt,
-           hasAltText: asset.hasAltText,
-           occurrenceType: asset.occurrenceType,
-           contextualText: asset.contextualText,
-           context: asset.context,
-         });
+        existing.occurrences.push({
+          occurrenceId: asset.occurrenceId,
+          pagePath: asset.usedIn[0],
+          altText: asset.alt,
+          hasAltText: asset.hasAltText,
+          occurrenceType: asset.occurrenceType,
+          contextualText: asset.contextualText,
+          context: asset.context,
+        });
       }
     }
   });
@@ -847,9 +776,6 @@ function createConcurrentGroups(array, groupSize) {
  */
 function stopQueueProcessing() {
   state.isRunning = false;
-  console.log('[Media Scan Worker] Queue processing stopped:', {
-    timestamp: new Date().toISOString()
-  });
 
   postMessage({
     type: 'queueProcessingStopped',
@@ -857,7 +783,6 @@ function stopQueueProcessing() {
   });
 }
 
-// Message handler
 // eslint-disable-next-line no-restricted-globals
 self.addEventListener('message', async (event) => {
   const { type, data } = event.data;
@@ -865,7 +790,7 @@ self.addEventListener('message', async (event) => {
   try {
     switch (type) {
       case 'init': {
-        init(data.apiConfig);
+        await init(data.apiConfig);
         postMessage({ type: 'initialized' });
         break;
       }

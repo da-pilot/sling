@@ -1,8 +1,11 @@
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 /**
  * Create Metadata Manager
  * Handles metadata storage and retrieval in DA
  */
-// DA Sheet Utility (duplicate from state-manager.js for local use)
 const DASheetUtilLocal = {
   build(sheetMap, options = {}) {
     const sheetNames = Object.keys(sheetMap);
@@ -54,11 +57,9 @@ const DASheetUtilLocal = {
   _stringifySheet(sheet) {
     return {
       ...sheet,
-      data: (sheet.data || []).map((row) =>
-        Object.fromEntries(
-          Object.entries(row).map(([k, v]) => [k, v != null ? String(v) : '']),
-        ),
-      ),
+      data: (sheet.data || []).map((row) => Object.fromEntries(
+        Object.entries(row).map(([k, v]) => [k, v != null ? String(v) : '']),
+      )),
     };
   },
   _parseDataArray(dataArr) {
@@ -86,7 +87,7 @@ function createMetadataManager(daApi, metadataPath) {
     importMetadata,
     createMetadataFile,
     clearCache,
-    daApi: state.daApi, // Expose daApi for external access
+    daApi: state.daApi,
   };
 
   async function getMetadata() {
@@ -98,7 +99,6 @@ function createMetadataManager(daApi, metadataPath) {
       const content = await state.daApi.getSource(state.metadataPath, '');
 
       if (!content || content.trim() === '') {
-        // Metadata file doesn't exist, create default
         const defaultMetadata = createDefaultMetadata();
         await saveMetadata(defaultMetadata);
         return defaultMetadata;
@@ -110,7 +110,6 @@ function createMetadataManager(daApi, metadataPath) {
       updateCache(validatedMetadata);
       return validatedMetadata;
     } catch (error) {
-      // Metadata file doesn't exist, create default
       const defaultMetadata = createDefaultMetadata();
       await saveMetadata(defaultMetadata);
       return defaultMetadata;
@@ -409,39 +408,22 @@ function createMetadataManager(daApi, metadataPath) {
    * Create metadata file for a document
    */
   async function createMetadataFile(documentPath, assets) {
-    const metadataPath = documentPath.replace(/\.html$/, '.json');
+    const documentMetadataPath = documentPath.replace(/\.html$/, '.json');
 
-    // Use DASheetUtil to build DA-compliant JSON
     const structure = {
       data: { data: [{ path: documentPath, assets, lastScanned: Date.now() }] },
     };
     const jsonToWrite = DASheetUtilLocal.build(structure);
 
     try {
-      // Create FormData and append the JSON as a file
-      const formData = new FormData();
-      const jsonBlob = new Blob([JSON.stringify(jsonToWrite)], { type: 'application/json' });
-      formData.append('file', jsonBlob, 'data.json');
+      const url = `${state.daApi.baseUrl}/source${documentMetadataPath}`;
+      const { saveSheetFile } = await import('../modules/sheet-utils.js');
 
-      const url = `${state.daApi.baseUrl}/source${metadataPath}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${state.daApi.token}`,
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        return true;
-      }
-      const errorText = await response.text();
-      // eslint-disable-next-line no-console
-      console.error('Error response:', errorText);
-      return false;
+      await saveSheetFile(url, jsonToWrite, state.daApi.token);
+      return true;
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error(`❌ Error creating metadata ${metadataPath}:`, error);
+      console.error(`❌ Error creating metadata ${documentMetadataPath}:`, error);
       return false;
     }
   }

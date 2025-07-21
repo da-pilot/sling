@@ -406,6 +406,7 @@ function expandToDepth(item, currentDepth, targetDepth) {
         });
     } catch (error) {
       showMessage('Failed to load fragments', true);
+      // eslint-disable-next-line no-console
       console.error(error);
       // Also disable cancel button on error
       cancelBtn.disabled = true;

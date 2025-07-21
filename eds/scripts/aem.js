@@ -103,6 +103,7 @@ function sampleRUM(checkpoint, data) {
             : rumData;
           navigator.sendBeacon(url, body);
           // eslint-disable-next-line no-console
+          // eslint-disable-next-line no-console
           console.debug(`ping:${ck}`, pingData);
         };
         sampleRUM.sendPing('top', timeShift());
@@ -151,6 +152,7 @@ function setup() {
     try {
       [window.hlx.codeBasePath] = new URL(scriptEl.src).pathname.split('/scripts/scripts.js');
     } catch (error) {
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log(error);
     }
@@ -623,6 +625,7 @@ async function loadBlock(block) {
             }
           } catch (error) {
             // eslint-disable-next-line no-console
+            // eslint-disable-next-line no-console
             console.log(`failed to load module for ${blockName}`, error);
           }
           resolve();
@@ -630,6 +633,7 @@ async function loadBlock(block) {
       });
       await Promise.all([cssLoaded, decorationComplete]);
     } catch (error) {
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log(`failed to load block ${blockName}`, error);
     }

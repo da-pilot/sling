@@ -88,6 +88,7 @@ async function setSchedules(url, opts) {
     }
     return resp.json();
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error(error.message);
     messageUtils.show('Failed to save schedule, please check console for more details', true);
     return null;
@@ -159,6 +160,7 @@ async function getSchedules(url, opts) {
 
     return cleanedJson;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error(error.message);
     messageUtils.show('Failed to fetch, please check console for more details', true);
     return null;

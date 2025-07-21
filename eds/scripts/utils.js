@@ -709,6 +709,7 @@ export async function fetchZipcodeAndDMA() {
     };
   } catch (error) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.warn('Failed to fetch geo data, using defaults:', error);
     return {
       zipcode: DEFAULT_ZIPCODE,
@@ -735,6 +736,7 @@ export async function fetchDMAForZipcode(zipcode) {
 
     return DEFAULT_DMA;
   } catch (error) {
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.warn('Failed to fetch DMA for zipcode, using default:', error);
     return DEFAULT_DMA;
@@ -807,6 +809,7 @@ export function configSideKick() {
     const currentElement = event.currentTarget.closest('.block, .section');
     if (!currentElement) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error('No block or section found for export');
       return;
     }
@@ -822,6 +825,7 @@ export function configSideKick() {
     const fragmentId = currentElement.getAttribute('data-fragment-id');
 
     if (!elementName) {
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error('No name found for element');
       return;
@@ -866,6 +870,7 @@ export function configSideKick() {
       document.body.appendChild(script);
     } catch (error) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error('Error loading HTML offer dialog:', error);
     }
   };
@@ -893,6 +898,7 @@ export function configSideKick() {
     .join(' ');
 
   const showBlocks = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.info('showblocks event triggered with payload:', payload);
     // Store the payload for login status check
@@ -931,6 +937,7 @@ export function configSideKick() {
   };
 
   const showSections = ({ detail: payload }) => {
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.info('showsections event:', payload);
     // Store the payload for login status check
@@ -981,6 +988,7 @@ export function configSideKick() {
       showblocks: showBlocks,
       showsections: showSections,
       eventdetials: (e) => {
+        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.info(e.detail);
       },

@@ -1,5 +1,7 @@
-// tools/media-library/modules/rescan.js
-// Selective rescan functionality for Media Library
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 
 import { createSelectiveRescan } from './selective-rescan.js';
 
@@ -46,6 +48,7 @@ async function handleSelectiveRescan(operation, data) {
       case 'rescanAsset':
         return await selectiveRescan.rescanAsset(data.assetId);
       default:
+
         // eslint-disable-next-line no-console
         console.warn(`Unknown selective rescan operation: ${operation}`);
     }

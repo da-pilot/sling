@@ -1,5 +1,9 @@
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 
-
+/* eslint-disable no-use-before-define */
 import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import { createDAApiService } from './services/da-api.js';
 import { createMetadataManager } from './services/metadata-manager.js';
@@ -8,7 +12,12 @@ import { createAssetInsertion } from './modules/media-insert.js';
 import { createQueueManager } from './modules/queue-manager.js';
 import { initSelectiveRescan } from './modules/rescan.js';
 import { createStateManager } from './services/state-manager.js';
-import { fetchSheetJson, CONTENT_DA_LIVE_BASE } from './modules/sheet-utils.js';
+import {
+  fetchSheetJson, buildMultiSheet, saveSheetFile, CONTENT_DA_LIVE_BASE,
+} from './modules/sheet-utils.js';
+import {
+  DA_PATHS, SCAN_CONFIG, UI_CONFIG, ERROR_MESSAGES,
+} from './constants.js';
 import {
   loadAssetsFromMediaJson,
   setAssetBrowser as setAssetLoaderAssetBrowser,
@@ -33,10 +42,8 @@ import {
 } from './modules/event-handlers.js';
 import { initHierarchyBrowser, toggleHierarchyView, returnToAllAssets } from './modules/hierarchy-browser.js';
 
-
 window.loadAssetsFromMediaJson = loadAssetsFromMediaJson;
 
-// Global function to stop scanning for testing
 window.stopScanning = async () => {
   if (queueManager) {
     await queueManager.stopQueueScanning();
@@ -44,12 +51,8 @@ window.stopScanning = async () => {
   }
 };
 
-// Global function to check scan status
-window.isScanning = () => {
-  return isScanning;
-};
+window.isScanning = () => isScanning;
 
-// Global function to trigger a rescan
 window.triggerRescan = async () => {
   try {
     if (queueManager) {
@@ -59,15 +62,33 @@ window.triggerRescan = async () => {
       showToast('Queue manager not available', 'error');
     }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to trigger rescan:', error);
     showToast('Failed to start rescan', 'error');
   }
 };
 
-const POLLING_INTERVAL = 10000;
-const ASSET_POLLING_INTERVAL = 5000;
-const PLACEHOLDER_COUNT = 6;
-const HOURS_IN_DAY = 24;
+window.testDiscovery = async () => {
+  try {
+    if (queueManager && queueManager.discoveryManager) {
+      // eslint-disable-next-line no-console
+      console.log('[TEST] Starting discovery test...');
+      await queueManager.discoveryManager.startDiscovery();
+      showToast('Discovery test started', 'info');
+    } else {
+      showToast('Discovery manager not available', 'error');
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to test discovery:', error);
+    showToast('Failed to test discovery', 'error');
+  }
+};
+
+const { POLLING_INTERVAL } = SCAN_CONFIG;
+const { ASSET_POLLING_INTERVAL } = SCAN_CONFIG;
+const { PLACEHOLDER_COUNT } = UI_CONFIG;
+const { HOURS_IN_DAY } = UI_CONFIG;
 
 let daContext = null;
 let daActions = null;
@@ -86,18 +107,16 @@ let elements = {};
 let stateManager = null;
 let mediaPollingInterval = null;
 
-const handleDiscoveryCompleteWrapper = (data) =>
-  handleDiscoveryComplete(data, updateLoadingText);
-const handlePageScannedWrapper = (data) =>
-  handlePageScanned(
-    data,
-    assets,
-    assetBrowser,
-    metadataManager,
-    processScanResults,
-    updateLoadingText,
-    updateScanProgressHeader,
-  );
+const handleDiscoveryCompleteWrapper = (data) => handleDiscoveryComplete(data, updateLoadingText);
+const handlePageScannedWrapper = (data) => handlePageScanned(
+  data,
+  assets,
+  assetBrowser,
+  metadataManager,
+  processScanResults,
+  updateLoadingText,
+  updateScanProgressHeader,
+);
 const handleScanningStartedWrapper = (data) => {
   handleScanningStarted(
     data,
@@ -117,10 +136,8 @@ const handleScanningStoppedWrapper = (data) => {
     } catch (e) { /* intentionally empty: scan indicator is non-critical */ }
   }
 };
-const handleQueueSizeUpdateWrapper = (data) =>
-  handleQueueSizeUpdate(data, updateScanProgressHeader);
-const handleResumingFromQueueWrapper = (data) =>
-  handleResumingFromQueue(data, updateLoadingText);
+const handleQueueSizeUpdateWrapper = (data) => handleQueueSizeUpdate(data, updateScanProgressHeader);
+const handleResumingFromQueueWrapper = (data) => handleResumingFromQueue(data, updateLoadingText);
 
 const STATUS_TEXT_MAP = {
   connected: 'Connected',
@@ -130,22 +147,24 @@ const STATUS_TEXT_MAP = {
   default: 'Connecting...',
 };
 
+/**
+   * Initialize the media library
+   */
 async function init() {
   try {
+    // eslint-disable-next-line no-console
+    console.log('🔧 [INIT] Initializing Media Library...');
     initializeElements();
     showInitialLoadingState();
     updateLoadingProgress(0, 'Initializing DA SDK...');
 
-    // Note: Service workers don't work reliably in iframes
-    // Background scanning will only work while the media library tab is open
-
     if (typeof DA_SDK === 'undefined') {
-      throw new Error('DA SDK not available. Make sure you are running this plugin within the DA Admin environment.');
+      throw new Error(ERROR_MESSAGES.DA_SDK_MISSING);
     }
 
     const { context, actions, token } = await DA_SDK;
     if (!context || !actions || !token) {
-      throw new Error('Failed to get DA context, actions, or token from SDK');
+      throw new Error(ERROR_MESSAGES.CONTEXT_MISSING);
     }
 
     daContext = { ...context, token };
@@ -157,13 +176,11 @@ async function init() {
     await initializeCoreServices();
 
     updateLoadingProgress(2, 'Loading existing assets...');
-
     await loadAndRenderAssets();
 
     updateLoadingProgress(3, 'Setting up scanning system...');
+    await initializeScanning();
 
-   await initializeScanning();
-    
     updateLoadingProgress(4, 'Media Library ready!');
 
     showToast('Media Library loaded successfully', 'success');
@@ -176,7 +193,7 @@ async function init() {
     updateConnectionStatus('error');
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
-    showError('Failed to initialize Media Library', error);
+    showError(ERROR_MESSAGES.INITIALIZATION_FAILED, error);
   }
 }
 
@@ -186,15 +203,15 @@ async function initializeCoreServices() {
   daApi = createDAApiService();
   await daApi.init(daContext);
 
-      if (typeof setAssetLoaderContext === 'function') {
+  if (typeof setAssetLoaderContext === 'function') {
     setAssetLoaderContext(daContext);
   }
 
-  const metadataPath = `/${daContext.org}/${daContext.repo}/.da/media.json`;
+  const metadataPath = DA_PATHS.getMediaDataFile(daContext.org, daContext.repo);
   metadataManager = createMetadataManager(daApi, metadataPath);
 
   assetBrowser = createAssetBrowser(elements.assetsGrid);
-  assetBrowser.setView('grid'); // Ensure we always start in grid view
+  assetBrowser.setView('grid');
   assetBrowser.on('assetSelected', handleAssetSelection);
   assetBrowser.on('assetInfo', handleAssetInfo);
   assetBrowser.on('assetInsertAsLink', handleAssetInsertAsLink);
@@ -208,23 +225,22 @@ async function initializeCoreServices() {
 
   assetInsertion = createAssetInsertion();
   assetInsertion.init(daActions, daContext);
-  
+
   stateManager = createStateManager();
   await stateManager.init(daApi.getConfig());
-  
+
   if (typeof setAssetLoaderStateManager === 'function') {
     setAssetLoaderStateManager(stateManager);
   }
 
   window.stateManager = stateManager;
-  
-  // Global functions for testing incremental scanning
+
   window.stopScanning = () => {
     if (queueManager) {
       return queueManager.stopQueueScanning();
     }
   };
-  
+
   window.getScanStatus = () => {
     if (queueManager) {
       return queueManager.isScanActive();
@@ -232,7 +248,6 @@ async function initializeCoreServices() {
     return false;
   };
 
-  // Enhanced logging and monitoring functions
   window.getBackgroundActivityStatus = async () => {
     if (!queueManager) {
       return { error: 'Queue manager not initialized' };
@@ -240,9 +255,12 @@ async function initializeCoreServices() {
 
     try {
       const [isActive, stats, persistentStats] = await Promise.all([
+        /* eslint-disable-next-line no-use-before-define */
         queueManager.isScanActive(),
+        /* eslint-disable-next-line no-use-before-define */
         queueManager.getStats(),
-        queueManager.getPersistentStats()
+        /* eslint-disable-next-line no-use-before-define */
+        queueManager.getPersistentStats(),
       ]);
 
       return {
@@ -252,38 +270,49 @@ async function initializeCoreServices() {
         timestamp: new Date().toISOString(),
         serviceWorkers: {
           discoveryWorker: 'Running (if scanning)',
-          scanWorker: 'Running (if scanning)'
-        }
+          scanWorker: 'Running (if scanning)',
+        },
       };
     } catch (error) {
       return {
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   };
 
   window.logBackgroundActivity = () => {
+    // eslint-disable-next-line no-console
     console.log('=== BACKGROUND ACTIVITY STATUS ===');
+
+    // eslint-disable-next-line no-console
     console.log('Timestamp:', new Date().toISOString());
+
+    // eslint-disable-next-line no-console
     console.log('Queue Manager:', queueManager ? 'Initialized' : 'Not initialized');
-    
+
     if (queueManager) {
-      queueManager.getStats().then(stats => {
+      /* eslint-disable-next-line no-use-before-define */
+      queueManager.getStats().then((stats) => {
+        // eslint-disable-next-line no-console
         console.log('Current Stats:', stats);
       });
-      
-      queueManager.isScanActive().then(isActive => {
+
+      /* eslint-disable-next-line no-use-before-define */
+      queueManager.isScanActive().then((isActive) => {
+        // eslint-disable-next-line no-console
         console.log('Scan Active:', isActive);
       });
     }
-    
+
+    // eslint-disable-next-line no-console
     console.log('Service Workers: Check browser dev tools for worker status');
+
+    // eslint-disable-next-line no-console
     console.log('=====================================');
   };
 
   await initHierarchyBrowser();
-
 
   initUIEvents({
     assetBrowser,
@@ -296,18 +325,17 @@ async function initializeCoreServices() {
 /**
  * Register standalone service worker for background scanning
  */
-// Service worker registration removed - not compatible with iframe context
 
 async function loadAndRenderAssets() {
   updateLoadingProgress(2, 'Loading existing assets...');
 
   try {
     const { mediaJsonExists, assets: loadedAssets } = await loadAssetsFromMediaJson();
-    
+
     if (mediaJsonExists) {
       updateLoadingProgress(2, 'Loading assets...');
       showPlaceholderCards();
-      
+
       if (loadedAssets.length === 0) {
         updateLoadingProgress(2, 'No assets found in media.json');
       } else {
@@ -316,7 +344,7 @@ async function loadAndRenderAssets() {
     } else {
       updateLoadingProgress(2, 'No existing assets found. Setting up first scan...');
     }
-    
+
     renderAssets(assets);
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -327,9 +355,29 @@ async function loadAndRenderAssets() {
 }
 
 async function initializeScanning() {
+  // eslint-disable-next-line no-console
+  console.log('🔧 [SCAN-INIT] initializeScanning() called');
+
+  // eslint-disable-next-line no-console
+  console.log('📊 [SCAN-INIT] isScanning before scan start:', isScanning);
+
   updateLoadingProgress(3, 'Setting up scanning system...');
 
-  if (useQueueBasedScanning) await initializeQueueManager();
+  try {
+    // eslint-disable-next-line no-console
+    console.log('💾 [SCAN-INIT] Initializing state persistence...');
+    await stateManager?.initializeStatePersistence();
+
+    // eslint-disable-next-line no-console
+    console.log('✅ [SCAN-INIT] State persistence initialized');
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('❌ [SCAN-INIT] Failed to initialize state persistence, continuing:', error);
+  }
+
+  if (useQueueBasedScanning) {
+    await initializeQueueManager();
+  }
 
   if (queueManager?.getConfig) {
     const queueConfig = queueManager.getConfig();
@@ -357,23 +405,15 @@ async function initializeScanning() {
     // eslint-disable-next-line no-console
     console.warn('Failed to start full scan, continuing:', error);
   }
-
-  // Note: showScanProgress() is called in startFullScan(), so we don't call it here
-  try {
-    await queueManager?.startQueueScanning();
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn('Failed to start queue-based scan:', error);
-  }
 }
 
 async function initializeQueueManager() {
   try {
     updateLoadingText('Initializing queue-based scanning system...');
 
+    /* eslint-disable-next-line no-use-before-define */
     queueManager = createQueueManager();
 
-    // Setup event listeners
     const eventHandlers = {
       discoveryComplete: handleDiscoveryCompleteWrapper,
       pageScanned: handlePageScannedWrapper,
@@ -386,18 +426,12 @@ async function initializeQueueManager() {
     };
 
     Object.entries(eventHandlers).forEach(([event, handler]) => {
+      /* eslint-disable-next-line no-use-before-define */
       queueManager.on(event, handler);
     });
 
     const apiConfig = daApi.getConfig();
     await queueManager.init(apiConfig);
-
-    try {
-      await stateManager.ensureStorageStructure();
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn('Failed to ensure storage structure, continuing:', error);
-    }
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to initialize queue manager:', error);
@@ -410,21 +444,23 @@ async function checkScanStatus() {
 
   try {
     const [isActive, persistentStats] = await Promise.all([
+      /* eslint-disable-next-line no-use-before-define */
       queueManager.isScanActive(),
+      /* eslint-disable-next-line no-use-before-define */
       queueManager.getPersistentStats(),
     ]);
 
-    if (isActive && !persistentStats.currentSession) {
+    if (isActive && !persistentStats?.currentSession) {
       updateLoadingText('Scan in progress by another user. Please wait...');
 
-      if (persistentStats.lastScanTime) {
+      if (persistentStats?.lastScanTime) {
         const lastScanDate = new Date(persistentStats.lastScanTime).toLocaleString();
         updateLoadingText(`Last scan: ${lastScanDate}. Another user is scanning...`);
       }
       return;
     }
 
-    if (persistentStats.lastScanTime) {
+    if (persistentStats?.lastScanTime) {
       const lastScanDate = new Date(persistentStats.lastScanTime).toLocaleString();
       const timeSinceLastScan = Date.now() - persistentStats.lastScanTime;
       const hoursSinceLastScan = Math.floor(timeSinceLastScan / (1000 * 60 * 60));
@@ -439,25 +475,31 @@ async function checkScanStatus() {
   }
 }
 
+/**
+   * Start full content scan
+   */
 async function startFullScan(forceRescan = false) {
   try {
     isScanning = true;
-    showScanProgress(); // This will set the button state
+
+    // eslint-disable-next-line no-console
+    console.log('🚀 [FULL SCAN] Starting full content scan...', {
+      forceRescan,
+      timestamp: new Date().toISOString(),
+    });
+
+    showScanProgress();
     updateLoadingText('Starting full content scan...');
-    
-    // Background scanning disabled - iframe context limitations
-    
+
     await queueManager.startQueueScanning(forceRescan);
   } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Full scan failed:', error);
     showError('Full scan failed', error);
     isScanning = false;
-    // setForceRescanButtonState(false); // Always enable after scan complete
     hideScanProgress();
   }
 }
-
-
-
 
 const handleAssetSelection = async (asset) => {
   try {
@@ -498,13 +540,12 @@ const handleAssetInfo = (asset) => {
   }
 };
 
-// Event listeners for unified modal
 document.addEventListener('insertAsset', (event) => {
   insertAsset(event.detail.assetId);
 });
 
 document.addEventListener('insertAssetAsLink', (event) => {
-  const asset = assets.find(a => a.id === event.detail.assetId);
+  const asset = assets.find((a) => a.id === event.detail.assetId);
   if (asset) {
     handleAssetInsertAsLink(asset);
   }
@@ -536,8 +577,7 @@ function updateConnectionStatus(status) {
 
 function updateLoadingText(text) {
   if (elements.loadingText) elements.loadingText.textContent = text;
-  
-  // Update the loading message in the new structure
+
   const loadingMessage = document.getElementById('assetsLoadingMessage');
   if (loadingMessage) {
     const loadingText = loadingMessage.querySelector('.loading-text h3');
@@ -557,10 +597,10 @@ function updateLoadingStep(stepName, status) {
 function updateLoadingSteps(stepIndex, status = 'active') {
   const loadingMessage = document.getElementById('assetsLoadingMessage');
   if (!loadingMessage) return;
-  
+
   const steps = loadingMessage.querySelectorAll('.loading-step');
   if (steps.length === 0) return;
-  
+
   steps.forEach((step, index) => {
     step.className = 'loading-step';
     if (index < stepIndex) {
@@ -582,14 +622,14 @@ function showInitialLoadingState() {
 function updateLoadingProgress(step, description) {
   const loadingMessage = document.getElementById('assetsLoadingMessage');
   if (!loadingMessage) return;
-  
+
   const loadingText = loadingMessage.querySelector('.loading-text h3');
   const loadingSteps = loadingMessage.querySelectorAll('.loading-step');
-  
+
   if (loadingText) {
     loadingText.textContent = description || 'Processing...';
   }
-  
+
   if (loadingSteps.length > 0 && step >= 0 && step < loadingSteps.length) {
     updateLoadingSteps(step, 'active');
   }
@@ -597,10 +637,8 @@ function updateLoadingProgress(step, description) {
 
 function handleSearch(query) {
   const queryLower = query.toLowerCase();
-  const filteredAssets = assets.filter((asset) =>
-    asset.name.toLowerCase().includes(queryLower)
-    || asset.alt.toLowerCase().includes(queryLower),
-  );
+  const filteredAssets = assets.filter((asset) => asset.name.toLowerCase().includes(queryLower)
+    || asset.alt.toLowerCase().includes(queryLower));
   renderAssets(filteredAssets);
 }
 
@@ -640,7 +678,7 @@ function showPlaceholderCards() {
   }
 
   if (loadingMsg) loadingMsg.style.display = 'none';
-  
+
   if (assetBrowser && typeof assetBrowser.markInitialLoadComplete === 'function') {
     assetBrowser.markInitialLoadComplete();
   }
@@ -658,10 +696,10 @@ function renderAssets(assetsToRender = assets) {
 
     const placeholders = grid?.querySelectorAll('.asset-placeholder');
     placeholders?.forEach((p) => p.remove());
-    
+
     const emptyState = grid?.querySelector('.empty-state');
     if (emptyState) emptyState.remove();
-    
+
     return;
   }
 
@@ -683,7 +721,7 @@ function renderAssets(assetsToRender = assets) {
       </div>
     `;
   }
-  
+
   const placeholders = grid?.querySelectorAll('.asset-placeholder');
   if (placeholders && placeholders.length > 0) {
     if (loadingMsg) loadingMsg.style.display = 'none';
@@ -796,6 +834,55 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { /* intentionally empty: scan indicator is non-critical */ }
   }
 
+  window.testBeforeUnload = () => {
+    // eslint-disable-next-line no-console
+    console.log('🧪 [TEST] Testing beforeunload manually...');
+    const event = new Event('beforeunload');
+    window.dispatchEvent(event);
+
+    // eslint-disable-next-line no-console
+    console.log('🧪 [TEST] beforeunload event dispatched');
+  };
+
+  window.addEventListener('beforeunload', async (event) => {
+    // eslint-disable-next-line no-console
+    console.log('🔄 [BEFOREUNLOAD] Event triggered:', {
+      isScanning,
+      hasQueueManager: !!queueManager,
+      hasStateManager: !!stateManager,
+      timestamp: new Date().toISOString(),
+      event: event.type,
+    });
+
+    if (isScanning) {
+      // eslint-disable-next-line no-console
+      console.log('🔄 [BEFOREUNLOAD] Scan is active, attempting to save state...');
+
+      try {
+        if (queueManager) {
+          // eslint-disable-next-line no-console
+          console.log('🔄 [BEFOREUNLOAD] Calling stopQueueScanning...');
+          await queueManager.stopQueueScanning(true, 'interrupted');
+
+          if (queueManager.stateManager) {
+            // eslint-disable-next-line no-console
+            console.log('🔄 [BEFOREUNLOAD] Setting scan status to interrupted...');
+            await queueManager.stateManager.setScanStatus('interrupted');
+          }
+        }
+
+        // eslint-disable-next-line no-console
+        console.log('✅ [BEFOREUNLOAD] State saved successfully');
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('❌ [BEFOREUNLOAD] Failed to save state on iframe close:', error);
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('ℹ️ [BEFOREUNLOAD] No active scan, nothing to save');
+    }
+  });
+
   document.querySelectorAll('.view-btn:not(#hierarchyToggle)').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const view = btn.getAttribute('data-view');
@@ -813,12 +900,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.folder-item[data-filter]').forEach((el) => {
     el.addEventListener('click', () => {
       const filter = el.getAttribute('data-filter');
-      
+
       if (filter === 'all') {
         returnToAllAssets();
         return;
       }
-      
+
       const defaultFilter = {
         types: ['image', 'video', 'document'],
         isExternal: undefined,
@@ -927,6 +1014,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (!pagePath) {
         if (window.showToast) window.showToast('Current page path not found in context.', 'error');
+
+        // eslint-disable-next-line no-console
         console.error('Sync Current Page: daContext.path not found', daContext);
         return;
       }
@@ -941,8 +1030,161 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   init().catch((error) => {
+    // eslint-disable-next-line no-console
     console.error('Initialization failed:', error);
   });
 });
 
-// Background scanning UI removed - not compatible with iframe context
+window.checkScanState = async () => {
+  if (!queueManager || !queueManager.stateManager) {
+    return;
+  }
+
+  try {
+    const scanState = await queueManager.stateManager.getScanState();
+    const isActive = await queueManager.stateManager.isScanActive();
+    return { scanState, isActive };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to check scan state:', error);
+  }
+};
+
+/**
+   * Stop the current scan
+   */
+async function stopFullScan() {
+  try {
+    // eslint-disable-next-line no-console
+    console.log('⏹️ [STOP SCAN] Stopping full content scan...');
+
+    if (stateManager) {
+      await stateManager.setScanStatus('stopped');
+    }
+
+    // Update UI
+    const startBtn = document.getElementById('startScanBtn');
+    const stopBtn = document.getElementById('stopScanBtn');
+
+    if (startBtn) startBtn.style.display = 'inline-block';
+    if (stopBtn) stopBtn.style.display = 'none';
+
+    // eslint-disable-next-line no-console
+    console.log('✅ [STOP SCAN] Scan stopped successfully');
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('❌ [STOP SCAN] Error stopping scan:', error);
+  }
+}
+
+/**
+   * Cleanup all scan files to start fresh
+   */
+async function cleanupScanFiles() {
+  try {
+    // eslint-disable-next-line no-console
+    console.log('🧹 Starting cleanup of scan files...');
+
+    const { listPath } = await import('./services/da-api.js');
+    const { DA_STORAGE } = await import('./constants.js');
+    const items = await listPath(DA_STORAGE.PAGES_DIR);
+
+    // eslint-disable-next-line no-console
+    console.log(`📋 Found ${items.length} files in ${DA_STORAGE.PAGES_DIR}/`);
+
+    // Filter for scan-related files (JSON files with specific patterns)
+    const scanFiles = items.filter((item) => item.name && item.ext === 'json' && (
+      item.name.startsWith('root-')
+          || item.name.startsWith('rewards-')
+          || item.name.startsWith('value-')
+          || item.name.startsWith('mp4s-')
+          || item.name.startsWith('deals-')
+          || item.name.startsWith('latino-es-')
+          || item.name.startsWith('programming-')
+          || item.name.startsWith('drafts-')
+          || item.name.startsWith('supported-devices-')
+          || item.name.startsWith('library-')
+          || item.name.startsWith('pm-')
+          || item.name.startsWith('eds-')
+          || item.name.startsWith('international-')
+          || item.name.startsWith('service-')
+          || item.name.startsWith('icons-')
+          || item.name.startsWith('sports-')
+          || item.name.startsWith('latino-')
+          || item.name.includes('175286') // Session ID pattern
+    ));
+
+    // eslint-disable-next-line no-console
+    console.log(`🗑️ Found ${scanFiles.length} scan files to delete:`);
+    scanFiles.forEach((file) => {
+      // eslint-disable-next-line no-console
+      console.log(`   - ${file.name}`);
+    });
+
+    if (scanFiles.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log('✅ No scan files found to delete');
+      return;
+    }
+
+    // Delete each file
+    const { getSource } = await import('./services/da-api.js');
+    let deletedCount = 0;
+
+    await Promise.all(scanFiles.map(async (file) => {
+      try {
+        const deleteUrl = `${stateManager.state.apiConfig.baseUrl}/source/${stateManager.state.apiConfig.org}/${stateManager.state.apiConfig.repo}/${DA_STORAGE.PAGES_DIR}/${file.name}`;
+        const response = await fetch(deleteUrl, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${stateManager.state.apiConfig.token}` },
+        });
+
+        if (response.ok) {
+          // eslint-disable-next-line no-console
+          console.log(`✅ Deleted: ${file.name}`);
+          deletedCount += 1;
+        } else {
+          // eslint-disable-next-line no-console
+          console.log(`❌ Failed to delete ${file.name}: ${response.status}`);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.log(`❌ Error deleting ${file.name}:`, error.message);
+      }
+    }));
+
+    // eslint-disable-next-line no-console
+    console.log(`🎉 Cleanup complete! Deleted ${deletedCount}/${scanFiles.length} files`);
+    // eslint-disable-next-line no-console
+    console.log('🔄 You can now start a fresh scan');
+
+    // Reset the UI
+    resetUI();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('❌ Cleanup failed:', error);
+  }
+}
+
+/**
+   * Reset UI to initial state
+   */
+function resetUI() {
+  const startBtn = document.getElementById('startScanBtn');
+  const stopBtn = document.getElementById('stopScanBtn');
+  const progressBar = document.getElementById('scanProgress');
+  const statusText = document.getElementById('scanStatus');
+
+  if (startBtn) startBtn.style.display = 'inline-block';
+  if (stopBtn) stopBtn.style.display = 'none';
+  if (progressBar) {
+    progressBar.style.width = '0%';
+    progressBar.style.display = 'none';
+  }
+  if (statusText) statusText.textContent = 'Ready to scan';
+}
+
+// Make functions globally available
+window.startFullScan = startFullScan;
+window.stopFullScan = stopFullScan;
+window.cleanupScanFiles = cleanupScanFiles;

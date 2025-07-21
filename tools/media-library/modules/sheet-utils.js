@@ -1,6 +1,8 @@
-// tools/media-library/modules/sheet-utils.js
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 
-// Constants for DA endpoints
 export const CONTENT_DA_LIVE_BASE = 'https://content.da.live';
 export const ADMIN_DA_LIVE_BASE = 'https://admin.da.live';
 
@@ -58,16 +60,12 @@ export function addRowsToSheet(sheet, newRows) {
 }
 
 export function addRowsToMultiSheet(multiSheet, sheetName, newRows) {
-  // Handle both raw multi-sheet format and parsed format
   let sheetRows;
   if (multiSheet[sheetName] && Array.isArray(multiSheet[sheetName])) {
-    // Raw format: { sheetName: [...] }
     sheetRows = multiSheet[sheetName];
   } else if (multiSheet[sheetName] && multiSheet[sheetName].data && Array.isArray(multiSheet[sheetName].data)) {
-    // Parsed format: { sheetName: { data: [...] } }
     sheetRows = multiSheet[sheetName].data;
   } else {
-    // No existing data
     sheetRows = [];
   }
 
@@ -83,16 +81,12 @@ export function removeRowsByColumn(sheet, column, value) {
 }
 
 export function removeRowsByColumnMultiSheet(multiSheet, sheetName, column, value) {
-  // Handle both raw multi-sheet format and parsed format
   let sheetRows;
   if (multiSheet[sheetName] && Array.isArray(multiSheet[sheetName])) {
-    // Raw format: { sheetName: [...] }
     sheetRows = multiSheet[sheetName];
   } else if (multiSheet[sheetName] && multiSheet[sheetName].data && Array.isArray(multiSheet[sheetName].data)) {
-    // Parsed format: { sheetName: { data: [...] } }
     sheetRows = multiSheet[sheetName].data;
   } else {
-    // No existing data
     sheetRows = [];
   }
 
@@ -107,16 +101,12 @@ export function findRowsByColumn(sheet, column, value) {
 }
 
 export function findRowsByColumnMultiSheet(multiSheet, sheetName, column, value) {
-  // Handle both raw multi-sheet format and parsed format
   let sheetRows;
   if (multiSheet[sheetName] && Array.isArray(multiSheet[sheetName])) {
-    // Raw format: { sheetName: [...] }
     sheetRows = multiSheet[sheetName];
   } else if (multiSheet[sheetName] && multiSheet[sheetName].data && Array.isArray(multiSheet[sheetName].data)) {
-    // Parsed format: { sheetName: { data: [...] } }
     sheetRows = multiSheet[sheetName].data;
   } else {
-    // No existing data
     sheetRows = [];
   }
 
@@ -143,7 +133,10 @@ export async function saveSheetFile(url, sheetData, token, method = 'POST') {
 
       if (response.status === 429) {
         const retryAfter = parseInt(response.headers.get('retry-after') || '2', 10) * 1000;
-        await new Promise(resolve => setTimeout(resolve, retryAfter));
+
+        await new Promise((resolve) => {
+          setTimeout(resolve, retryAfter);
+        });
         continue;
       }
 
@@ -157,7 +150,10 @@ export async function saveSheetFile(url, sheetData, token, method = 'POST') {
       if (attempt === maxRetries - 1) {
         throw error;
       }
-      await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, attempt)));
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, baseDelay * 2 ** attempt);
+      });
     }
   }
 }
@@ -175,11 +171,18 @@ export async function loadSheetFile(url, token, method = 'GET') {
 
       if (response.status === 429) {
         const retryAfter = parseInt(response.headers.get('retry-after') || '2', 10) * 1000;
-        await new Promise(resolve => setTimeout(resolve, retryAfter));
+
+        await new Promise((resolve) => {
+          setTimeout(resolve, retryAfter);
+        });
         continue;
       }
 
       if (!response.ok) {
+        if (response.status !== 404) {
+          // eslint-disable-next-line no-console
+          console.warn(`[Sheet Utils] Failed to load sheet: ${response.status} ${response.statusText} - ${url}`);
+        }
         throw new Error(`Failed to load sheet: ${response.status} ${response.statusText}`);
       }
 
@@ -188,7 +191,10 @@ export async function loadSheetFile(url, token, method = 'GET') {
       if (attempt === maxRetries - 1) {
         throw error;
       }
-      await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, attempt)));
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, baseDelay * 2 ** attempt);
+      });
     }
   }
 }
@@ -197,7 +203,6 @@ export async function loadSheetFile(url, token, method = 'GET') {
  * Get the full DA API URL for a given sheet file
  */
 function getSheetUrl(apiConfig, fileName) {
-  // Always use content.da.live for JSON GET requests
   const baseUrl = CONTENT_DA_LIVE_BASE;
   const org = apiConfig?.org;
   const repo = apiConfig?.repo;

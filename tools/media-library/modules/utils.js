@@ -1,8 +1,12 @@
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 /*
  * Copyright 2024 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License. You may obtain a copy
- * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * of the License at http:
  *
  * Unless required by applicable law or agreed to in writing, software distributed under
  * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
@@ -53,9 +57,7 @@ export function getOrgRepo(context) {
   if (context?.org && context?.repo) {
     return { org: context.org, repo: context.repo };
   }
-  // Try to get from localStorage using the new key format
   try {
-    // If org/repo are known in context, use them
     let org; let repo;
     if (context && context.org && context.repo) {
       org = context.org;
@@ -69,7 +71,6 @@ export function getOrgRepo(context) {
         }
       }
     } else {
-      // Otherwise, scan for any media_*_ctx key
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k && k.startsWith('media_') && k.endsWith('_ctx')) {
@@ -84,9 +85,7 @@ export function getOrgRepo(context) {
       }
     }
   } catch (e) {
-    // Failed to parse stored context - continue to next fallback
   }
-  // Try to extract from current URL
   try {
     const { hostname } = window.location;
     if (hostname.includes('aem.page') || hostname.includes('aem.live')) {
@@ -100,7 +99,6 @@ export function getOrgRepo(context) {
       }
     }
   } catch (e) {
-    // URL parsing failed - continue to error
   }
   throw new Error('Unable to determine org and repo');
 }

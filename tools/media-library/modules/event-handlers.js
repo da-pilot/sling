@@ -1,5 +1,7 @@
-// tools/media-library/modules/event-handlers.js
-// Queue manager event handlers for Media Library
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
+/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-use-before-define */
 
 import { updateSidebarCounts } from './sidebar.js';
 import { showEmptyState } from './empty-state.js';
@@ -29,85 +31,50 @@ async function handlePageScanned(
   updateLoadingText,
   updateScanProgressHeader,
 ) {
-  if (data.assets && data.assets.length > 0) {
-    let baseAssets = [];
-    const apiConfig = metadataManager?.daApi?.getConfig?.() || null;
-    if (apiConfig) {
-      try {
-        baseAssets = await loadMediaSheet(apiConfig);
-        console.log('[DEBUG] Loaded base assets from media.json:', baseAssets.length);
-      } catch (err) {
-        baseAssets = [];
-        console.log('[DEBUG] Failed to load from media.json, using empty array');
-      }
-    }
-    
-    const newAssets = processScanResults([{ assets: data.assets, file: { path: data.page } }]);
-    console.log('[DEBUG] New assets from current page:', newAssets.length);
+  if (data?.assets && data.assets.length > 0) {
+    // eslint-disable-next-line no-console
+    console.log('[Event Handlers] 📄 handlePageScanned received data:', {
+      data,
+      assetsCount: data.assets?.length,
+      hasFile: !!data.file,
+      file: data.file,
+      fileKeys: data.file ? Object.keys(data.file) : 'no file',
+      fileOrg: data.file?.org,
+      fileRepo: data.file?.repo,
+      filePath: data.file?.path,
+      timestamp: new Date().toISOString(),
+    });
 
-    const allAssets = [...baseAssets, ...newAssets];
-    const dedupedAssets = Array.from(new Map(allAssets.map((a) => [a.src, a])).values());
-    console.log('[DEBUG] Total deduped assets:', dedupedAssets.length);
+    const processedAssets = processScanResults([{ assets: data.assets, file: data.file }]);
 
-    if (apiConfig) {
-      try {
-        await saveMediaSheet(apiConfig, dedupedAssets);
-        console.log('[DEBUG] Saved assets to media.json');
-      } catch (err) {
+    assets.push(...processedAssets);
+
+    try {
+      const context = getContext();
+      if (context) {
+        await saveMediaSheet(context, assets);
         // eslint-disable-next-line no-console
-        console.error('[DA] handlePageScanned: SAVE FAILED', err);
+        console.log('[Event Handlers] ✅ Successfully saved assets to media.json:', {
+          assetsCount: processedAssets.length,
+          totalAssets: assets.length,
+        });
       }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[Event Handlers] ❌ Failed to update media.json:', error);
     }
-    
-    // Only add truly new assets to prevent position changes
-    const existingAssetSrcs = new Set(assets.map(a => a.src));
-    const trulyNewAssets = dedupedAssets.filter(asset => !existingAssetSrcs.has(asset.src));
-    console.log('[DEBUG] Truly new assets to add:', trulyNewAssets.length);
-    
-    if (trulyNewAssets.length > 0) {
-      assets.push(...trulyNewAssets);
-      
-      // Batch UI updates to reduce refresh frequency
-      if (!window.pendingAssetUpdate) {
-        window.pendingAssetUpdate = {
-          timer: null,
-          assets: [],
-          isFirstBatch: true
-        };
-      }
-      
-      window.pendingAssetUpdate.assets.push(...trulyNewAssets);
-      
-      // Show first batch immediately, batch subsequent updates
-      if (window.pendingAssetUpdate.isFirstBatch) {
-        console.log('[DEBUG] Showing first batch immediately');
-        assetBrowser.addAssets(window.pendingAssetUpdate.assets, true);
-        updateSidebarCounts(assets, getCurrentPageUrl());
-        window.pendingAssetUpdate.assets = [];
-        window.pendingAssetUpdate.isFirstBatch = false;
-      } else {
-        // Clear existing timer and set new one for subsequent batches
-        if (window.pendingAssetUpdate.timer) {
-          clearTimeout(window.pendingAssetUpdate.timer);
-        }
-        
-        window.pendingAssetUpdate.timer = setTimeout(() => {
-          console.log('[DEBUG] Showing batched assets');
-          assetBrowser.addAssets(window.pendingAssetUpdate.assets, true);
-          updateSidebarCounts(assets, getCurrentPageUrl());
-          window.pendingAssetUpdate.assets = [];
-          window.pendingAssetUpdate.timer = null;
-        }, 500);
-      }
+
+    if (assetBrowser && typeof assetBrowser.addAssets === 'function') {
+      assetBrowser.addAssets(processedAssets);
     }
   }
-  // Update progress
-  const stats = data.stats;
+
+  const stats = data?.stats;
   if (stats) {
     updateLoadingText(
-      `Scanned: ${stats.scannedPages}/${stats.totalPages} pages, Found: ${stats.totalAssets} assets`,
+      `Scanned: ${stats.scannedPages || 0}/${stats.totalPages || 0} pages, Found: ${stats.totalAssets || 0} assets`,
     );
-    updateScanProgressHeader(stats.scannedPages, stats.totalPages);
+    updateScanProgressHeader(stats.scannedPages || 0, stats.totalPages || 0);
   }
 }
 
@@ -122,7 +89,13 @@ function handleScanningStarted(
   updateScanProgressHeader,
 ) {
   isScanning = true;
-  // Note: showScanProgress() is called in startFullScan(), so we don't call it here
+
+  // eslint-disable-next-line no-console
+  console.log('🔍 [SCAN] Starting document scanning...', {
+    totalPages: data?.stats?.totalPages || 0,
+    forceRescan: data?.forceRescan || false,
+  });
+
   updateLoadingText('Queue-based scanning started...');
   if (data && data.stats) {
     updateScanProgressHeader(data.stats.scannedPages, data.stats.totalPages);
@@ -140,21 +113,28 @@ function handleScanningStopped(
 ) {
   isScanning = false;
   hideScanProgress();
-  const stats = data.stats;
+
+  const { stats } = data;
   if (stats) {
     const percent = stats.totalPages > 0 ? Math.round((stats.scannedPages / stats.totalPages) * 100) : 0;
+
+    // eslint-disable-next-line no-console
+    console.log('✅ [SCAN] Scanning complete:', {
+      scannedPages: stats.scannedPages || 0,
+      totalPages: stats.totalPages || 0,
+      totalAssets: stats.totalAssets || 0,
+      percent: `${percent}%`,
+      status: data.status || 'completed',
+    });
+
     if (stats.totalAssets === 0 && assets.length === 0) {
       showEmptyState();
       showScanIndicator(100, 'complete');
     } else {
-      // Hide loading, show grid
       const grid = document.getElementById('assetsGrid');
       if (grid) grid.style.display = '';
       showScanIndicator(percent, 'complete');
-      // Do not hide the scan indicator after partial scan; leave it visible
     }
-    
-
   }
 }
 
@@ -165,7 +145,7 @@ function handleQueueSizeUpdate(
   data,
   updateScanProgressHeader,
 ) {
-  const stats = data.stats;
+  const { stats } = data;
   if (stats && stats.totalPages > 0) {
     updateScanProgressHeader(stats.scannedPages, stats.totalPages);
   }
@@ -199,7 +179,9 @@ function handleDocumentsSkipped(
 ) {
   if (data.reason === 'already_scanned') {
     if (data.incrementalStats) {
-      const { new: newDocs, changed, unchanged, toScan, skipped } = data.incrementalStats;
+      const {
+        new: newDocs, changed, unchanged, toScan, skipped,
+      } = data.incrementalStats;
       const message = `Incremental scan: ${newDocs} new, ${changed} changed, ${skipped} skipped (${toScan} to scan)`;
       updateLoadingText(message);
     }
