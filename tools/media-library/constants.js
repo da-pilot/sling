@@ -1,21 +1,26 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
-/* eslint-disable no-use-before-define */
+
 /**
  * Media Library Constants
  * Centralized constants for DA storage paths and configuration
  */
 
+export const CONTENT_DA_LIVE_BASE = 'https://content.da.live';
+
 export const DA_STORAGE = {
-  DIR: '.da',
-  PAGES_DIR: '.da/.pages',
+  DIR: '.media',
+  PAGES_DIR: '.media/.pages',
+  PROCESSING_DIR: '.media/.processing',
   FILES: {
-    STATE: 'media-scan-state.json',
+    STATE: 'checkpoint.json',
     DISCOVERY_QUEUE: 'media-discovery-queue.json',
     SCAN_RESULTS: 'media-scan-results.json',
     MEDIA_DATA: 'media.json',
-    CONFIG: 'media-library-config.json',
+    CONFIG: 'config.json',
+    SESSION_STATE: 'session-state.json',
+    DISCOVERY_PROGRESS: 'discovery-progress.json',
+    SCANNING_PROGRESS: 'scanning-progress.json',
+    ACTIVE_SESSIONS: 'active-sessions.json',
+    CHECKPOINTS: 'checkpoint.json',
   },
 };
 
@@ -26,6 +31,14 @@ export const DA_PATHS = {
   getScanResultsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.SCAN_RESULTS}`,
   getMediaDataFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.MEDIA_DATA}`,
   getConfigFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.CONFIG}`,
+
+  // Core processing paths
+  getProcessingDir: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}`,
+  getSessionStateFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SESSION_STATE}`,
+  getDiscoveryProgressFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.DISCOVERY_PROGRESS}`,
+  getScanningProgressFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SCANNING_PROGRESS}`,
+  getActiveSessionsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.ACTIVE_SESSIONS}`,
+  getCheckpointsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.CHECKPOINTS}`,
 };
 
 export const SCAN_CONFIG = {
@@ -35,7 +48,38 @@ export const SCAN_CONFIG = {
   BATCH_SIZE: 10,
   PROGRESS_UPDATE_INTERVAL: 2000,
   POLLING_INTERVAL: 10000,
-  ASSET_POLLING_INTERVAL: 5000,
+  MEDIA_POLLING_INTERVAL: 5000,
+};
+
+// Core processing configuration
+export const PROCESSING_CONFIG = {
+  HEARTBEAT_INTERVAL: 5000, // 5 seconds
+  STALE_SESSION_THRESHOLD: 5 * 60 * 1000, // 5 minutes
+  SESSION_CLEANUP_INTERVAL: 60 * 1000, // 1 minute
+  MAX_CONCURRENT_SESSIONS: 5,
+  CHECKPOINT_INTERVAL: 30 * 1000, // 30 seconds
+  CHANGE_DETECTION_INTERVAL: 30 * 1000, // 30 seconds
+  PROGRESS_UPDATE_INTERVAL: 2000, // 2 seconds
+};
+
+export const PROCESSING_STATUS = {
+  PENDING: 'pending',
+  RUNNING: 'running',
+  PAUSED: 'paused',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  INTERRUPTED: 'interrupted',
+  PROCESSING: 'processing',
+  UPLOADING: 'uploading',
+  UPLOAD_PAUSED: 'upload_paused',
+  UPLOAD_FAILED: 'upload_failed',
+};
+
+export const SESSION_STATUS = {
+  ACTIVE: 'active',
+  PAUSED: 'paused',
+  COMPLETED: 'completed',
+  STALE: 'stale',
 };
 
 export const WORKER_CONFIG = {
@@ -85,6 +129,8 @@ export const ERROR_MESSAGES = {
   INITIALIZATION_FAILED: 'Failed to initialize Media Library',
   DA_SDK_MISSING: 'DA SDK not available. Make sure you are running this plugin within the DA Admin environment.',
   CONTEXT_MISSING: 'Failed to get DA context, actions, or token from SDK',
+  SESSION_CONFLICT: 'Another user is already processing. Coordinating sessions...',
+  SESSION_STALE: 'Previous session was stale. Starting fresh session.',
 };
 
 export const STORAGE_KEYS = {
@@ -93,6 +139,9 @@ export const STORAGE_KEYS = {
   SCAN_RESULTS: 'da_media_scan_results',
   DISCOVERY_QUEUE: 'da_media_discovery_queue',
   BACKGROUND_STATE: 'discoveryState',
+  SESSION_ID: 'da_media_session_id',
+  USER_ID: 'da_media_user_id',
+  BROWSER_ID: 'da_media_browser_id',
 };
 
 export const DB_CONFIG = {
@@ -100,6 +149,15 @@ export const DB_CONFIG = {
   VERSION: 1,
   STORES: {
     BACKGROUND_STATE: 'backgroundState',
-    MEDIA_ASSETS: 'mediaAssets',
+    MEDIA_MEDIA: 'mediaMedia',
   },
+};
+
+export const UPLOAD_CONFIG = {
+  BATCH_SIZE: 20,
+  RETRY_ATTEMPTS: 3,
+  RETRY_DELAY_MS: 2000,
+  CONFIRMATION_DELAY_MS: 500,
+  PROGRESS_UPDATE_INTERVAL: 1000,
+  MAX_CONCURRENT_BATCHES: 1,
 };

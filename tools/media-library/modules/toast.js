@@ -1,7 +1,14 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
-/* eslint-disable no-use-before-define */
+/**
+ * Hide a toast notification
+ */
+function hideToast(toast) {
+  toast.classList.remove('toast--visible');
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.parentNode.removeChild(toast);
+    }
+  }, 300);
+}
 
 /**
  * Show a toast notification
@@ -33,18 +40,6 @@ function showToast(message, type = 'info') {
       hideToast(toast);
     });
   }
-}
-
-/**
- * Hide a toast notification
- */
-function hideToast(toast) {
-  toast.classList.remove('toast--visible');
-  setTimeout(() => {
-    if (toast.parentNode) {
-      toast.parentNode.removeChild(toast);
-    }
-  }, 300);
 }
 
 /**

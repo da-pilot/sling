@@ -1,24 +1,10 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
 /* eslint-disable no-use-before-define */
-/*
- * Copyright 2024 Adobe. All rights reserved.
- * This file is licensed to you under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License. You may obtain a copy
- * of the License at http:
- *
- * Unless required by applicable law or agreed to in writing, software distributed under
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
- * OF ANY KIND, either express or implied. See the License for the specific language
- * governing permissions and limitations under the License.
- */
 
 /**
- * Asset Insertion Module
- * Handles asset insertion using DA SDK actions (following DA Live patterns)
+ * Media Insertion Module
+ * Handles media insertion using DA SDK actions (following DA Live patterns)
  */
-function createAssetInsertion() {
+export default function createMediaInsertion() {
   const state = {
     actions: null,
     context: null,
@@ -26,10 +12,10 @@ function createAssetInsertion() {
 
   const insertion = {
     init,
-    insertAsset,
-    selectAsset,
-    insertAssetAsLink,
-    trackAssetUsage,
+    insertMedia,
+    selectMedia,
+    insertMediaAsLink,
+    trackMediaUsage,
   };
 
   /**
@@ -41,61 +27,61 @@ function createAssetInsertion() {
   }
 
   /**
-   * Select and insert asset (main entry point)
+   * Select and insert media (main entry point)
    */
-  async function selectAsset(asset) {
-    await insertAsset(asset);
-    trackAssetUsage(asset);
+  async function selectMedia(media) {
+    await insertMedia(media);
+    trackMediaUsage(media);
   }
 
   /**
-   * Insert external asset as link
+   * Insert external media as link
    */
-  async function insertAssetAsLink(asset) {
+  async function insertMediaAsLink(media) {
     if (!state.actions) {
       return;
     }
 
-    const assetUrl = asset.url || asset.src;
-    const linkText = asset.name || asset.alt || extractFilenameFromUrl(assetUrl);
-    const titleText = asset.title || asset.name || asset.alt || extractFilenameFromUrl(assetUrl);
+    const mediaUrl = media.url || media.src;
+    const linkText = media.name || media.alt || extractFilenameFromUrl(mediaUrl);
+    const titleText = media.title || media.name || media.alt || extractFilenameFromUrl(mediaUrl);
 
-    const linkHTML = `<a href="${assetUrl}" alt="${linkText}" title="${titleText}">${linkText}</a>`;
+    const linkHTML = `<a href="${mediaUrl}" alt="${linkText}" title="${titleText}">${linkText}</a>`;
     state.actions.sendHTML(linkHTML);
 
     state.actions.closeLibrary();
   }
 
   /**
-   * Insert asset using DA SDK actions (following DA Live patterns)
+   * Insert media using DA SDK actions (following DA Live patterns)
    */
-  async function insertAsset(asset) {
+  async function insertMedia(media) {
     if (!state.actions) {
       return;
     }
 
-    if (asset.type === 'image') {
-      await insertImageAsset(asset);
-    } else if (asset.type === 'video') {
-      await insertVideoAsset(asset);
-    } else if (asset.type === 'document') {
-      await insertDocumentAsset(asset);
+    if (media.type === 'image') {
+      await insertImageMedia(media);
+    } else if (media.type === 'video') {
+      await insertVideoMedia(media);
+    } else if (media.type === 'document') {
+      await insertDocumentMedia(media);
     } else {
-      const assetUrl = asset.url || asset.src;
-      state.actions.sendText(`[${asset.name}](${assetUrl})`);
+      const mediaUrl = media.url || media.src;
+      state.actions.sendText(`[${media.name}](${mediaUrl})`);
     }
 
     state.actions.closeLibrary();
   }
 
   /**
-   * Insert image asset with optimized HTML (following DA Live patterns)
+   * Insert image media with optimized HTML (following DA Live patterns)
    */
-  async function insertImageAsset(asset) {
-    const imageUrl = asset.url || asset.src;
-    const altText = asset.alt || asset.name || 'Image';
+  async function insertImageMedia(media) {
+    const imageUrl = media.url || media.src;
+    const altText = media.alt || media.name || 'Image';
 
-    if (asset.isExternal) {
+    if (media.isExternal) {
       const imgHTML = `<img src="${imageUrl}" alt="${altText}" />`;
       state.actions.sendHTML(imgHTML);
       return;
@@ -106,16 +92,16 @@ function createAssetInsertion() {
   }
 
   /**
-   * Insert video asset
+   * Insert video media
    */
-  async function insertVideoAsset(asset) {
-    const videoUrl = asset.url || asset.src;
+  async function insertVideoMedia(media) {
+    const videoUrl = media.url || media.src;
 
-    if (asset.isExternal) {
-      state.actions.sendText(`[${asset.name}](${videoUrl})`);
+    if (media.isExternal) {
+      state.actions.sendText(`[${media.name}](${videoUrl})`);
     } else {
       const videoHTML = `<video controls>
-  <source src="${videoUrl}" type="${asset.mimeType || 'video/mp4'}" />
+  <source src="${videoUrl}" type="${media.mimeType || 'video/mp4'}" />
   Your browser does not support the video tag.
 </video>`;
       state.actions.sendHTML(videoHTML);
@@ -123,11 +109,11 @@ function createAssetInsertion() {
   }
 
   /**
-   * Insert document asset
+   * Insert document media
    */
-  async function insertDocumentAsset(asset) {
-    const docUrl = asset.url || asset.src;
-    state.actions.sendText(`[${asset.name}](${docUrl})`);
+  async function insertDocumentMedia(media) {
+    const docUrl = media.url || media.src;
+    state.actions.sendText(`[${media.name}](${docUrl})`);
   }
 
   /**
@@ -146,22 +132,22 @@ function createAssetInsertion() {
   /**
    * Extract filename from URL
    */
-  function extractFilenameFromUrl(_url) {
+  function extractFilenameFromUrl() {
     return 'Untitled';
   }
 
   /**
-   * Track asset usage (following DA Live patterns)
+   * Track media usage (following DA Live patterns)
    */
-  function trackAssetUsage(asset) {
+  function trackMediaUsage(media) {
     try {
       const usageKey = 'da_media_basic_usage';
       const existingUsage = JSON.parse(localStorage.getItem(usageKey) || '[]');
 
       const usageEntry = {
-        assetId: asset.id,
-        assetName: asset.name,
-        assetUrl: asset.url || asset.src,
+        mediaId: media.id,
+        mediaName: media.name,
+        mediaUrl: media.url || media.src,
         insertedAt: new Date().toISOString(),
         context: state.context,
       };
@@ -171,10 +157,10 @@ function createAssetInsertion() {
       const recentUsage = existingUsage.slice(-100);
       localStorage.setItem(usageKey, JSON.stringify(recentUsage));
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[Media Insertion] Error tracking media usage:', error);
     }
   }
 
   return insertion;
 }
-
-export { createAssetInsertion };

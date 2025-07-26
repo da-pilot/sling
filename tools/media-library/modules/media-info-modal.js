@@ -1,7 +1,34 @@
-// tools/media-library/modules/media-info-modal.js
+let currentModalData = null;
 
-let currentMediaInfoModal = null;
+export function closeMediaInfoModal() {
+  if (currentModalData) {
+    const { modal, overlay } = currentModalData;
+    if (modal && modal.parentNode) {
+      modal.remove();
+    }
+    if (overlay && overlay.parentNode) {
+      overlay.remove();
+    }
+    currentModalData = null;
+  }
+  document.body.style.overflow = '';
+  const remainingOverlays = document.querySelectorAll('.modal-overlay');
+  remainingOverlays.forEach((overlay) => overlay.remove());
+  const remainingModals = document.querySelectorAll('.media-info-modal');
+  remainingModals.forEach((modal) => modal.remove());
+}
 
+window.clearStuckModals = function () {
+  document.querySelectorAll('.modal-overlay, .media-info-modal').forEach((el) => el.remove());
+  document.querySelectorAll('div[style*="background: rgba(0, 0, 0, 0.5)"]').forEach((el) => el.remove());
+  document.body.style.overflow = '';
+  currentModalData = null;
+  console.log('Cleared all stuck modals');
+};
+
+/**
+ * Build preview URL from page path
+ */
 function buildPreviewUrlFromPath(pagePath) {
   const parts = pagePath.split('/');
   const org = parts[1];
@@ -13,6 +40,9 @@ function buildPreviewUrlFromPath(pagePath) {
   return `https://main--${repo}--${org}.aem.page${rest}`;
 }
 
+/**
+ * Build live URL from page path
+ */
 function buildLiveUrlFromPath(pagePath) {
   const parts = pagePath.split('/');
   const org = parts[1];
@@ -24,54 +54,38 @@ function buildLiveUrlFromPath(pagePath) {
   return `https://main--${repo}--${org}.aem.live${rest}`;
 }
 
-export function showMediaInfoModal(asset) {
-  const existingModal = document.querySelector('.media-info-modal');
-  if (existingModal) {
-    existingModal.remove();
-    return;
-  }
-
-  // Create background overlay
+/**
+ * Show media info modal
+ */
+export function showMediaInfoModal(media) {
+  closeMediaInfoModal();
   const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 10000;
-  `;
-
+  overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
   modal.className = 'media-info-modal';
-
-  // Handle usedIn as either string, array, or undefined
   let usedInPages = [];
-  if (asset.usedIn) {
-    if (typeof asset.usedIn === 'string') {
-      usedInPages = asset.usedIn.split(',').map((p) => p.trim()).filter(Boolean);
-    } else if (Array.isArray(asset.usedIn)) {
-      usedInPages = asset.usedIn.filter(Boolean);
+  if (media.usedIn) {
+    if (typeof media.usedIn === 'string') {
+      usedInPages = media.usedIn.split(',').map((p) => p.trim()).filter(Boolean);
+    } else if (Array.isArray(media.usedIn)) {
+      usedInPages = media.usedIn.filter(Boolean);
     }
   }
-
-  // Create preview content based on asset type
   let previewContent = '';
-  if (asset.type === 'image') {
+  if (media.type === 'image') {
     previewContent = `
       <div class="image-preview-container">
         <div class="image-controls">
           <button class="zoom-toggle-btn" id="zoomToggle" title="Toggle full size view">🔍</button>
         </div>
-        <img src="${asset.src}" alt="${asset.alt}" class="preview-image" id="previewImage">
+        <img src="${media.src}" alt="${media.alt}" class="preview-image" id="previewImage">
       </div>
     `;
-  } else if (asset.type === 'video') {
+  } else if (media.type === 'video') {
     previewContent = `
       <div class="video-preview-container">
         <video controls class="preview-video">
-          <source src="${asset.src}" type="video/mp4">
+          <source src="${media.src}" type="video/mp4">
           Your browser does not support the video tag.
         </video>
       </div>
@@ -80,46 +94,46 @@ export function showMediaInfoModal(asset) {
     previewContent = `
       <div class="document-preview">
         <div class="document-icon">📄</div>
-        <h4>${asset.name}</h4>
-        <p>Document: ${asset.src}</p>
+        <h4>${media.name}</h4>
+        <p>Document: ${media.src}</p>
       </div>
     `;
   }
-
-  // Create usage information
   let usageContent = '';
   if (usedInPages.length === 0) {
     usageContent = '<div class="usage-no-pages">No pages found</div>';
   } else {
-    // Group occurrences by page
     const pageOccurrences = {};
-
-    // Initialize page occurrences
     usedInPages.forEach((pagePath) => {
       pageOccurrences[pagePath] = [];
     });
-
-    // Add individual occurrences if available
-    if (asset.occurrences && Array.isArray(asset.occurrences)) {
-      asset.occurrences.forEach((occurrence) => {
+    if (media.occurrences && Array.isArray(media.occurrences)) {
+      media.occurrences.forEach((occurrence) => {
         if (pageOccurrences[occurrence.pagePath]) {
           pageOccurrences[occurrence.pagePath].push(occurrence);
         }
       });
     }
-
-    // Check if there are any missing alt text occurrences
-    const hasMissingAltText = asset.occurrences && asset.occurrences.some((o) => !o.hasAltText);
-
-    const isLinkAsset = asset.type === 'link'
-                       || asset.context === 'external-link'
-                       || asset.context === 'media-link'
-                       || asset.isExternal
-                       || (asset.type === 'video' && (asset.context === 'external-link' || asset.context === 'media-link' || asset.isExternal));
-
-    const warningText = isLinkAsset ? 'Missing Title' : 'Missing Alt Text';
-    const warningDescription = isLinkAsset ? 'This link needs a descriptive title for accessibility.' : 'This image needs descriptive alt text for accessibility.';
-
+    const hasMissingAltText = media.occurrences && media.occurrences.some((o) => !o.hasAltText);
+    const isLinkMedia = media.type === 'link'
+                       || media.context === 'external-link'
+                       || media.context === 'internal-link'
+                       || media.context === 'media-link'
+                       || media.isExternal
+                       || (media.type === 'video' && (media.context === 'external-link' || media.context === 'internal-link' || media.context === 'media-link' || media.isExternal));
+    const warningText = isLinkMedia ? 'Missing Title' : 'Missing Alt Text';
+    const warningDescription = isLinkMedia ? 'This link needs a descriptive title for accessibility.' : 'This image needs descriptive alt text for accessibility.';
+    const fixInstructions = `
+      <div class="fix-instructions">
+        <strong>How to fix:</strong>
+        <ol>
+          <li>Click the <strong>Edit</strong> button below to open the page in DA Live</li>
+          <li>Search for the context text (use copy button below)</li>
+          <li>Add descriptive ${isLinkMedia ? 'title' : 'alt text'} to the ${isLinkMedia ? 'link' : 'image'}</li>
+          <li>Save and publish the page</li>
+        </ol>
+      </div>
+    `;
     usageContent = `
       ${hasMissingAltText ? `
         <div class="usage-alt-warning">
@@ -129,10 +143,10 @@ export function showMediaInfoModal(asset) {
           </div>
           <div class="usage-alt-warning-content">
             <p>${warningDescription}</p>
+            ${fixInstructions}
           </div>
         </div>
       ` : ''}
-      
       <div class="usage-table-wrapper">
         <table class="usage-table">
           <thead>
@@ -145,7 +159,6 @@ export function showMediaInfoModal(asset) {
             ${usedInPages.map((pagePath) => {
     const occurrences = pageOccurrences[pagePath] || [];
     const totalOccurrences = occurrences.length || 1;
-
     let displayPath = pagePath;
     if (displayPath.includes('index.html')) {
       displayPath = '/';
@@ -153,7 +166,6 @@ export function showMediaInfoModal(asset) {
     const previewUrl = buildPreviewUrlFromPath(pagePath);
     const liveUrl = buildLiveUrlFromPath(pagePath);
     const editUrl = `https://da.live/edit#${pagePath.replace(/\.html$/, '')}`;
-
     return `
       <tr>
         <td class="page-column">
@@ -181,25 +193,17 @@ export function showMediaInfoModal(asset) {
                       ${o.hasAltText ? '✓' : '⚠'}
                     </span>
                   </div>
-                  ${!o.hasAltText ? `<div class="occurrence-context">"${o.contextualText || 'No context available'}"</div>` : ''}
-                  ${o.hasAltText
-    ? `<div class="alt-text">${isLinkAsset ? 'Title' : 'Alt'}: "${o.altText}"</div>`
-    : `<div class="no-alt">
-                      <div class="no-alt-header">No ${isLinkAsset ? 'title' : 'alt text'}</div>
-                      <div class="no-alt-guidance">
-                        <strong>How to fix:</strong>
-                        <ol>
-                          <li>Click the <strong>Edit</strong> button above to open the page in DA Live</li>
-                          ${o.contextualText && o.contextualText !== 'No contextual text found' && o.contextualText !== 'No context available'
-    ? `<li>Search for "${o.contextualText}" in the document</li>`
-    : `<li>Locate the ${isLinkAsset ? 'link' : 'image'} on the page</li>`
-}
-                          <li>Add descriptive ${isLinkAsset ? 'title' : 'alt text'} to the ${isLinkAsset ? 'link' : 'image'}</li>
-                          <li>Save and publish the page</li>
-                        </ol>
-                      </div>
-                    </div>`
-}
+                  ${!o.hasAltText ? `
+                    <div class="occurrence-context">
+                      "${o.contextualText || 'No context available'}"
+                      <button class="copy-context-btn" onclick="copyToClipboard('${o.contextualText || 'No context available'}')" title="Copy to clipboard">📋</button>
+                    </div>
+                    <div class="occurrence-status-text">
+                      No ${isLinkMedia ? 'title' : 'alt text'}
+                    </div>
+                  ` : `
+                    <div class="alt-text">${isLinkMedia ? 'Title' : 'Alt'}: "${o.altText}"</div>
+                  `}
                 </div>
               `).join('')}
             </div>
@@ -213,15 +217,13 @@ export function showMediaInfoModal(asset) {
       </div>
     `;
   }
-
   modal.innerHTML = `
     <div class="media-info-modal-header">
       <div class="media-info-header-content">
-        <div class="asset-name">${asset.name}</div>
+        <div class="media-name">${media.name}</div>
       </div>
       <button class="media-info-close-btn">×</button>
     </div>
-    
     <div class="media-info-modal-content">
       <div class="media-info-simple-layout">
         <div class="preview-section">
@@ -230,65 +232,55 @@ export function showMediaInfoModal(asset) {
             <div class="scroll-arrow">↓</div>
           </div>
         </div>
-        
         <div class="usage-section">
           ${usageContent}
         </div>
       </div>
     </div>
-    
     <div class="media-info-modal-footer">
-      ${asset.isExternal ? '<button class="btn btn-secondary" id="insertAsLinkBtn">Insert as Link</button>' : ''}
+      ${media.isExternal ? '<button class="btn btn-secondary" id="insertAsLinkBtn">Insert as Link</button>' : ''}
       <button class="btn btn-primary" id="insertBtn">Insert</button>
     </div>
   `;
-
   document.body.appendChild(overlay);
   document.body.appendChild(modal);
-  currentMediaInfoModal = modal;
-
-  // Setup event listeners
   const closeBtn = modal.querySelector('.media-info-close-btn');
-  // eslint-disable-next-line no-use-before-define
   closeBtn.addEventListener('click', () => closeMediaInfoModal());
-
-  // Insert buttons
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeMediaInfoModal();
+    }
+  });
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeMediaInfoModal();
+      document.removeEventListener('keydown', handleEscape);
+    }
+  };
+  document.addEventListener('keydown', handleEscape);
   const insertBtn = modal.querySelector('#insertBtn');
   const insertAsLinkBtn = modal.querySelector('#insertAsLinkBtn');
-
   insertBtn.addEventListener('click', () => {
-    // Trigger asset insertion
-    const event = new CustomEvent('insertAsset', { detail: { assetId: asset.id } });
+    const event = new CustomEvent('insertMedia', { detail: { mediaId: media.id } });
     document.dispatchEvent(event);
-    // eslint-disable-next-line no-use-before-define
     closeMediaInfoModal();
   });
-
-  // Only add event listener for "Insert as Link" if the button exists (external assets only)
   if (insertAsLinkBtn) {
     insertAsLinkBtn.addEventListener('click', () => {
-      // Trigger asset insertion as link
-      const event = new CustomEvent('insertAssetAsLink', { detail: { assetId: asset.id } });
+      const event = new CustomEvent('insertMediaAsLink', { detail: { mediaId: media.id } });
       document.dispatchEvent(event);
-      // eslint-disable-next-line no-use-before-define
       closeMediaInfoModal();
     });
   }
-
-  // Setup scroll indicator functionality
   const modalContent = modal.querySelector('.media-info-modal-content');
   const scrollIndicator = modal.querySelector('.scroll-indicator');
-
   if (modalContent && scrollIndicator) {
-    // Add click handler to scroll indicator
     scrollIndicator.addEventListener('click', () => {
-      // Scroll to the usage section
       const usageSection = modal.querySelector('.usage-section');
       if (usageSection) {
         usageSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
-
     modalContent.addEventListener('scroll', () => {
       if (modalContent.scrollTop > 50) {
         modalContent.classList.add('scrolled');
@@ -297,94 +289,24 @@ export function showMediaInfoModal(asset) {
       }
     });
   }
-
-  // Setup image functionality
-  if (asset.type === 'image') {
-    const img = modal.querySelector('.preview-image');
-    const zoomBtn = modal.querySelector('#zoomToggle');
-
-    if (img && zoomBtn) {
-      img.onload = () => {
-        // Check if image is smaller than modal and hide zoom button if so
-        if (modal) {
-          const modalWidth = modal.offsetWidth - 80;
-          const modalHeight = modal.offsetHeight - 200;
-
-          if (img.naturalWidth <= modalWidth && img.naturalHeight <= modalHeight) {
-            zoomBtn.style.display = 'none';
-          } else {
-            zoomBtn.style.display = 'block';
-          }
-        }
-      };
-
-      // If image is already loaded
-      if (img.complete) {
-        if (modal) {
-          const modalWidth = modal.offsetWidth - 80;
-          const modalHeight = modal.offsetHeight - 200;
-
-          if (img.naturalWidth <= modalWidth && img.naturalHeight <= modalHeight) {
-            zoomBtn.style.display = 'none';
-          } else {
-            zoomBtn.style.display = 'block';
-          }
-        }
-      }
-    }
-
-    // Setup zoom toggle functionality
-    if (zoomBtn && img) {
-      let isZoomed = false;
-      zoomBtn.onclick = () => {
-        isZoomed = !isZoomed;
-        if (isZoomed) {
-          img.classList.add('zoomed');
-          zoomBtn.textContent = '🔍-';
-          zoomBtn.title = 'Return to normal size';
-        } else {
-          img.classList.remove('zoomed');
-          zoomBtn.textContent = '🔍';
-          zoomBtn.title = 'View full size';
-        }
-      };
-    }
-  }
-
-  // Close on overlay click
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      // eslint-disable-next-line no-use-before-define
-      closeMediaInfoModal();
-    }
-  });
-
-  // Close on escape key
-  const closeOnEscape = (e) => {
-    if (e.key === 'Escape') {
-      // eslint-disable-next-line no-use-before-define
-      closeMediaInfoModal();
-      document.removeEventListener('keydown', closeOnEscape);
-    }
+  window.copyToClipboard = function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification';
+      toast.textContent = 'Copied to clipboard!';
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 2000);
+    }).catch(() => {
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification error';
+      toast.textContent = 'Failed to copy to clipboard';
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 2000);
+    });
   };
-  document.addEventListener('keydown', closeOnEscape);
-}
-
-export function closeMediaInfoModal() {
-  if (currentMediaInfoModal) {
-    currentMediaInfoModal.remove();
-    currentMediaInfoModal = null;
-  }
-
-  // Remove overlay
-  const overlay = document.querySelector('div[style*="background: rgba(0, 0, 0, 0.5)"]');
-  if (overlay) {
-    overlay.remove();
-  }
-
-  // Also remove any existing media info modal
-  const existingModal = document.querySelector('.media-info-modal');
-  if (existingModal) {
-    existingModal.remove();
-  }
+  currentModalData = { modal, overlay };
 }

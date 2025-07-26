@@ -1,317 +1,203 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
-/* eslint-disable no-use-before-define */
+/* eslint-disable no-console */
 
-import { fetchSheetJson, CONTENT_DA_LIVE_BASE } from './sheet-utils.js';
-import { updateSidebarCounts } from './sidebar.js';
-
-let daContext = null;
-let assetBrowser = null;
-let stateManager = null;
-let assets = [];
-
-function setContext(context) {
-  daContext = context;
-}
-
-function setAssetBrowser(browser) {
-  assetBrowser = browser;
-}
-
-function setStateManager(manager) {
-  stateManager = manager;
-}
-
-function setAssetsRef(ref) {
-  assets = ref;
-}
-
-function getContext() {
-  return daContext;
-}
-
-function getCurrentPageUrl() {
-  if (daContext?.org && daContext?.repo && daContext?.path) {
-    let pagePath = daContext.path;
-    if (!pagePath.endsWith('.html')) {
-      pagePath += '.html';
-    }
-    return `${CONTENT_DA_LIVE_BASE}/${daContext.org}/${daContext.repo}${pagePath}`;
-  }
-  return null;
-}
+import createMetadataManager from '../services/metadata-manager.js';
+import createPersistenceManager from '../services/persistence-manager.js';
 
 /**
- * Extract a meaningful name from a URL, handling external URLs better
- * @param {string} src - The source URL
- * @returns {string} - A meaningful name for the asset
+ * Media Loader Module
+ * Handles loading media from media.json and managing media browser references
  */
-function extractAssetNameFromUrl(src) {
-  if (!src) return 'Untitled Asset';
 
+let contextRef = null;
+let docAuthoringServiceRef = null;
+let mediaBrowserRef = null;
+
+/**
+ * Ensure media.json is properly synchronized
+ */
+export async function ensureMediaJsonSync() {
   try {
-    let cleanSrc = src;
-
-    const [cleanSrcWithoutQuery] = cleanSrc.split('?');
-    cleanSrc = cleanSrcWithoutQuery;
-
-    const lastSlashIndex = cleanSrc.lastIndexOf('/');
-    let filename = lastSlashIndex !== -1 ? cleanSrc.substring(lastSlashIndex + 1) : cleanSrc;
-    if (/^media_[0-9a-fA-F]{8,}/.test(filename)) {
-      return 'Untitled Asset';
+    if (!contextRef || !docAuthoringServiceRef) {
+      console.warn('[Media Loader] Context or DocAuthoringService not set, skipping sync');
+      return {
+        mediaCount: 0,
+        isSynchronized: false,
+      };
     }
 
-    if (filename) {
-      filename = filename.replace(/\.(jpg|jpeg|png|gif|svg|webp|mp4|mov|avi|pdf|doc|docx)$/i, '');
-      filename = filename.replace(/[-_]/g, ' ');
-      filename = filename.replace(/\b\w/g, (l) => l.toUpperCase());
-      filename = filename.trim();
+    console.log('[Media Loader] Ensuring media.json synchronization...');
 
-      if (filename.length > 50) {
-        filename = `${filename.substring(0, 47)}...`;
-      }
-    }
+    const metadataManager = createMetadataManager(docAuthoringServiceRef, '/.media/media.json');
+    await metadataManager.init(contextRef);
 
-    return filename || 'Untitled Asset';
+    const metadata = await metadataManager.getMetadata();
+    const mediaCount = metadata ? metadata.length : 0;
+
+    console.log('[Media Loader] Current media.json contains', mediaCount, 'items');
+
+    return {
+      mediaCount,
+      isSynchronized: true,
+    };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn('Error extracting asset name from URL:', src, error);
-    return 'Untitled Asset';
+    console.error('[Media Loader] Failed to ensure media.json sync:', error);
+    return {
+      mediaCount: 0,
+      isSynchronized: false,
+      error: error.message,
+    };
   }
 }
 
-function isProbablyUrl(str) {
-  return typeof str === 'string' && /^@?https?:\/\//.test(str);
-}
-
 /**
- * Normalize usedIn field to always be an array
+ * Load media from media.json file
  */
-function normalizeUsedIn(usedIn) {
-  if (Array.isArray(usedIn)) return usedIn;
-  if (typeof usedIn === 'string') {
-    return usedIn.split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  return [];
-}
-
-/**
- * Load assets from media.json using DA API (content.da.live)
- */
-async function loadAssetsFromMediaJson({ force = false } = {}) {
+export async function loadMediaFromMediaJson() {
   try {
-    let initialAssets = null;
-    let mediaJsonExists = false;
-
-    if (stateManager && stateManager.state && stateManager.state.apiConfig) {
-      const data = await fetchSheetJson(stateManager.state.apiConfig, 'media.json');
-      if (data && data.data && data.data.length > 0) {
-        mediaJsonExists = true;
-
-        initialAssets = data.data.map((asset) => ({
-          ...asset,
-          type: asset.type || 'image',
-          name: (!isProbablyUrl(asset.name) ? asset.name : '') || (!isProbablyUrl(asset.alt) ? asset.alt : '') || extractAssetNameFromUrl(asset.src),
-          alt: asset.alt && !isProbablyUrl(asset.alt) ? asset.alt : '',
-          usedIn: normalizeUsedIn(asset.usedIn),
-        }));
-        if (assetBrowser && assetBrowser.processExternalAssets) {
-          const pageContext = {
-            site: daContext?.site,
-            org: daContext?.org,
-          };
-          initialAssets = assetBrowser.processExternalAssets(initialAssets, pageContext);
-        }
-
-        assets.length = 0;
-        assets.push(...initialAssets);
-
-        assets.forEach((asset, i) => {
-          if (!asset.index) asset.index = i + 1;
-        });
-
-        assetBrowser?.setAssets(assets);
-        updateSidebarCounts(assets, getCurrentPageUrl());
-
-        if (stateManager && typeof stateManager.syncMediaData === 'function') {
-          stateManager.syncMediaData(initialAssets).catch((error) => {
-            // eslint-disable-next-line no-console
-            console.warn('[MediaLoader] Background IndexedDB storage failed:', error);
-          });
-        }
-      } else if (data) {
-        mediaJsonExists = true;
-
-        assets.length = 0;
-        assetBrowser?.setAssets(assets);
-        updateSidebarCounts(assets, getCurrentPageUrl());
-      } else {
-
-      }
-      if (force) {
-        setTimeout(async () => {
-          const updatedData = await fetchSheetJson(stateManager.state.apiConfig, 'media.json');
-          if (updatedData && updatedData.data && updatedData.data.length > 0) {
-            const updatedAssets = updatedData.data.map((asset) => ({
-              ...asset,
-              type: asset.type || 'image',
-              name: (!isProbablyUrl(asset.name) ? asset.name : '') || (!isProbablyUrl(asset.alt) ? asset.alt : '') || extractAssetNameFromUrl(asset.src),
-              alt: asset.alt && !isProbablyUrl(asset.alt) ? asset.alt : '',
-              isExternal: typeof asset.isExternal === 'boolean' ? asset.isExternal : false,
-              usedIn: normalizeUsedIn(asset.usedIn),
-            }));
-            if (assetBrowser && assetBrowser.processExternalAssets) {
-              const pageContext = {
-                site: daContext?.site,
-                org: daContext?.org,
-              };
-              const processedAssets = assetBrowser.processExternalAssets(updatedAssets, pageContext);
-
-              assets.length = 0;
-              assets.push(...processedAssets);
-              assetBrowser?.setAssets(assets);
-              updateSidebarCounts(assets, getCurrentPageUrl());
-
-              if (stateManager && typeof stateManager.syncMediaData === 'function') {
-                stateManager.syncMediaData(processedAssets).catch((error) => {
-                  // eslint-disable-next-line no-console
-                  console.warn('[MediaLoader] Background IndexedDB update failed:', error);
-                });
-              }
-            } else {
-              assets.length = 0;
-              assets.push(...updatedAssets);
-              assetBrowser?.setAssets(assets);
-              updateSidebarCounts(assets, getCurrentPageUrl());
-
-              if (stateManager && typeof stateManager.syncMediaData === 'function') {
-                stateManager.syncMediaData(updatedAssets).catch((error) => {
-                  // eslint-disable-next-line no-console
-                  console.warn('[MediaLoader] Background IndexedDB update failed:', error);
-                });
-              }
-            }
-          }
-        }, 1000);
-      }
-      return { mediaJsonExists, assets: initialAssets || [] };
+    if (!contextRef) {
+      throw new Error('Context not set. Call setContext() first.');
     }
-    const remoteUrl = `${CONTENT_DA_LIVE_BASE}/${daContext?.org}/${daContext?.repo}/.da/media.json`;
+
+    if (!docAuthoringServiceRef) {
+      throw new Error('Document Authoring Service not set. Call setDocAuthoringService() first.');
+    }
+
+    console.log('[Media Loader] Loading media from media.json...');
+
+    const metadataManager = createMetadataManager(docAuthoringServiceRef, '/.media/media.json');
+    await metadataManager.init(contextRef);
+
+    const metadata = await metadataManager.getMetadata();
+
+    if (metadata && metadata.length > 0) {
+      console.log('[Media Loader] Loaded', metadata.length, 'media from media.json');
+      return {
+        mediaJsonExists: true,
+        media: metadata,
+      };
+    }
+
+    console.log('[Media Loader] No media found in media.json, creating empty file...');
     try {
-      const { loadSheetFile } = await import('./sheet-utils.js');
-      const data = await loadSheetFile(remoteUrl, daContext?.token);
-
-      if (data && Array.isArray(data.data) && data.data.length > 0) {
-        mediaJsonExists = true;
-        initialAssets = data.data.map((asset) => ({
-          ...asset,
-          type: asset.type || 'image',
-          name: (!isProbablyUrl(asset.name) ? asset.name : '') || (!isProbablyUrl(asset.alt) ? asset.alt : '') || extractAssetNameFromUrl(asset.src),
-          alt: asset.alt && !isProbablyUrl(asset.alt) ? asset.alt : '',
-          usedIn: normalizeUsedIn(asset.usedIn),
-        }));
-        if (assetBrowser && assetBrowser.processExternalAssets) {
-          const pageContext = {
-            site: daContext?.site,
-            org: daContext?.org,
-          };
-          initialAssets = assetBrowser.processExternalAssets(initialAssets, pageContext);
-        }
-
-        assets.length = 0;
-        assets.push(...initialAssets);
-
-        assets.forEach((asset, i) => {
-          if (!asset.index) asset.index = i + 1;
-        });
-        assetBrowser?.setAssets(assets);
-        updateSidebarCounts(assets, getCurrentPageUrl());
-
-        if (stateManager && typeof stateManager.syncMediaData === 'function') {
-          stateManager.syncMediaData(initialAssets).catch((error) => {
-            // eslint-disable-next-line no-console
-            console.warn('[MediaLoader] Background IndexedDB storage failed:', error);
-          });
-        }
-      } else {
-        assets.length = 0;
-        assetBrowser?.setAssets(assets);
-        updateSidebarCounts(assets, getCurrentPageUrl());
-      }
-      if (force) {
-        setTimeout(async () => {
-          const updatedData = await loadSheetFile(remoteUrl, daContext?.token);
-          if (updatedData && Array.isArray(updatedData.data) && updatedData.data.length > 0) {
-            const updatedAssets = updatedData.data.map((asset) => ({
-              ...asset,
-              type: asset.type || 'image',
-              name: (!isProbablyUrl(asset.name) ? asset.name : '') || (!isProbablyUrl(asset.alt) ? asset.alt : '') || extractAssetNameFromUrl(asset.src),
-              alt: asset.alt && !isProbablyUrl(asset.alt) ? asset.alt : '',
-              isExternal: typeof asset.isExternal === 'boolean' ? asset.isExternal : false,
-              usedIn: normalizeUsedIn(asset.usedIn),
-            }));
-            if (assetBrowser && assetBrowser.processExternalAssets) {
-              const pageContext = {
-                site: daContext?.site,
-                org: daContext?.org,
-              };
-              const processedAssets = assetBrowser.processExternalAssets(updatedAssets, pageContext);
-
-              assets.length = 0;
-              assets.push(...processedAssets);
-              assetBrowser?.setAssets(assets);
-              updateSidebarCounts(assets, getCurrentPageUrl());
-
-              if (stateManager && typeof stateManager.syncMediaData === 'function') {
-                stateManager.syncMediaData(processedAssets).catch((error) => {
-                  // eslint-disable-next-line no-console
-                  console.warn('[MediaLoader] Background IndexedDB update failed:', error);
-                });
-              }
-            } else {
-              assets.length = 0;
-              assets.push(...updatedAssets);
-              assetBrowser?.setAssets(assets);
-              updateSidebarCounts(assets, getCurrentPageUrl());
-
-              if (stateManager && typeof stateManager.syncMediaData === 'function') {
-                stateManager.syncMediaData(updatedAssets).catch((error) => {
-                  // eslint-disable-next-line no-console
-                  console.warn('[MediaLoader] Background IndexedDB update failed:', error);
-                });
-              }
-            }
-          }
-        }, 1000);
-      }
-      return { mediaJsonExists, assets: initialAssets || [] };
-    } catch (error) {
-      if (error.message && error.message.includes('404')) {
-        // eslint-disable-next-line no-console
-        console.log('[MediaLoader] media.json not found (expected for first runs)');
-      } else {
-        // eslint-disable-next-line no-console
-        console.error('[MediaLoader] Error loading assets:', error);
-      }
-      assets.length = 0;
-      assetBrowser?.setAssets(assets);
-      updateSidebarCounts(assets, getCurrentPageUrl());
-      return { mediaJsonExists: false, assets: [] };
+      await metadataManager.createMetadataFile();
+      console.log('[Media Loader] Empty media.json created successfully');
+    } catch (createError) {
+      console.error('[Media Loader] Failed to create media.json:', createError);
     }
+
+    return {
+      mediaJsonExists: false,
+      media: [],
+    };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error loading assets:', error);
-    return { mediaJsonExists: false, assets: [] };
+    console.error('[Media Loader] Error loading media:', error);
+    return {
+      mediaJsonExists: false,
+      media: [],
+      error: error.message,
+    };
   }
 }
 
-export {
-  loadAssetsFromMediaJson,
-  setContext,
-  setAssetBrowser,
-  setStateManager,
-  setAssetsRef,
-  getContext,
-  extractAssetNameFromUrl,
-};
+export async function loadMediaFromIndexedDB() {
+  try {
+    if (!contextRef || !docAuthoringServiceRef) {
+      console.warn('[Media Loader] Context or DocAuthoringService not set, skipping IndexedDB load');
+      return { mediaCount: 0, isLoaded: false };
+    }
+
+    console.log('[Media Loader] Loading media from IndexedDB...');
+
+    const metadataManager = createMetadataManager(docAuthoringServiceRef, '/.media/media.json');
+    await metadataManager.init(contextRef);
+
+    const metadata = await metadataManager.getMetadata();
+    const mediaCount = metadata ? metadata.length : 0;
+
+    console.log('[Media Loader] Loaded', mediaCount, 'media items from IndexedDB');
+
+    if (mediaBrowserRef && metadata) {
+      mediaBrowserRef.updateMedia(metadata);
+    }
+
+    return {
+      mediaCount,
+      isLoaded: true,
+      media: metadata || [],
+    };
+  } catch (error) {
+    console.error('[Media Loader] Failed to load media from IndexedDB:', error);
+    return {
+      mediaCount: 0,
+      isLoaded: false,
+      media: [],
+    };
+  }
+}
+
+export async function checkIndexedDBStatus() {
+  try {
+    if (!contextRef || !docAuthoringServiceRef) {
+      console.warn('[Media Loader] Context or DocAuthoringService not set, skipping IndexedDB check');
+      return { hasData: false, queueCount: 0, totalItems: 0 };
+    }
+
+    console.log('[Media Loader] Checking IndexedDB status...');
+
+    const persistenceManager = createPersistenceManager();
+    await persistenceManager.init();
+
+    const queueItems = await persistenceManager.getProcessingQueue();
+    const totalQueuedItems = queueItems.reduce((sum, item) => sum + (item.media?.length || 0), 0);
+
+    const stats = await persistenceManager.getStats();
+    console.log('[Media Loader] IndexedDB stats:', stats);
+
+    const hasData = totalQueuedItems > 0;
+    console.log('[Media Loader] IndexedDB status:', {
+      hasData,
+      queueCount: queueItems.length,
+      totalItems: totalQueuedItems,
+      stats,
+    });
+
+    return {
+      hasData,
+      queueCount: queueItems.length,
+      totalItems: totalQueuedItems,
+      stats,
+    };
+  } catch (error) {
+    console.error('[Media Loader] Error checking IndexedDB status:', error);
+    return {
+      hasData: false,
+      queueCount: 0,
+      totalItems: 0,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Set media browser reference
+ */
+export function setMediaBrowser(browser) {
+  mediaBrowserRef = browser;
+  console.log('[Media Loader] Media browser reference set');
+}
+
+/**
+ * Set context reference
+ */
+export function setContext(context) {
+  contextRef = context;
+  console.log('[Media Loader] Context reference set');
+}
+
+/**
+ * Set Document Authoring Service reference
+ */
+export function setDocAuthoringService(docAuthoringService) {
+  docAuthoringServiceRef = docAuthoringService;
+  console.log('[Media Loader] Document Authoring Service reference set');
+}

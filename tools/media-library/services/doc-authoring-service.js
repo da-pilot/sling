@@ -1,17 +1,18 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
 /* eslint-disable no-use-before-define */
+// eslint-disable-next-line import/no-unresolved
 import DA_SDK from 'https://da.live/nx/utils/sdk.js';
+// eslint-disable-next-line import/no-unresolved
 import { crawl } from 'https://da.live/nx/public/utils/tree.js';
 
+const ADMIN_DA_LIVE_BASE = 'https://admin.da.live';
+
 /**
- * Create DA API Service using official DA SDK and utilities
+ * Create Document Authoring Service using official DA SDK and utilities
  * Handles all interactions with DA Admin API
  */
-function createDAApiService() {
+function createDocAuthoringService() {
   const state = {
-    baseUrl: 'https://admin.da.live',
+    baseUrl: ADMIN_DA_LIVE_BASE,
     token: null,
     org: null,
     repo: null,
@@ -23,52 +24,21 @@ function createDAApiService() {
     initialized: false,
   };
 
-  const api = {
-    init,
-    listPath,
-    getSource,
-    saveFile,
-    deleteFile,
-    getConfig,
+  function delay(ms) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
 
-    crawlFiles,
-    getAllHTMLFiles,
-    isValidUrl,
-    resolveAssetUrl,
-    ensureFolder,
-    baseUrl: state.baseUrl,
-    token: state.token,
-    org: state.org,
-    repo: state.repo,
-  };
+  async function enforceRateLimit() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - state.lastRequestTime;
 
-  async function init(daContext) {
-    if (!daContext) {
-      throw new Error('DA context is required');
+    if (timeSinceLastRequest < state.rateLimitDelay) {
+      await delay(state.rateLimitDelay - timeSinceLastRequest);
     }
 
-    state.context = daContext;
-    state.org = daContext.org;
-    state.repo = daContext.repo;
-    state.ref = daContext.ref;
-    state.path = daContext.path || '/';
-    state.token = daContext.token;
-
-    if (!state.org || !state.repo) {
-      throw new Error('This plugin must be opened from within DA Admin.');
-    }
-
-    // Only use localStorage if available (not in Web Workers)
-    if (typeof localStorage !== 'undefined') {
-      const key = `media_${state.org}_${state.repo}_ctx`;
-      localStorage.setItem(key, JSON.stringify({
-        org: state.org,
-        repo: state.repo,
-        token: state.token,
-      }));
-    }
-
-    state.initialized = true;
+    state.lastRequestTime = Date.now();
   }
 
   async function makeRequest(url, options = {}) {
@@ -87,14 +57,14 @@ function createDAApiService() {
       headers: { ...defaultOptions.headers, ...options.headers },
     };
 
-    for (let attempt = 0; attempt < state.maxRetries; attempt++) {
+    const attemptRequest = async (attempt) => {
       try {
         const response = await fetch(url, requestOptions);
 
         if (response.status === 429) {
           const retryAfter = parseInt(response.headers.get('retry-after') || '1', 10) * 1000;
           await delay(retryAfter);
-          continue;
+          return null; // Indicate retry needed
         }
 
         if (!response.ok) {
@@ -107,19 +77,54 @@ function createDAApiService() {
           throw error;
         }
         await delay(1000 * 2 ** attempt);
+        return null; // Indicate retry needed
       }
-    }
+    };
+
+    const makeRequestWithRetry = async (attempt) => {
+      if (attempt >= state.maxRetries) {
+        throw new Error('Max retries exceeded');
+      }
+
+      const result = await attemptRequest(attempt);
+      if (result) {
+        return result;
+      }
+
+      return makeRequestWithRetry(attempt + 1);
+    };
+
+    return makeRequestWithRetry(0);
   }
 
-  async function enforceRateLimit() {
-    const now = Date.now();
-    const timeSinceLastRequest = now - state.lastRequestTime;
-
-    if (timeSinceLastRequest < state.rateLimitDelay) {
-      await delay(state.rateLimitDelay - timeSinceLastRequest);
+  async function init(daContext) {
+    if (!daContext) {
+      throw new Error('DA context is required');
     }
 
-    state.lastRequestTime = Date.now();
+    state.context = daContext;
+    state.org = daContext.org;
+    state.repo = daContext.repo;
+    state.ref = daContext.ref;
+    state.path = daContext.path || '/';
+    state.token = daContext.token;
+    state.baseUrl = daContext.baseUrl || ADMIN_DA_LIVE_BASE;
+
+    if (!state.org || !state.repo) {
+      throw new Error('This plugin must be opened from within DA Admin.');
+    }
+
+    // Only use localStorage if available (not in Web Workers)
+    if (typeof localStorage !== 'undefined') {
+      const key = `media_${state.org}_${state.repo}_ctx`;
+      localStorage.setItem(key, JSON.stringify({
+        org: state.org,
+        repo: state.repo,
+        token: state.token,
+      }));
+    }
+
+    state.initialized = true;
   }
 
   async function listPath(path = '/') {
@@ -163,6 +168,13 @@ function createDAApiService() {
   }
 
   async function saveFile(path, content, contentType = 'application/json') {
+    console.log('[DA API] 💾 Starting saveFile operation:', {
+      path,
+      contentType,
+      contentLength: typeof content === 'string' ? content.length : 'object',
+      url: `${state.baseUrl}/source${path}`,
+    });
+
     const url = `${state.baseUrl}/source${path}`;
 
     let body;
@@ -177,13 +189,20 @@ function createDAApiService() {
       body = formData;
     }
 
+    console.log('[DA API] 💾 Making request to save file...');
     const response = await makeRequest(url, {
       method: 'POST',
       headers,
       body,
     });
 
-    return response.json();
+    const result = response.json();
+    console.log('[DA API] ✅ File saved successfully:', {
+      path,
+      status: response.status,
+      result,
+    });
+    return result;
   }
 
   async function deleteFile(path) {
@@ -197,6 +216,14 @@ function createDAApiService() {
   }
 
   function getConfig() {
+    if (!state.initialized) {
+      throw new Error('Doc Authoring Service not initialized');
+    }
+
+    if (!state.baseUrl) {
+      throw new Error('baseUrl not set in DA context');
+    }
+
     return {
       baseUrl: state.baseUrl,
       token: state.token,
@@ -218,7 +245,7 @@ function createDAApiService() {
     }
   }
 
-  function resolveAssetUrl(src, baseUrl = null) {
+  function resolveMediaUrl(src, baseUrl = null) {
     if (!src) return null;
 
     if (src.startsWith('http://') || src.startsWith('https://')) {
@@ -230,7 +257,7 @@ function createDAApiService() {
     }
 
     if (src.startsWith('/')) {
-      const origin = baseUrl || 'https://admin.da.live';
+      const origin = baseUrl || ADMIN_DA_LIVE_BASE;
       return `${origin}${src}`;
     }
 
@@ -253,7 +280,6 @@ function createDAApiService() {
           headers: { Authorization: `Bearer ${state.token}` },
           body: formData,
         });
-
         return response.ok;
       } catch (createError) {
         return false;
@@ -313,11 +339,24 @@ function createDAApiService() {
     return htmlFiles.length > 0 ? htmlFiles : files.filter((f) => f.ext === 'html');
   }
 
-  function delay(ms) {
-    return new Promise((resolve) => {
-      setTimeout(resolve, ms);
-    });
-  }
+  const api = {
+    init,
+    listPath,
+    getSource,
+    saveFile,
+    deleteFile,
+    getConfig,
+
+    crawlFiles,
+    getAllHTMLFiles,
+    isValidUrl,
+    resolveMediaUrl,
+    ensureFolder,
+    baseUrl: state.baseUrl,
+    token: state.token,
+    org: state.org,
+    repo: state.repo,
+  };
 
   Object.defineProperties(api, {
     baseUrl: { get: () => state.baseUrl },
@@ -329,4 +368,4 @@ function createDAApiService() {
   return api;
 }
 
-export { createDAApiService };
+export default createDocAuthoringService;

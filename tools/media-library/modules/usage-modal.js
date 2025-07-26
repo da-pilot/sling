@@ -1,4 +1,3 @@
-// tools/media-library/modules/usage-modal.js
 
 let currentUsagePopup = null;
 
@@ -24,7 +23,7 @@ function buildLiveUrlFromPath(pagePath) {
   return `https://main--${repo}--${org}.aem.live${rest}`;
 }
 
-export function showUsageInfo(asset, triggerElement) {
+export function showUsageInfo(media, triggerElement) {
   const existingPopup = document.querySelector('.usage-info-popup');
   if (existingPopup) {
     existingPopup.remove();
@@ -48,11 +47,11 @@ export function showUsageInfo(asset, triggerElement) {
 
   // Handle usedIn as either string, array, or undefined
   let usedInPages = [];
-  if (asset.usedIn) {
-    if (typeof asset.usedIn === 'string') {
-      usedInPages = asset.usedIn.split(',').map((p) => p.trim()).filter(Boolean);
-    } else if (Array.isArray(asset.usedIn)) {
-      usedInPages = asset.usedIn.filter(Boolean);
+  if (media.usedIn) {
+    if (typeof media.usedIn === 'string') {
+      usedInPages = media.usedIn.split(',').map((p) => p.trim()).filter(Boolean);
+    } else if (Array.isArray(media.usedIn)) {
+      usedInPages = media.usedIn.filter(Boolean);
     }
   }
 
@@ -69,8 +68,8 @@ export function showUsageInfo(asset, triggerElement) {
     });
 
     // Add individual occurrences if available
-    if (asset.occurrences && Array.isArray(asset.occurrences)) {
-      asset.occurrences.forEach((occurrence) => {
+    if (media.occurrences && Array.isArray(media.occurrences)) {
+      media.occurrences.forEach((occurrence) => {
         if (pageOccurrences[occurrence.pagePath]) {
           pageOccurrences[occurrence.pagePath].push(occurrence);
         }
@@ -156,23 +155,23 @@ export function showUsageInfo(asset, triggerElement) {
     `;
   }
 
-  // Create asset preview thumbnail
-  const assetThumbnail = asset.type === 'image'
-    ? `<img src="${asset.src}" alt="${asset.alt}" class="asset-thumbnail" loading="lazy">`
-    : `<div class="asset-thumbnail-placeholder">${asset.type.toUpperCase()}</div>`;
+  // Create media preview thumbnail
+  const mediaThumbnail = media.type === 'image'
+    ? `<img src="${media.src}" alt="${media.alt}" class="media-thumbnail" loading="lazy">`
+    : `<div class="media-thumbnail-placeholder">${media.type.toUpperCase()}</div>`;
 
   popup.innerHTML = `
     <div class="usage-info-header">
       <div class="usage-header-content">
-        <div class="asset-preview-section">
-          <div class="asset-thumbnail-container">
-            ${assetThumbnail}
+        <div class="media-preview-section">
+          <div class="media-thumbnail-container">
+            ${mediaThumbnail}
           </div>
-          <div class="asset-info">
-            <div class="asset-name">${asset.name}</div>
-            <div class="asset-meta">
-              <span class="asset-type-badge ${asset.type}">${asset.type.toUpperCase()}</span>
-              ${asset.type === 'image' ? `<span class="asset-dimensions">${asset.naturalWidth || '?'} × ${asset.naturalHeight || '?'}px</span>` : ''}
+          <div class="media-info">
+            <div class="media-name">${media.name}</div>
+            <div class="media-meta">
+              <span class="media-type-badge ${media.type}">${media.type.toUpperCase()}</span>
+              ${media.type === 'image' ? `<span class="media-dimensions">${media.naturalWidth || '?'} × ${media.naturalHeight || '?'}px</span>` : ''}
             </div>
           </div>
         </div>

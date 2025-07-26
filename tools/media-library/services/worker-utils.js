@@ -1,4 +1,5 @@
-// tools/media-library/services/worker-utils.js
+export const CONTENT_DA_LIVE_BASE = 'https://content.da.live';
+export const ADMIN_DA_LIVE_BASE = 'https://admin.da.live';
 
 export function createWorkerDaApi() {
   let config = null;
@@ -141,11 +142,24 @@ export function createWorkerSheetUtils() {
   }
 
   async function fetchSheetJson(configData, filename) {
-    const url = `${configData.baseUrl}/source/${configData.org}/${configData.repo}/.da/.pages/${filename}`;
+    let basePath = '.media';
+
+    if (filename === 'config.json' || filename === 'media.json') {
+      basePath = '.media';
+    } else if (filename === 'checkpoint.json' || filename === 'session-state.json'
+      || filename === 'discovery-progress.json' || filename === 'scanning-progress.json'
+      || filename === 'active-sessions.json') {
+      basePath = '.media/.processing';
+    } else if (filename.endsWith('-scan.json')) {
+      basePath = '.media/.scan-status';
+    } else {
+      basePath = '.media/.pages';
+    }
+
+    // Use content.da.live for reading
+    const url = `https://content.da.live/${configData.org}/${configData.repo}/${basePath}/${filename}`;
     const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${configData.token}`,
-      },
+      headers: { Authorization: `Bearer ${configData.token}` },
     });
 
     if (!response.ok) {

@@ -1,19 +1,3 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
-/* eslint-disable no-use-before-define */
-/*
- * Copyright 2024 Adobe. All rights reserved.
- * This file is licensed to you under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License. You may obtain a copy
- * of the License at http:
- *
- * Unless required by applicable law or agreed to in writing, software distributed under
- * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
- * OF ANY KIND, either express or implied. See the License for the specific language
- * governing permissions and limitations under the License.
- */
-
 /**
  * Media Library Utilities
  * Common utility functions inspired by DA Live patterns
@@ -51,7 +35,7 @@ function createUtils() {
   };
 }
 
-export { createUtils };
+export default createUtils;
 
 export function getOrgRepo(context) {
   if (context?.org && context?.repo) {
@@ -71,7 +55,7 @@ export function getOrgRepo(context) {
         }
       }
     } else {
-      for (let i = 0; i < localStorage.length; i++) {
+      for (let i = 0; i < localStorage.length; i += 1) {
         const k = localStorage.key(i);
         if (k && k.startsWith('media_') && k.endsWith('_ctx')) {
           const stored = localStorage.getItem(k);
@@ -85,6 +69,8 @@ export function getOrgRepo(context) {
       }
     }
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[Utils] Error getting org and repo:', e);
   }
   try {
     const { hostname } = window.location;
@@ -99,6 +85,8 @@ export function getOrgRepo(context) {
       }
     }
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[Utils] Error getting org and repo:', e);
   }
   throw new Error('Unable to determine org and repo');
 }

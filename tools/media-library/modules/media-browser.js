@@ -1,17 +1,17 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
+/* eslint-disable no-console */
 /* eslint-disable no-use-before-define */
-import { isExternalAsset } from './external-asset.js';
+
+import isExternalMedia from './external-media.js';
+
 /**
- * Create Asset Browser Module
- * Handles displaying and managing assets in grid and list views
+ * Create Media Browser Module
+ * Handles displaying and managing media in grid and list views
  */
-function createAssetBrowser(container) {
+export default function createMediaBrowser(container) {
   const state = {
     container,
-    assets: [],
-    filteredAssets: [],
+    media: [],
+    filteredMedia: [],
     currentView: 'grid',
     currentSort: 'name',
     currentFilter: { types: ['image', 'video', 'document'], search: '' },
@@ -22,14 +22,15 @@ function createAssetBrowser(container) {
   const api = {
     on,
     emit,
-    setAssets,
-    addAssets,
+    setMedia,
+    addMedia,
+    updateMedia,
     setView,
     setSort,
     setFilter,
-    getSelectedAssets,
+    getSelectedMedia,
     clearSelection,
-    processExternalAssets,
+    processExternalMedia,
     markInitialLoadComplete,
   };
 
@@ -46,10 +47,10 @@ function createAssetBrowser(container) {
     }
   }
 
-  function setAssets(assets) {
-    state.assets = assets || [];
+  function setMedia(media) {
+    state.media = media || [];
 
-    if (state.isInitialLoad && assets && assets.length > 0) {
+    if (state.isInitialLoad && media && media.length > 0) {
       state.isInitialLoad = false;
     }
 
@@ -57,17 +58,17 @@ function createAssetBrowser(container) {
     render();
   }
 
-  function addAssets(newAssets, isScanning = false) {
-    const existingAssetSrcs = new Set(state.assets.map((asset) => asset.src));
-    const uniqueNewAssets = newAssets.filter((asset) => !existingAssetSrcs.has(asset.src));
+  function addMedia(newMedia, isScanning = false) {
+    const existingMediaSrcs = new Set(state.media.map((media) => media.src));
+    const uniqueNewMedia = newMedia.filter((media) => !existingMediaSrcs.has(media.src));
 
-    if (uniqueNewAssets.length > 0) {
-      state.assets = [...state.assets, ...uniqueNewAssets];
+    if (uniqueNewMedia.length > 0) {
+      state.media = [...state.media, ...uniqueNewMedia];
 
       applyFiltersAndSort();
 
       if (isScanning) {
-        renderWithNewAssetIndicators(uniqueNewAssets);
+        renderWithNewMediaIndicators(uniqueNewMedia);
       } else {
         render();
       }
@@ -76,7 +77,7 @@ function createAssetBrowser(container) {
     }
   }
 
-  function renderWithNewAssetIndicators(newAssets) {
+  function renderWithNewMediaIndicators(newMedia) {
     if (!state.container) return;
 
     if (state.currentView === 'list') {
@@ -87,7 +88,7 @@ function createAssetBrowser(container) {
 
     state.container.innerHTML = '';
 
-    if (state.filteredAssets.length === 0 && !state.isInitialLoad) {
+    if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
       renderEmptyState();
       return;
     }
@@ -96,18 +97,18 @@ function createAssetBrowser(container) {
       renderListHeader();
     }
 
-    state.filteredAssets.forEach((asset) => {
-      const assetElement = createAssetElement(asset);
-      assetElement.setAttribute('data-asset-id', asset.id);
+    state.filteredMedia.forEach((media) => {
+      const mediaElement = createMediaElement(media);
+      mediaElement.setAttribute('data-media-id', media.id);
 
-      if (newAssets.some((newAsset) => newAsset.src === asset.src)) {
-        assetElement.classList.add('new-asset');
+      if (newMedia.some((newMediaItem) => newMediaItem.src === media.src)) {
+        mediaElement.classList.add('new-media');
         setTimeout(() => {
-          assetElement.classList.remove('new-asset');
+          mediaElement.classList.remove('new-media');
         }, 3000);
       }
 
-      state.container.appendChild(assetElement);
+      state.container.appendChild(mediaElement);
     });
   }
 
@@ -130,40 +131,41 @@ function createAssetBrowser(container) {
   }
 
   function applyFiltersAndSort() {
-    let filtered = [...state.assets];
+    let filtered = [...state.media];
 
     if (state.currentFilter.types && state.currentFilter.types.length > 0) {
-      filtered = filtered.filter((asset) => state.currentFilter.types.includes(asset.type));
+      filtered = filtered.filter((media) => state.currentFilter.types.includes(media.type));
     }
 
     if (state.currentFilter.isExternal !== undefined) {
-      filtered = filtered.filter((asset) => asset.isExternal === state.currentFilter.isExternal);
+      filtered = filtered.filter((media) => media.isExternal === state.currentFilter.isExternal);
     }
 
-    if (state.currentFilter.usedOnPage && state.currentFilter.missingAlt && window.currentPagePath) {
-      filtered = filtered.filter((asset) => {
-        if (asset.type !== 'image') return false;
-        if (asset.alt && asset.alt.trim() !== '' && asset.alt !== 'Untitled') return false;
+    if (state.currentFilter.usedOnPage
+      && state.currentFilter.missingAlt && window.currentPagePath) {
+      filtered = filtered.filter((media) => {
+        if (media.type !== 'image') return false;
+        if (media.alt && media.alt.trim() !== '' && media.alt !== 'Untitled') return false;
 
-        if (!asset.usedIn) return false;
+        if (!media.usedIn) return false;
         let usedInPages = [];
-        if (typeof asset.usedIn === 'string') {
-          usedInPages = asset.usedIn.split(',').map((s) => s.trim());
-        } else if (Array.isArray(asset.usedIn)) {
-          usedInPages = asset.usedIn;
+        if (typeof media.usedIn === 'string') {
+          usedInPages = media.usedIn.split(',').map((s) => s.trim());
+        } else if (Array.isArray(media.usedIn)) {
+          usedInPages = media.usedIn;
         }
         return usedInPages.includes(window.currentPagePath);
       });
     } else if (state.currentFilter.missingAlt) {
-      filtered = filtered.filter((asset) => asset.type === 'image' && (!asset.alt || asset.alt.trim() === '' || asset.alt === 'Untitled'));
+      filtered = filtered.filter((media) => media.type === 'image' && (!media.alt || media.alt.trim() === '' || media.alt === 'Untitled'));
     } else if (state.currentFilter.usedOnPage && window.currentPagePath) {
-      filtered = filtered.filter((asset) => {
-        if (!asset.usedIn) return false;
+      filtered = filtered.filter((media) => {
+        if (!media.usedIn) return false;
         let usedInPages = [];
-        if (typeof asset.usedIn === 'string') {
-          usedInPages = asset.usedIn.split(',').map((s) => s.trim());
-        } else if (Array.isArray(asset.usedIn)) {
-          usedInPages = asset.usedIn;
+        if (typeof media.usedIn === 'string') {
+          usedInPages = media.usedIn.split(',').map((s) => s.trim());
+        } else if (Array.isArray(media.usedIn)) {
+          usedInPages = media.usedIn;
         }
         return usedInPages.includes(window.currentPagePath);
       });
@@ -171,9 +173,9 @@ function createAssetBrowser(container) {
 
     if (state.currentFilter.search) {
       const searchTerm = state.currentFilter.search.toLowerCase();
-      filtered = filtered.filter((asset) => asset.name.toLowerCase().includes(searchTerm)
-        || asset.alt.toLowerCase().includes(searchTerm)
-        || asset.src.toLowerCase().includes(searchTerm));
+      filtered = filtered.filter((media) => media.name.toLowerCase().includes(searchTerm)
+        || media.alt.toLowerCase().includes(searchTerm)
+        || media.src.toLowerCase().includes(searchTerm));
     }
 
     filtered.sort((a, b) => {
@@ -184,14 +186,10 @@ function createAssetBrowser(container) {
           return (b.lastSeen || 0) - (a.lastSeen || 0);
         case 'type':
           return a.type.localeCompare(b.type);
-        case 'usage':
-
+        case 'usage': {
           let aUsedInLength = 0;
-          if (Array.isArray(a.usedIn)) {
-            aUsedInLength = a.usedIn.length;
-          } else if (typeof a.usedIn === 'string') {
-            aUsedInLength = a.usedIn.split(',').length;
-          }
+          if (Array.isArray(a.usedIn)) aUsedInLength = a.usedIn.length;
+          else if (typeof a.usedIn === 'string') aUsedInLength = a.usedIn.split(',').length;
 
           let bUsedInLength = 0;
           if (Array.isArray(b.usedIn)) {
@@ -200,12 +198,19 @@ function createAssetBrowser(container) {
             bUsedInLength = b.usedIn.split(',').length;
           }
           return bUsedInLength - aUsedInLength;
+        }
+        case 'discovery':
         default:
-          return 0;
+          // Default sort: discovery order (first discovered = first shown)
+          if (a.discoveryOrder !== b.discoveryOrder) {
+            return a.discoveryOrder - b.discoveryOrder;
+          }
+          // Secondary sort: alphabetical by name
+          return (a.name || '').localeCompare(b.name || '');
       }
     });
 
-    state.filteredAssets = filtered;
+    state.filteredMedia = filtered;
   }
 
   function render() {
@@ -219,7 +224,7 @@ function createAssetBrowser(container) {
 
     state.container.innerHTML = '';
 
-    if (state.filteredAssets.length === 0 && !state.isInitialLoad) {
+    if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
       renderEmptyState();
       return;
     }
@@ -228,10 +233,10 @@ function createAssetBrowser(container) {
       renderListHeader();
     }
 
-    state.filteredAssets.forEach((asset) => {
-      const assetElement = createAssetElement(asset);
-      assetElement.setAttribute('data-asset-id', asset.id);
-      state.container.appendChild(assetElement);
+    state.filteredMedia.forEach((media) => {
+      const mediaElement = createMediaElement(media);
+      mediaElement.setAttribute('data-media-id', media.id);
+      state.container.appendChild(mediaElement);
     });
   }
 
@@ -240,8 +245,8 @@ function createAssetBrowser(container) {
     emptyDiv.className = 'empty-state';
     emptyDiv.innerHTML = `
       <div class="empty-content">
-        <h3>No assets found</h3>
-        <p>Try adjusting your filters or scanning for assets.</p>
+        <h3>No media found</h3>
+        <p>Try adjusting your filters or scanning for media.</p>
       </div>
     `;
     state.container.appendChild(emptyDiv);
@@ -259,63 +264,63 @@ function createAssetBrowser(container) {
     state.container.appendChild(header);
   }
 
-  function createAssetElement(asset) {
+  function createMediaElement(media) {
     const element = document.createElement('div');
-    element.className = 'asset-item';
+    element.className = 'media-item';
 
     if (state.currentView === 'grid') {
-      element.innerHTML = createGridViewHTML(asset);
+      element.innerHTML = createGridViewHTML(media);
     } else {
-      element.innerHTML = createListViewHTML(asset);
+      element.innerHTML = createListViewHTML(media);
     }
 
-    addAssetEventListeners(element, asset);
+    addMediaEventListeners(element, media);
 
     return element;
   }
 
-  function createGridViewHTML(asset) {
-    const isExternal = asset.isExternal ? 'external' : 'internal';
-    const typePill = `<span class="badge ${asset.type}">${asset.type.toUpperCase()}</span>`;
+  function createGridViewHTML(media) {
+    const isExternal = media.isExternal ? 'external' : 'internal';
+    const typePill = `<span class="badge ${media.type}">${media.type.toUpperCase()}</span>`;
     const intExtPill = `<span class="badge ${isExternal === 'external' ? 'ext' : 'int'}">${
       isExternal === 'external' ? 'EXT' : 'INT'
     }</span>`;
 
-    const insertAsLinkBtn = asset.isExternal
+    const insertAsLinkBtn = media.isExternal
       ? '<button class="action-btn link-insert-icon" data-action="insertAsLink" title="Insert as Link" aria-label="Insert as link">LINK</button>'
       : '';
 
-    const hasOccurrences = asset.occurrences && asset.occurrences.length > 0;
+    const hasOccurrences = media.occurrences && media.occurrences.length > 0;
 
     let missingAltCount = 0;
     if (hasOccurrences) {
-      missingAltCount = asset.occurrences.filter((o) => !o.hasAltText).length;
-    } else if (asset.type === 'image' && (!asset.alt || asset.alt.trim() === '' || asset.alt === 'Untitled')) {
+      missingAltCount = media.occurrences.filter((o) => !o.hasAltText).length;
+    } else if (media.type === 'image' && (!media.alt || media.alt.trim() === '' || media.alt === 'Untitled')) {
       missingAltCount = 1;
     }
-    const totalOccurrences = hasOccurrences ? asset.occurrences.length : 1;
+    const totalOccurrences = hasOccurrences ? media.occurrences.length : 1;
 
     const altTextIndicator = missingAltCount > 0
       ? `<div class="alt-text-warning" title="${missingAltCount}/${totalOccurrences} occurrences missing alt text">⚠️ ${missingAltCount}</div>`
       : '';
 
-    const previewElement = createAssetPreviewElement(asset);
+    const previewElement = createMediaPreviewElement(media);
 
     return `
-      <div class="asset-preview">
+      <div class="media-preview">
         ${previewElement}
         ${altTextIndicator}
       </div>
-      <div class="asset-info">
-        <div class="asset-name">${asset.name}</div>
-        <div class="asset-meta-row">
-          <div class="asset-pills">
+      <div class="media-info">
+        <div class="media-name">${getDisplayedName(media.name)}</div>
+        <div class="media-meta-row">
+          <div class="media-pills">
             ${typePill}
             ${intExtPill}
           </div>
-          <div class="asset-actions">
-            <button class="action-btn info-icon" data-action="info" title="View asset info" aria-label="View asset info">INFO</button>
-            <button class="action-btn link-action" data-action="link" title="Open in new tab" aria-label="Open asset in new tab">OPEN</button>
+          <div class="media-actions">
+            <button class="action-btn info-icon" data-action="info" title="View media info" aria-label="View media info">INFO</button>
+            <button class="action-btn link-action" data-action="link" title="Open in new tab" aria-label="Open media in new tab">OPEN</button>
             ${insertAsLinkBtn}
           </div>
         </div>
@@ -323,47 +328,47 @@ function createAssetBrowser(container) {
     `;
   }
 
-  function createListViewHTML(asset) {
-    const isExternal = asset.isExternal ? 'external' : 'internal';
-    const typePill = `<span class="badge ${asset.type}">${asset.type.toUpperCase()}</span>`;
+  function createListViewHTML(media) {
+    const isExternal = media.isExternal ? 'external' : 'internal';
+    const typePill = `<span class="badge ${media.type}">${media.type.toUpperCase()}</span>`;
     const intExtPill = `<span class="badge ${isExternal === 'external' ? 'ext' : 'int'}">${isExternal === 'external' ? 'EXT' : 'INT'}</span>`;
-    const insertAsLinkBtn = asset.isExternal
+    const insertAsLinkBtn = media.isExternal
       ? '<button class="action-btn link-insert-icon" data-action="insertAsLink" title="Insert as Link" aria-label="Insert as link">LINK</button>'
       : '';
 
-    const previewElement = createAssetPreviewElement(asset);
+    const previewElement = createMediaPreviewElement(media);
 
     return `
       <div class="list-cell list-cell-thumb">
         ${previewElement}
       </div>
-      <div class="list-cell list-cell-name">${asset.name}</div>
+      <div class="list-cell list-cell-name">${getDisplayedName(media.name)}</div>
       <div class="list-cell list-cell-type">
         ${typePill}
         ${intExtPill}
       </div>
       <div class="list-cell list-cell-actions">
-        <button class="action-btn info-icon" data-action="info" title="View asset info" aria-label="View asset info">INFO</button>
-        <button class="action-btn link-action" data-action="link" title="Open in new tab" aria-label="Open asset in new tab">OPEN</button>
+        <button class="action-btn info-icon" data-action="info" title="View media info" aria-label="View media info">INFO</button>
+        <button class="action-btn link-action" data-action="link" title="Open in new tab" aria-label="Open media in new tab">OPEN</button>
         ${insertAsLinkBtn}
       </div>
     `;
   }
 
-  function createAssetPreviewElement(asset) {
-    switch (asset.type) {
+  function createMediaPreviewElement(media) {
+    switch (media.type) {
       case 'image':
-        return `<img src="${asset.src}" alt="${asset.alt}" loading="lazy" data-action="insert" style="cursor: pointer;">`;
+        return `<img src="${media.src}" alt="${media.alt}" loading="lazy" data-action="insert" style="cursor: pointer;">`;
 
       case 'video':
         return `
           <div class="video-preview-container" data-action="insert" style="cursor: pointer;">
             <video 
-              src="${asset.src}" 
+              src="${media.src}" 
               preload="metadata" 
               muted 
               class="video-preview"
-              alt="${asset.alt}"
+              alt="${media.alt}"
             >
               Your browser does not support the video tag.
             </video>
@@ -384,8 +389,8 @@ function createAssetBrowser(container) {
               </svg>
             </div>
             <div class="document-info">
-              <div class="document-name">${asset.name}</div>
-              <div class="document-type">${getFileExtension(asset.src)}</div>
+              <div class="document-name">${media.name}</div>
+              <div class="document-type">${getFileExtension(media.src)}</div>
             </div>
           </div>
         `;
@@ -399,12 +404,16 @@ function createAssetBrowser(container) {
               </svg>
             </div>
             <div class="unknown-info">
-              <div class="unknown-name">${asset.name}</div>
-              <div class="unknown-type">${asset.type}</div>
+              <div class="unknown-name">${media.name}</div>
+              <div class="unknown-type">${media.type}</div>
             </div>
           </div>
         `;
     }
+  }
+  function getDisplayedName(name) {
+    if (name.length <= 40) return name;
+    return `${name.substring(0, 37)}...`;
   }
 
   function getFileExtension(filename) {
@@ -412,18 +421,18 @@ function createAssetBrowser(container) {
     return match ? match[1].toUpperCase() : 'FILE';
   }
 
-  function addAssetEventListeners(element, asset) {
+  function addMediaEventListeners(element, media) {
     element.querySelectorAll('[data-action]').forEach((el) => {
       el.onclick = (e) => {
         const action = el.getAttribute('data-action');
         if (action === 'insert') {
-          emit('assetSelected', asset);
+          emit('mediaSelected', media);
         } else if (action === 'info') {
-          emit('assetInfo', asset);
+          emit('mediaInfo', media);
         } else if (action === 'link') {
-          emit('assetLinkCopied', asset);
+          emit('mediaLinkCopied', media);
         } else if (action === 'insertAsLink') {
-          emit('assetInsertAsLink', asset);
+          emit('mediaInsertAsLink', media);
         }
         e.stopPropagation();
       };
@@ -431,12 +440,12 @@ function createAssetBrowser(container) {
   }
 
   function updateFilterCounts() {
-    const imageCount = state.assets.filter((a) => a.type === 'image').length;
-    const videoCount = state.assets.filter((a) => a.type === 'video').length;
-    const documentCount = state.assets.filter((a) => a.type === 'document').length;
-    const internalCount = state.assets.filter((a) => a.isExternal === false).length;
-    const externalCount = state.assets.filter((a) => a.isExternal === true).length;
-    const totalCount = state.assets.length;
+    const imageCount = state.media.filter((a) => a.type === 'image').length;
+    const videoCount = state.media.filter((a) => a.type === 'video').length;
+    const documentCount = state.media.filter((a) => a.type === 'document').length;
+    const internalCount = state.media.filter((a) => a.isExternal === false).length;
+    const externalCount = state.media.filter((a) => a.isExternal === true).length;
+    const totalCount = state.media.length;
 
     const setCount = (id, count) => {
       const el = document.getElementById(id);
@@ -450,16 +459,16 @@ function createAssetBrowser(container) {
     setCount('totalCount', totalCount);
   }
 
-  function getSelectedAssets() {
-    const selectedElements = state.container.querySelectorAll('.asset-item.selected');
+  function getSelectedMedia() {
+    const selectedElements = state.container.querySelectorAll('.media-item.selected');
     return Array.from(selectedElements).map((element) => {
-      const { assetId } = element.dataset;
-      return state.assets.find((asset) => asset.id === assetId);
+      const { mediaId } = element.dataset;
+      return state.media.find((media) => media.id === mediaId);
     }).filter(Boolean);
   }
 
   function clearSelection() {
-    const selectedElements = state.container.querySelectorAll('.asset-item.selected');
+    const selectedElements = state.container.querySelectorAll('.media-item.selected');
     selectedElements.forEach((element) => {
       element.classList.remove('selected');
     });
@@ -470,9 +479,9 @@ function createAssetBrowser(container) {
   }
 
   /**
-   * Process assets to detect external links and add metadata
+   * Process media to detect external links and add metadata
    */
-  function processExternalAssets(assets, pageContext = {}) {
+  function processExternalMedia(media, pageContext = {}) {
     const internalDomains = [];
 
     if (pageContext && typeof pageContext === 'object') {
@@ -484,16 +493,51 @@ function createAssetBrowser(container) {
       internalDomains.push(window.location.hostname);
     }
 
-    return assets.map((asset) => {
-      const isExternal = isExternalAsset(asset.src, internalDomains);
+    return media.map((mediaItem) => {
+      const isExternal = isExternalMedia(mediaItem.src, internalDomains);
       return {
-        ...asset,
+        ...mediaItem,
         isExternal,
       };
     });
   }
 
+  // Add method to update media progressively
+  function updateMedia(newMedia) {
+    try {
+      console.log('[Media Browser] 📱 Updating media progressively:', {
+        currentCount: state.media.length,
+        newCount: newMedia.length,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Merge with existing media (deduplicate by src)
+      const existingMediaSrcs = new Set(state.media.map((mediaItem) => mediaItem.src));
+      const uniqueNewMedia = newMedia.filter((mediaItem) => !existingMediaSrcs.has(mediaItem.src));
+      if (uniqueNewMedia.length > 0) {
+        state.media = [...state.media, ...uniqueNewMedia];
+      } else {
+        // If no new unique media, still update with the latest data (in case metadata changed)
+        state.media = [...newMedia];
+      }
+
+      // Apply current filters and sort
+      applyFiltersAndSort();
+
+      // Re-render the grid
+      render();
+
+      // Update filter counts
+      updateFilterCounts();
+
+      // Update loading state if this is the first batch
+      if (state.media.length > 0 && state.isInitialLoad) {
+        state.isInitialLoad = false;
+      }
+    } catch (error) {
+      console.error('[Media Browser] ❌ Error updating media:', error);
+    }
+  }
+
   return api;
 }
-
-export { createAssetBrowser };

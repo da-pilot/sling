@@ -1,25 +1,24 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
-/* eslint-disable no-use-before-define */
 
 /**
- * Show empty state when no assets are found
+ * Show empty state when no media are found
  */
-function showEmptyState() {
-  const grid = document.getElementById('assetsGrid');
+export default function showEmptyState() {
+  const grid = document.getElementById('mediaGrid');
   if (grid) {
     grid.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state__icon">📁</div>
-        <h3 class="empty-state__title">No assets found</h3>
-        <p class="empty-state__description">
-          No media assets have been discovered yet. The system is scanning your content 
+        <div class="empty-state-icon">📁</div>
+        <h3 class="empty-state-title">No media found</h3>
+        <p class="empty-state-description">
+          No media has been discovered yet. The system is scanning your content 
           for images, videos, and documents.
         </p>
+        <div class="empty-state-actions">
+          <button class="btn btn-primary" onclick="loadMediaFromMediaJson({ force: true })">
+            Refresh Media
+          </button>
+        </div>
       </div>
     `;
   }
 }
-
-export { showEmptyState };

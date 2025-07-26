@@ -1,434 +1,284 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
 /* eslint-disable no-use-before-define */
 /**
- * Create Metadata Manager
- * Handles metadata storage and retrieval in DA
+ * Metadata Manager - Handles media metadata operations and persistence
+ * Provides comprehensive metadata management for media library
  */
-const DASheetUtilLocal = {
-  build(sheetMap, options = {}) {
-    const sheetNames = Object.keys(sheetMap);
-    if (sheetNames.length === 1 && (!options.forceMultiSheet)) {
-      const name = sheetNames[0];
-      const sheet = DASheetUtilLocal._stringifySheet(sheetMap[name]);
-      return {
-        total: sheet.data.length,
-        limit: sheet.data.length,
-        offset: 0,
-        data: sheet.data,
-        ':type': 'sheet',
-      };
-    }
-    const out = {};
-    for (const name of sheetNames) {
-      const sheet = DASheetUtilLocal._stringifySheet(sheetMap[name]);
-      out[name] = {
-        total: sheet.data.length,
-        limit: sheet.data.length,
-        offset: 0,
-        data: sheet.data,
-      };
-    }
-    out[':version'] = options.version || 3;
-    out[':names'] = sheetNames;
-    out[':type'] = 'multi-sheet';
-    return out;
-  },
-  parse(json) {
-    if (json[':type'] === 'sheet') {
-      return {
-        data: {
-          data: DASheetUtilLocal._parseDataArray(json.data),
-        },
-      };
-    }
-    if (json[':type'] === 'multi-sheet') {
-      const out = {};
-      for (const name of json[':names'] || []) {
-        out[name] = {
-          data: DASheetUtilLocal._parseDataArray(json[name]?.data || []),
-        };
-      }
-      return out;
-    }
-    throw new Error('Unknown DA sheet type');
-  },
-  _stringifySheet(sheet) {
-    return {
-      ...sheet,
-      data: (sheet.data || []).map((row) => Object.fromEntries(
-        Object.entries(row).map(([k, v]) => [k, v != null ? String(v) : '']),
-      )),
-    };
-  },
-  _parseDataArray(dataArr) {
-    return Array.isArray(dataArr) ? dataArr.map((row) => ({ ...row })) : [];
-  },
-};
 
-function createMetadataManager(daApi, metadataPath) {
+import {
+  buildSingleSheet,
+  saveSheetFile,
+  parseSheet,
+  loadSheetFile,
+} from '../modules/sheet-utils.js';
+import { CONTENT_DA_LIVE_BASE } from '../constants.js';
+
+export default function createMetadataManager(docAuthoringService, metadataPath) {
   const state = {
-    daApi,
-    metadataPath,
-    cache: null,
-    cacheTimestamp: 0,
-    cacheTTL: 5 * 60 * 1000,
+    config: null,
+    daApi: docAuthoringService,
+    metadataPath: metadataPath || '/.media/media.json',
+    fullMetadataPath: null,
+    cache: new Map(),
+    cacheTimeout: 5 * 60 * 1000,
   };
 
-  const api = {
-    getMetadata,
-    saveMetadata,
-    updateMetadata,
-    clearMetadata,
-    validateMetadata,
-    getAssetStatistics,
-    exportMetadata,
-    importMetadata,
-    createMetadataFile,
-    clearCache,
-    daApi: state.daApi,
-  };
+  async function init(config) {
+    state.config = config;
+    const daConfig = state.daApi.getConfig();
+    state.fullMetadataPath = `/${daConfig.org}/${daConfig.repo}${state.metadataPath}`;
+    console.log('[Metadata Manager] ✅ Initialized successfully');
+  }
 
-  async function getMetadata() {
-    if (isCacheValid()) {
-      return state.cache;
+  function validateMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'object') {
+      return false;
     }
-
-    try {
-      const content = await state.daApi.getSource(state.metadataPath, '');
-
-      if (!content || content.trim() === '') {
-        const defaultMetadata = createDefaultMetadata();
-        await saveMetadata(defaultMetadata);
-        return defaultMetadata;
-      }
-
-      const metadata = JSON.parse(content);
-      const validatedMetadata = validateAndMigrateMetadata(metadata);
-
-      updateCache(validatedMetadata);
-      return validatedMetadata;
-    } catch (error) {
-      const defaultMetadata = createDefaultMetadata();
-      await saveMetadata(defaultMetadata);
-      return defaultMetadata;
+    if (!Array.isArray(metadata)) {
+      return false;
     }
+    return true;
   }
 
-  function isCacheValid() {
-    return state.cache
-           && state.cacheTimestamp
-           && (Date.now() - state.cacheTimestamp) < state.cacheTTL;
-  }
-
-  function updateCache(metadata) {
-    state.cache = metadata;
-    state.cacheTimestamp = Date.now();
-  }
-
-  async function saveMetadata(metadata) {
+  async function ensureMetadataFolder() {
     try {
-      const validatedMetadata = validateMetadata(metadata);
-      const jsonContent = JSON.stringify(validatedMetadata, null, 2);
-
-      await ensureMetadataFolder();
-
-      await state.daApi.saveFile(state.metadataPath, jsonContent, 'text/plain');
-
-      updateCache(validatedMetadata);
-      return true;
+      const folderPath = state.fullMetadataPath.split('/').slice(0, -1).join('/');
+      await state.daApi.ensureFolder(folderPath);
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to save metadata:', error);
+      console.error('[Metadata Manager] ❌ Failed to ensure metadata folder:', error);
       throw error;
     }
   }
 
-  async function ensureMetadataFolder() {
-    const folderPath = state.metadataPath.substring(0, state.metadataPath.lastIndexOf('/'));
+  async function getMetadata() {
+    try {
+      if (!state.daApi) {
+        throw new Error('DA API not initialized');
+      }
 
-    if (folderPath) {
-      await state.daApi.ensureFolder(folderPath);
+      const daConfig = state.daApi.getConfig();
+      if (!daConfig || !daConfig.baseUrl) {
+        throw new Error('Invalid configuration: baseUrl is missing from DA API');
+      }
+      const contentUrl = `${CONTENT_DA_LIVE_BASE}${state.fullMetadataPath}`;
+      const rawData = await loadSheetFile(contentUrl, daConfig.token);
+      const parsedData = parseSheet(rawData);
+
+      if (parsedData.data && Array.isArray(parsedData.data)) {
+        console.log('[Metadata Manager] ✅ Successfully loaded', parsedData.data.length, 'media items');
+        return parsedData.data;
+      }
+
+      if (parsedData.data && typeof parsedData.data === 'object' && parsedData.data.data && Array.isArray(parsedData.data.data)) {
+        console.log('[Metadata Manager] ✅ Successfully loaded', parsedData.data.data.length, 'media items from nested structure');
+        return parsedData.data.data;
+      }
+
+      console.warn('[Metadata Manager] ⚠️ Unexpected data structure:', parsedData);
+      return [];
+    } catch (error) {
+      console.warn('[Metadata Manager] ℹ️ No existing metadata found or error reading file:', error.message);
+      return [];
     }
   }
 
-  async function updateMetadata(updates) {
+  async function saveMetadata(metadata) {
     try {
-      const currentMetadata = await getMetadata();
+      if (!state.daApi) {
+        throw new Error('DA API not initialized');
+      }
 
-      const updatedMetadata = {
-        ...currentMetadata,
-        ...updates,
-        lastModified: Date.now(),
-      };
+      const daConfig = state.daApi.getConfig();
+      if (!daConfig || !daConfig.baseUrl) {
+        throw new Error('Invalid configuration: baseUrl is missing from DA API');
+      }
 
-      return await saveMetadata(updatedMetadata);
+      await ensureMetadataFolder();
+
+      const mediaArray = metadata || [];
+      const normalizedMediaArray = mediaArray.map((media) => {
+        const normalized = { ...media };
+        if (Array.isArray(media.usedIn)) {
+          const filteredUsedIn = media.usedIn.filter((item) => item && typeof item === 'string' && item.trim().length > 0);
+          normalized.usedIn = Array.from(new Set(filteredUsedIn)).join(',');
+        }
+        return normalized;
+      });
+      const sheetData = buildSingleSheet(normalizedMediaArray);
+      const url = `${daConfig.baseUrl}/source${state.fullMetadataPath}`;
+      await saveSheetFile(url, sheetData, daConfig.token);
+
+      console.log('[Metadata Manager] ✅ Metadata saved successfully:', state.fullMetadataPath);
+
+      // Add small delay to ensure file is fully written before reading
+      await new Promise((resolve) => {
+        setTimeout(resolve, 500);
+      });
+
+      return true;
     } catch (error) {
-      throw new Error(`Failed to update metadata: ${error.message}`);
+      console.error('[Metadata Manager] ❌ Failed to save metadata:', error);
+      throw error;
+    }
+  }
+
+  async function updateMetadata(newMediaItems) {
+    try {
+      const existingMedia = await getMetadata();
+
+      const existingMediaIds = new Set(existingMedia.map((item) => item.id));
+      const newItems = newMediaItems.filter((item) => !existingMediaIds.has(item.id));
+
+      const updatedMedia = [...existingMedia, ...newItems];
+
+      await saveMetadata(updatedMedia);
+      return updatedMedia;
+    } catch (error) {
+      console.error('[Metadata Manager] ❌ Failed to update metadata:', error);
+      throw error;
     }
   }
 
   async function clearMetadata() {
     try {
-      const emptyMetadata = createDefaultMetadata();
-      await saveMetadata(emptyMetadata);
-      return emptyMetadata;
-    } catch (error) {
-      throw new Error(`Failed to clear metadata: ${error.message}`);
-    }
-  }
+      await state.daApi.deleteFile(state.fullMetadataPath);
 
-  function createDefaultMetadata() {
-    return {
-      ':type': 'sheet',
-      ':version': '1.0.0',
-      ':sheets': ['config', 'scans', 'assets', 'statistics'],
-      config: {
-        total: 1,
-        offset: 0,
-        limit: 1,
-        columns: ['version', 'created', 'lastModified', 'lastFullScan', 'scanBatchSize', 'scanDelay'],
-        data: [{
-          version: '1.0.0',
-          created: Date.now(),
-          lastModified: Date.now(),
-          lastFullScan: null,
-          scanBatchSize: 5,
-          scanDelay: 100,
-        }],
-      },
-      scans: {
-        total: 0,
-        offset: 0,
-        limit: 1000,
-        columns: ['path', 'lastModified', 'lastScanned', 'imageCount'],
-        data: [],
-      },
-      assets: {
-        total: 0,
-        offset: 0,
-        limit: 1000,
-        columns: ['id', 'src', 'name', 'type', 'usedIn', 'isExternal'],
-        data: [],
-      },
-      statistics: {
-        total: 3,
-        offset: 0,
-        limit: 3,
-        columns: ['metric', 'value', 'lastUpdated'],
-        data: [
-          {
-            metric: 'totalAssets',
-            value: 0,
-            lastUpdated: Date.now(),
-          },
-          {
-            metric: 'totalScannedFiles',
-            value: 0,
-            lastUpdated: Date.now(),
-          },
-          {
-            metric: 'lastScanDuration',
-            value: 0,
-            lastUpdated: Date.now(),
-          },
-        ],
-      },
-    };
-  }
+      const cacheKey = 'metadata_centralized';
+      state.cache.delete(cacheKey);
 
-  function validateMetadata(metadata) {
-    if (!metadata || typeof metadata !== 'object') {
-      return createDefaultMetadata();
-    }
-
-    return {
-      version: metadata.version || '1.0.0',
-      created: metadata.created || Date.now(),
-      lastModified: Date.now(),
-      lastFullScan: metadata.lastFullScan || null,
-      scannedFiles: metadata.scannedFiles || {},
-      assets: metadata.assets || {},
-      statistics: metadata.statistics || {
-        totalAssets: 0,
-        totalScannedFiles: 0,
-        lastScanDuration: 0,
-      },
-    };
-  }
-
-  function validateAndMigrateMetadata(metadata) {
-    const validatedMetadata = validateMetadata(metadata);
-
-    if (!validatedMetadata.scannedFiles) {
-      validatedMetadata.scannedFiles = {};
-    }
-
-    if (validatedMetadata.assets) {
-      Object.keys(validatedMetadata.assets).forEach((assetId) => {
-        const asset = validatedMetadata.assets[assetId];
-        if (!asset.usedIn || !Array.isArray(asset.usedIn)) {
-          asset.usedIn = [];
-        }
-        if (typeof asset.lastSeen !== 'number') {
-          asset.lastSeen = Date.now();
-        }
-      });
-    }
-
-    return validatedMetadata;
-  }
-
-  async function getAssetStatistics() {
-    const metadata = await getMetadata();
-    const assets = Object.values(metadata.assets || {});
-
-    const statistics = {
-      totalAssets: assets.length,
-      totalScannedFiles: Object.keys(metadata.scannedFiles || {}).length,
-      lastScanDuration: metadata.statistics?.lastScanDuration || 0,
-    };
-
-    const assetsByType = {};
-    let externalAssets = 0;
-    let unusedAssets = 0;
-
-    assets.forEach((asset) => {
-      assetsByType[asset.type] = (assetsByType[asset.type] || 0) + 1;
-
-      if (asset.isExternal) {
-        externalAssets++;
-      }
-
-      if (!asset.usedIn || asset.usedIn.length === 0) {
-        unusedAssets++;
-      }
-    });
-
-    const mostUsedAssets = assets
-      .filter((asset) => asset.usedIn && asset.usedIn.length > 0)
-      .sort((a, b) => b.usedIn.length - a.usedIn.length)
-      .slice(0, 10);
-
-    const recentAssets = assets
-      .filter((asset) => asset.lastSeen && (Date.now() - asset.lastSeen) < (7 * 24 * 60 * 60 * 1000))
-      .sort((a, b) => b.lastSeen - a.lastSeen)
-      .slice(0, 10);
-
-    return {
-      ...statistics,
-      assetsByType,
-      externalAssets,
-      unusedAssets,
-      mostUsedAssets,
-      recentAssets,
-    };
-  }
-
-  async function exportMetadata() {
-    try {
-      const metadata = await getMetadata();
-      const exportData = {
-        ...metadata,
-        exportedAt: Date.now(),
-        exportVersion: '1.0.0',
-      };
-
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: 'application/json',
-      });
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `da-media-metadata-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      return exportData;
-    } catch (error) {
-      throw new Error(`Failed to export metadata: ${error.message}`);
-    }
-  }
-
-  async function importMetadata(file) {
-    try {
-      const content = await readFileAsText(file);
-      const importedData = JSON.parse(content);
-
-      validateImportedData(importedData);
-
-      const cleanedData = {
-        ...importedData,
-        lastModified: Date.now(),
-        imported: true,
-        importedAt: Date.now(),
-      };
-
-      delete cleanedData.exportedAt;
-      delete cleanedData.exportVersion;
-
-      return await saveMetadata(cleanedData);
-    } catch (error) {
-      throw new Error(`Failed to import metadata: ${error.message}`);
-    }
-  }
-
-  function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsText(file);
-    });
-  }
-
-  function validateImportedData(data) {
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid import data: must be a valid JSON object');
-    }
-
-    if (!data.version) {
-      throw new Error('Invalid import data: missing version field');
-    }
-  }
-
-  /**
-   * Clear the cache to force fresh data fetch
-   */
-  function clearCache() {
-    state.cache = null;
-    state.cacheTimestamp = 0;
-  }
-
-  /**
-   * Create metadata file for a document
-   */
-  async function createMetadataFile(documentPath, assets) {
-    const documentMetadataPath = documentPath.replace(/\.html$/, '.json');
-
-    const structure = {
-      data: { data: [{ path: documentPath, assets, lastScanned: Date.now() }] },
-    };
-    const jsonToWrite = DASheetUtilLocal.build(structure);
-
-    try {
-      const url = `${state.daApi.baseUrl}/source${documentMetadataPath}`;
-      const { saveSheetFile } = await import('../modules/sheet-utils.js');
-
-      await saveSheetFile(url, jsonToWrite, state.daApi.token);
+      console.log('[Metadata Manager] ✅ Metadata cleared successfully:', state.fullMetadataPath);
       return true;
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error(`❌ Error creating metadata ${documentMetadataPath}:`, error);
+      console.error('[Metadata Manager] ❌ Failed to clear metadata:', error);
       return false;
     }
   }
 
-  return api;
-}
+  async function getMediaStatistics() {
+    try {
+      const metadata = await getMetadata();
+      return metadata.statistics || {
+        images: 0,
+        videos: 0,
+        documents: 0,
+        external: 0,
+        internal: 0,
+      };
+    } catch (error) {
+      console.error('[Metadata Manager] ❌ Failed to get media statistics:', error);
+      return {
+        images: 0,
+        videos: 0,
+        documents: 0,
+        external: 0,
+        internal: 0,
+      };
+    }
+  }
 
-export { createMetadataManager };
+  async function exportMetadata(format = 'json') {
+    try {
+      const metadata = await getMetadata();
+
+      if (format === 'csv') {
+        return exportToCSV(metadata);
+      }
+
+      return JSON.stringify(metadata, null, 2);
+    } catch (error) {
+      console.error('[Metadata Manager] ❌ Failed to export metadata:', error);
+      throw error;
+    }
+  }
+
+  function exportToCSV(metadata) {
+    const headers = ['id', 'src', 'alt', 'title', 'type', 'displayName', 'discoveredAt'];
+    const rows = metadata.map((item) => [
+      item.id,
+      item.src,
+      item.alt,
+      item.title,
+      item.type,
+      item.displayName,
+      item.discoveredAt,
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell || ''}"`).join(','))
+      .join('\n');
+
+    return csvContent;
+  }
+
+  async function importMetadata(fileContent) {
+    try {
+      const data = JSON.parse(fileContent);
+      const validatedData = validateImportedData(data);
+
+      await saveMetadata(validatedData);
+      return validatedData;
+    } catch (error) {
+      console.error('[Metadata Manager] ❌ Failed to import metadata:', error);
+      throw error;
+    }
+  }
+
+  function validateImportedData(data) {
+    if (!validateMetadata(data)) {
+      throw new Error('Invalid metadata format');
+    }
+
+    const validatedData = {
+      media: data.map((item) => ({
+        id: item.id || generateId(),
+        src: item.src || '',
+        alt: item.alt || '',
+        title: item.title || '',
+        type: item.type || 'unknown',
+        displayName: item.displayName || '',
+
+        discoveredAt: item.discoveredAt || new Date().toISOString(),
+        metadata: item.metadata || {},
+      })),
+      totalMedia: data.media.length,
+      createdAt: data.createdAt || new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+    };
+
+    return validatedData;
+  }
+
+  function generateId() {
+    const part1 = Math.random().toString(36).substring(2, 15);
+    const part2 = Math.random().toString(36).substring(2, 15);
+    return `${part1}${part2}`;
+  }
+
+  async function createMetadataFile() {
+    try {
+      const defaultMetadata = [];
+      await saveMetadata(defaultMetadata);
+      return defaultMetadata;
+    } catch (error) {
+      console.error('[Metadata Manager] ❌ Failed to create metadata file:', error);
+      throw error;
+    }
+  }
+
+  function clearCache() {
+    state.cache.clear();
+    console.log('[Metadata Manager] 🗑️ Cache cleared');
+  }
+
+  return {
+    init,
+    getMetadata,
+    saveMetadata,
+    updateMetadata,
+    clearMetadata,
+    getMediaStatistics,
+    exportMetadata,
+    importMetadata,
+    createMetadataFile,
+    clearCache,
+  };
+}

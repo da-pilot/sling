@@ -1,35 +1,79 @@
-/* eslint-disable no-cond-assign */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
 /* eslint-disable no-use-before-define */
 /**
- * Media Scan Worker - Processes pages from queue to extract media assets
+ * Media Scan Worker - Processes pages from queue to extract media media
  * Works with document discovery worker for queue-based scanning
  */
 
-import { createWorkerDaApi, createWorkerSheetUtils, createWorkerStateManager } from '../services/worker-utils.js';
+import { createWorkerDaApi } from '../services/worker-utils.js';
+import {
+  isValidAltText,
+  normalizeMediaSrc,
+  isValidMediaSrc,
+  isExternalMedia,
+  isMediaFile,
+  determineMediaType,
+  generateOccurrenceId,
+  getContextualText,
+} from '../services/media-worker-utils.js';
+
+const HTML_PATTERNS = {
+  IMG_TAG: /<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi,
+  PICTURE_TAG: /<picture[^>]*>.*?<\/picture>/gis,
+  VIDEO_TAG: /<video[^>]*>([\s\S]*?)<\/video>/gi,
+  SOURCE_TAG: /<source[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi,
+  LINK_TAG: /<a[^>]+href\s*=\s*["']([^"']+)["'][^>]*>/gi,
+  STYLE_TAG: /<style[^>]*>([\s\S]*?)<\/style>/gi,
+};
+
+const ATTRIBUTE_PATTERNS = {
+  ALT: /alt\s*=\s*["']([^"']*)["']/i,
+  TITLE: /title\s*=\s*["']([^"']*)["']/i,
+  ARIA_LABEL: /aria-label\s*=\s*["']([^"']*)["']/i,
+  WIDTH: /width\s*=\s*["']?(\d+)["']?/i,
+  HEIGHT: /height\s*=\s*["']?(\d+)["']?/i,
+  SRCSET: /srcset\s*=\s*["']([^"']+)["']/i,
+  TYPE: /type\s*=\s*["']([^"']*)["']/i,
+  MEDIA: /media\s*=\s*["']([^"']*)["']/i,
+};
+
+const CSS_PATTERNS = {
+  INLINE_STYLE: /style\s*=\s*["']([^"']*background[^"']*)["']/gi,
+  URL_FUNCTION: /url\(['"]?([^'")\s]+)['"]?\)/gi,
+  BACKGROUND_IMAGE: /background(?:-image)?\s*:\s*url\(['"]?([^'")\s]+)['"]?\)/gi,
+  SRCSET_PARSE: /([^\s,]+)(?:\s+(\d+w|\d+\.?\d*x))?/g,
+};
+
+const CONTEXT_PATTERNS = {
+  BEFORE_ELEMENTS: /<([^>]+)>([^<]{10,})[^<]*$/,
+  AFTER_ELEMENTS: /^[^<]*([^<]{15,})</,
+  TEXT_MATCHES: />([^<]{15,})</g,
+  WHITESPACE: /\s+/g,
+};
 
 const state = {
   config: null,
   daApi: null,
   sheetUtils: null,
-  stateManager: null,
   isRunning: false,
   isProcessing: false,
+  isWaitingForDiscovery: false,
   batchSize: 10,
   processingInterval: 1000,
+  discoveryWaitInterval: 10000,
+  mediaJsonInitialized: false,
   stats: {
     processedPages: 0,
-    totalAssets: 0,
+    totalMedia: 0,
     errors: 0,
   },
 };
 
 let config = null;
 let daApi = null;
-const sheetUtils = createWorkerSheetUtils();
-const stateManager = createWorkerStateManager();
+
+/**
+ * Generate hash for occurrence ID
+ */
 
 /**
  * Initialize worker with configuration
@@ -62,27 +106,6 @@ async function init(workerConfig) {
 /**
  * Validate if alt text is meaningful and not a URL or file path
  */
-function isValidAltText(altText) {
-  if (!altText || typeof altText !== 'string') return false;
-
-  const trimmed = altText.trim();
-
-  if (trimmed.length < 2) return false;
-
-  if (trimmed.length > 200) return false;
-
-  if (trimmed.includes('\n') || trimmed.includes('\r')) return false;
-
-  if (/\s{3,}/.test(trimmed)) return false;
-
-  if (/<[^>]*>/.test(trimmed)) return false;
-
-  if (/https?:\/\/|www\./.test(trimmed)) return false;
-
-  if (/\.(jpg|jpeg|png|gif|svg|webp|pdf|doc|docx|txt)$/i.test(trimmed)) return false;
-
-  return true;
-}
 
 /**
  * Start processing pages from queue
@@ -138,7 +161,7 @@ async function processBatch(pages) {
   state.isProcessing = true;
 
   try {
-    const scanPromises = pages.map((page) => scanPageForAssets(page));
+    const scanPromises = pages.map((page) => scanPageForMedia(page));
     await Promise.all(scanPromises);
 
     postMessage({
@@ -151,23 +174,35 @@ async function processBatch(pages) {
 }
 
 /**
- * Scan a single page for assets
+ * Scan a single page for media
  */
-async function scanPageForAssets(page) {
+async function scanPageForMedia(page) {
   const startTime = Date.now();
 
   try {
     const html = await getPageContent(page.path);
-    const assets = extractAssetsFromHTML(html, page.path);
+    const media = await extractMediaFromHTML(html, page.path);
     const scanTime = Date.now() - startTime;
+
+    // Process media immediately for progressive loading
+    if (media.length > 0) {
+      // Send media to main thread for processing
+      postMessage({
+        type: 'mediaDiscovered',
+        data: {
+          media,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
 
     postMessage({
       type: 'pageScanned',
       data: {
         page: page?.path || '',
-        assets,
+        media,
         scanTime,
-        assetCount: assets.length,
+        mediaCount: media.length,
         lastModified: page?.lastModified || null,
         sourceFile: page?.sourceFile || null,
         file: {
@@ -197,6 +232,12 @@ async function scanPageForAssets(page) {
         page: page?.path || '',
         error: error?.message || 'unknown error',
         retryCount: page?.retryCount || 0,
+        sourceFile: page?.sourceFile || null,
+        file: {
+          org: config?.org || 'unknown',
+          repo: config?.repo || 'unknown',
+          path: page?.path || '',
+        },
       },
     });
   }
@@ -212,571 +253,429 @@ async function getPageContent(path) {
   return daApi.fetchPageContent(path);
 }
 
-/**
- * Extract assets from HTML content
- */
-function extractAssetsFromHTML(html, sourcePath) {
-  const assets = [];
-
-  extractImgTags(html, assets, sourcePath);
-  extractPictureImages(html, assets, sourcePath);
-  extractPictureSources(html, assets, sourcePath);
-  extractBackgroundImages(html, assets, sourcePath);
-  extractVideoSources(html, assets, sourcePath);
-  extractMediaLinks(html, assets, sourcePath);
-  extractCSSBackgrounds(html, assets, sourcePath);
-
-  const deduplicated = deduplicateAssets(assets);
-  return deduplicated;
+async function extractMediaFromHTML(html, sourcePath) {
+  const mediaMap = new Map();
+  await extractImgTags(html, mediaMap, sourcePath);
+  await extractPictureImages(html, mediaMap, sourcePath);
+  extractBackgroundImages(html, mediaMap, sourcePath);
+  extractVideoSources(html, mediaMap, sourcePath);
+  await extractMediaLinks(html, mediaMap, sourcePath);
+  extractCSSBackgrounds(html, mediaMap, sourcePath);
+  return Array.from(mediaMap.values());
 }
 
-/**
- * Extract img tags using regex
- */
-function extractImgTags(html, assets, sourcePath) {
-  const imgRegex = /<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi;
-  let match;
+async function extractImgTags(html, mediaMap, sourcePath) {
   let occurrenceIndex = 0;
-
-  while ((match = imgRegex.exec(html)) !== null) {
+  const matches = Array.from(html.matchAll(HTML_PATTERNS.IMG_TAG));
+  await Promise.all(matches.map(async (match) => {
     const src = match[1];
     if (src && isValidMediaSrc(src)) {
       const imgTag = match[0];
-      const altMatch = imgTag.match(/alt\s*=\s*["']([^"']*)["']/i);
-      const widthMatch = imgTag.match(/width\s*=\s*["']?(\d+)["']?/i);
-      const heightMatch = imgTag.match(/height\s*=\s*["']?(\d+)["']?/i);
-      const srcsetMatch = imgTag.match(/srcset\s*=\s*["']([^"']+)["']/i);
-
+      const altMatch = imgTag.match(ATTRIBUTE_PATTERNS.ALT);
+      const titleMatch = imgTag.match(ATTRIBUTE_PATTERNS.TITLE);
+      const ariaLabelMatch = imgTag.match(ATTRIBUTE_PATTERNS.ARIA_LABEL);
+      const widthMatch = imgTag.match(ATTRIBUTE_PATTERNS.WIDTH);
+      const heightMatch = imgTag.match(ATTRIBUTE_PATTERNS.HEIGHT);
+      const srcsetMatch = imgTag.match(ATTRIBUTE_PATTERNS.SRCSET);
       const altText = altMatch ? altMatch[1] : '';
+      const titleText = titleMatch ? titleMatch[1] : '';
+      const ariaLabelText = ariaLabelMatch ? ariaLabelMatch[1] : '';
       const hasAltText = isValidAltText(altText);
-
-      assets.push({
-        src: normalizeAssetSrc(src),
-        alt: altText,
-        type: 'image',
-        usedIn: [sourcePath],
-        dimensions: {
-          width: widthMatch ? parseInt(widthMatch[1], 10) : null,
-          height: heightMatch ? parseInt(heightMatch[1], 10) : null,
-        },
-        context: 'img-tag',
-        occurrenceId: `${sourcePath}-img-${occurrenceIndex++}`,
+      const normalizedSrc = normalizeMediaSrc(src);
+      const occurrenceId = await generateOccurrenceId(sourcePath, normalizedSrc, occurrenceIndex);
+      const occurrence = {
+        occurrenceId,
+        pagePath: sourcePath,
+        altText,
         hasAltText,
         occurrenceType: 'image',
         contextualText: getContextualText(html, match.index),
-      });
-
-      if (srcsetMatch) {
-        const srcsetAssets = parseSrcset(srcsetMatch[1], sourcePath);
-        assets.push(...srcsetAssets);
-      }
-    }
-  }
-}
-
-/**
- * Extract images from picture elements
- */
-function extractPictureImages(html, assets, sourcePath) {
-  const pictureRegex = /<picture[^>]*>.*?<\/picture>/gis;
-  let pictureMatch;
-  let occurrenceIndex = 0;
-
-  while ((pictureMatch = pictureRegex.exec(html)) !== null) {
-    const pictureContent = pictureMatch[0];
-
-    const imgMatch = pictureContent.match(/<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/i);
-
-    if (imgMatch) {
-      const src = imgMatch[1];
-      if (src && isValidMediaSrc(src)) {
-        const imgTag = imgMatch[0];
-        const altMatch = imgTag.match(/alt\s*=\s*["']([^"']*)["']/i);
-        const widthMatch = imgTag.match(/width\s*=\s*["']?(\d+)["']?/i);
-        const heightMatch = imgTag.match(/height\s*=\s*["']?(\d+)["']?/i);
-
-        const altText = altMatch ? altMatch[1] : '';
-        const hasAltText = isValidAltText(altText);
-
-        assets.push({
-          src: normalizeAssetSrc(src),
+        context: 'img-tag',
+      };
+      if (mediaMap.has(normalizedSrc)) {
+        const existing = mediaMap.get(normalizedSrc);
+        existing.occurrences.push(occurrence);
+        existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+      } else {
+        mediaMap.set(normalizedSrc, {
+          src: normalizedSrc,
           alt: altText,
+          title: titleText,
+          ariaLabel: ariaLabelText,
           type: 'image',
           usedIn: [sourcePath],
           dimensions: {
             width: widthMatch ? parseInt(widthMatch[1], 10) : null,
             height: heightMatch ? parseInt(heightMatch[1], 10) : null,
           },
-          context: 'picture-img',
-          occurrenceId: `${sourcePath}-picture-img-${occurrenceIndex++}`,
+          context: 'img-tag',
+          occurrences: [occurrence],
+        });
+      }
+      occurrenceIndex += 1;
+      if (srcsetMatch) {
+        const srcsetMedia = parseSrcset(srcsetMatch[1], sourcePath);
+        srcsetMedia.forEach((item) => {
+          if (mediaMap.has(item.src)) {
+            const existing = mediaMap.get(item.src);
+            existing.occurrences.push(item.occurrences[0]);
+            existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+          } else {
+            mediaMap.set(item.src, item);
+          }
+        });
+      }
+    }
+  }));
+}
+
+async function extractPictureImages(html, mediaMap, sourcePath) {
+  let occurrenceIndex = 0;
+  const matches = Array.from(html.matchAll(HTML_PATTERNS.PICTURE_TAG));
+  await Promise.all(matches.map(async (match) => {
+    const pictureContent = match[0];
+    const imgMatch = pictureContent.match(HTML_PATTERNS.IMG_TAG);
+    if (imgMatch) {
+      const src = imgMatch[1];
+      if (src && isValidMediaSrc(src)) {
+        const imgTag = imgMatch[0];
+        const altMatch = imgTag.match(ATTRIBUTE_PATTERNS.ALT);
+        const titleMatch = imgTag.match(ATTRIBUTE_PATTERNS.TITLE);
+        const ariaLabelMatch = imgTag.match(ATTRIBUTE_PATTERNS.ARIA_LABEL);
+        const widthMatch = imgTag.match(ATTRIBUTE_PATTERNS.WIDTH);
+        const heightMatch = imgTag.match(ATTRIBUTE_PATTERNS.HEIGHT);
+        const altText = altMatch ? altMatch[1] : '';
+        const titleText = titleMatch ? titleMatch[1] : '';
+        const ariaLabelText = ariaLabelMatch ? ariaLabelMatch[1] : '';
+        const hasAltText = isValidAltText(altText);
+        const normalizedSrc = normalizeMediaSrc(src);
+        const occurrenceId = await generateOccurrenceId(sourcePath, normalizedSrc, occurrenceIndex);
+        const occurrence = {
+          occurrenceId,
+          pagePath: sourcePath,
+          altText,
           hasAltText,
           occurrenceType: 'image',
-          contextualText: getContextualText(html, pictureMatch.index),
-        });
+          contextualText: getContextualText(html, match.index),
+          context: 'picture',
+        };
+        if (mediaMap.has(normalizedSrc)) {
+          const existing = mediaMap.get(normalizedSrc);
+          existing.occurrences.push(occurrence);
+          existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+        } else {
+          mediaMap.set(normalizedSrc, {
+            src: normalizedSrc,
+            alt: altText,
+            title: titleText,
+            ariaLabel: ariaLabelText,
+            type: 'image',
+            usedIn: [sourcePath],
+            dimensions: {
+              width: widthMatch ? parseInt(widthMatch[1], 10) : null,
+              height: heightMatch ? parseInt(heightMatch[1], 10) : null,
+            },
+            context: 'picture',
+            occurrences: [occurrence],
+          });
+        }
+        occurrenceIndex += 1;
       }
     }
-  }
+  }));
 }
 
-/**
- * Extract picture sources using regex
- */
-function extractPictureSources(html, assets, sourcePath) {
-  const sourceRegex = /<source[^>]+srcset\s*=\s*["']([^"']+)["'][^>]*>/gi;
-  let match;
-
-  while ((match = sourceRegex.exec(html)) !== null) {
-    const srcset = match[1];
-    if (srcset) {
-      const srcsetAssets = parseSrcset(srcset, sourcePath);
-      assets.push(...srcsetAssets);
-    }
+function extractBackgroundImages(html, mediaMap, sourcePath) {
+  const styleMatches = [];
+  let styleMatch;
+  styleMatch = HTML_PATTERNS.STYLE_TAG.exec(html);
+  while (styleMatch !== null) {
+    styleMatches.push(styleMatch);
+    styleMatch = HTML_PATTERNS.STYLE_TAG.exec(html);
   }
+  styleMatches.forEach((match) => {
+    const styleContent = match[1];
+    extractBgImagesFromStyle(styleContent, mediaMap, sourcePath);
+  });
+  const inlineMatches = [];
+  let inlineMatch;
+  inlineMatch = CSS_PATTERNS.INLINE_STYLE.exec(html);
+  while (inlineMatch !== null) {
+    inlineMatches.push(inlineMatch);
+    inlineMatch = CSS_PATTERNS.INLINE_STYLE.exec(html);
+  }
+  inlineMatches.forEach((match) => {
+    const inlineStyle = match[1];
+    extractBgImagesFromStyle(inlineStyle, mediaMap, sourcePath);
+  });
 }
 
-/**
- * Extract background images from style attributes using regex
- */
-function extractBackgroundImages(html, assets, sourcePath) {
-  const styleRegex = /<[^>]+style\s*=\s*["'][^"']*background[^"']*["'][^>]*>/gi;
-  let match;
-
-  while ((match = styleRegex.exec(html)) !== null) {
-    const element = match[0];
-    const styleMatch = element.match(/style\s*=\s*["']([^"']+)["']/i);
-
-    if (styleMatch) {
-      const style = styleMatch[1];
-      const bgAssets = extractBgImagesFromStyle(style, sourcePath);
-      assets.push(...bgAssets);
-    }
-  }
-}
-
-/**
- * Extract video sources using regex
- */
-function extractVideoSources(html, assets, sourcePath) {
-  const videoRegex = /<video[^>]*>.*?<\/video>/gis;
+function extractVideoSources(html, mediaMap, sourcePath) {
   let videoMatch;
-
-  while ((videoMatch = videoRegex.exec(html)) !== null) {
-    const videoTag = videoMatch[0];
-
-    const posterMatch = videoTag.match(/poster\s*=\s*["']([^"']+)["']/i);
-    if (posterMatch && isMediaUrl(posterMatch[1])) {
-      assets.push({
-        src: normalizeAssetSrc(posterMatch[1]),
-        alt: '',
-        type: 'image',
-        usedIn: [sourcePath],
-        dimensions: {},
-        context: 'video-poster',
-      });
-    }
-
-    const srcMatch = videoTag.match(/src\s*=\s*["']([^"']+)["']/i);
-    if (srcMatch && isMediaUrl(srcMatch[1])) {
-      assets.push({
-        src: normalizeAssetSrc(srcMatch[1]),
-        alt: '',
-        type: 'video',
-        usedIn: [sourcePath],
-        dimensions: {},
-        context: 'video-src',
-      });
-    }
-
-    const sourceRegex = /<source[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi;
+  let occurrenceIndex = 0;
+  videoMatch = HTML_PATTERNS.VIDEO_TAG.exec(html);
+  while (videoMatch !== null) {
+    const videoContent = videoMatch[0];
     let sourceMatch;
-    while ((sourceMatch = sourceRegex.exec(videoTag)) !== null) {
+    sourceMatch = HTML_PATTERNS.SOURCE_TAG.exec(videoContent);
+    while (sourceMatch !== null) {
       const src = sourceMatch[1];
-      if (isMediaUrl(src)) {
-        assets.push({
-          src: normalizeAssetSrc(src),
-          alt: '',
-          type: 'video',
-          usedIn: [sourcePath],
-          dimensions: {},
+      if (src && isValidMediaSrc(src)) {
+        const sourceTag = sourceMatch[0];
+        const typeMatch = sourceTag.match(ATTRIBUTE_PATTERNS.TYPE);
+        const mediaMatch = sourceTag.match(ATTRIBUTE_PATTERNS.MEDIA);
+        const normalizedSrc = normalizeMediaSrc(src);
+        const occurrenceId = generateOccurrenceId(sourcePath, normalizedSrc, occurrenceIndex);
+        const occurrence = {
+          occurrenceId,
+          pagePath: sourcePath,
+          altText: '',
+          hasAltText: false,
+          occurrenceType: 'video',
+          contextualText: getContextualText(html, videoMatch.index),
           context: 'video-source',
-        });
+        };
+        if (mediaMap.has(normalizedSrc)) {
+          const existing = mediaMap.get(normalizedSrc);
+          existing.occurrences.push(occurrence);
+          existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+        } else {
+          mediaMap.set(normalizedSrc, {
+            src: normalizedSrc,
+            alt: '',
+            title: '',
+            type: 'video',
+            usedIn: [sourcePath],
+            dimensions: {
+              width: null,
+              height: null,
+            },
+            context: 'video-source',
+            occurrences: [occurrence],
+            metadata: {
+              type: typeMatch ? typeMatch[1] : null,
+              media: mediaMatch ? mediaMatch[1] : null,
+            },
+          });
+        }
+        occurrenceIndex += 1;
       }
+      sourceMatch = HTML_PATTERNS.SOURCE_TAG.exec(videoContent);
     }
+    videoMatch = HTML_PATTERNS.VIDEO_TAG.exec(html);
   }
 }
 
-/**
- * Extract media links using regex
- */
-function extractMediaLinks(html, assets, sourcePath) {
-  const linkRegex = /<a[^>]*href\s*=\s*["']([^"']+)["'][^>]*>/gi;
+async function extractMediaLinks(html, mediaMap, sourcePath) {
+  let occurrenceIndex = 0;
+  const matches = Array.from(html.matchAll(HTML_PATTERNS.LINK_TAG));
+  await Promise.all(matches.map(async (match) => {
+    const href = match[1];
+    if (href && isMediaFile(href)) {
+      const linkTag = match[0];
+      const titleMatch = linkTag.match(ATTRIBUTE_PATTERNS.TITLE);
+      const ariaLabelMatch = linkTag.match(ATTRIBUTE_PATTERNS.ARIA_LABEL);
+      const titleText = titleMatch ? titleMatch[1] : '';
+      const ariaLabelText = ariaLabelMatch ? ariaLabelMatch[1] : '';
+      const hasAltText = isValidAltText(titleText) || isValidAltText(ariaLabelText);
+      const normalizedSrc = normalizeMediaSrc(href);
+      const occurrenceId = await generateOccurrenceId(sourcePath, normalizedSrc, occurrenceIndex);
+      const isExternal = isExternalMedia(href, config.org, config.repo);
+      const occurrence = {
+        occurrenceId,
+        pagePath: sourcePath,
+        altText: titleText || ariaLabelText,
+        hasAltText,
+        occurrenceType: 'link',
+        contextualText: getContextualTextForLink(html, match.index, match.index + linkTag.length),
+        context: isExternal ? 'external-link' : 'internal-link',
+      };
+      if (mediaMap.has(normalizedSrc)) {
+        const existing = mediaMap.get(normalizedSrc);
+        existing.occurrences.push(occurrence);
+        existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+      } else {
+        mediaMap.set(normalizedSrc, {
+          src: normalizedSrc,
+          alt: titleText || ariaLabelText,
+          title: titleText,
+          ariaLabel: ariaLabelText,
+          type: determineMediaType(href),
+          usedIn: [sourcePath],
+          dimensions: {
+            width: null,
+            height: null,
+          },
+          context: isExternal ? 'external-link' : 'internal-link',
+          occurrences: [occurrence],
+          isExternal,
+        });
+      }
+      occurrenceIndex += 1;
+    }
+  }));
+}
+
+function extractCSSBackgrounds(html, mediaMap, sourcePath) {
+  let cssMatch;
+  let occurrenceIndex = 0;
+  cssMatch = CSS_PATTERNS.URL_FUNCTION.exec(html);
+  while (cssMatch !== null) {
+    const url = cssMatch[1];
+    if (url && isMediaFile(url)) {
+      const normalizedSrc = normalizeMediaSrc(url);
+      const occurrenceId = generateOccurrenceId(sourcePath, normalizedSrc, occurrenceIndex);
+      const occurrence = {
+        occurrenceId,
+        pagePath: sourcePath,
+        altText: '',
+        hasAltText: false,
+        occurrenceType: 'background',
+        contextualText: getContextualText(html, cssMatch.index),
+        context: 'css-background',
+      };
+      if (mediaMap.has(normalizedSrc)) {
+        const existing = mediaMap.get(normalizedSrc);
+        existing.occurrences.push(occurrence);
+        existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+      } else {
+        mediaMap.set(normalizedSrc, {
+          src: normalizedSrc,
+          alt: '',
+          title: '',
+          type: determineMediaType(url),
+          usedIn: [sourcePath],
+          dimensions: {
+            width: null,
+            height: null,
+          },
+          context: 'css-background',
+          occurrences: [occurrence],
+        });
+      }
+      occurrenceIndex += 1;
+    }
+    cssMatch = CSS_PATTERNS.URL_FUNCTION.exec(html);
+  }
+}
+
+function extractBgImagesFromStyle(style, mediaMap, sourcePath) {
+  let bgMatch;
+  let occurrenceIndex = 0;
+  bgMatch = CSS_PATTERNS.BACKGROUND_IMAGE.exec(style);
+  while (bgMatch !== null) {
+    const url = bgMatch[1];
+    if (url && isMediaFile(url)) {
+      const normalizedSrc = normalizeMediaSrc(url);
+      const occurrenceId = generateOccurrenceId(sourcePath, normalizedSrc, occurrenceIndex);
+      const occurrence = {
+        occurrenceId,
+        pagePath: sourcePath,
+        altText: '',
+        hasAltText: false,
+        occurrenceType: 'background',
+        contextualText: 'CSS background image',
+        context: 'css-background',
+      };
+      if (mediaMap.has(normalizedSrc)) {
+        const existing = mediaMap.get(normalizedSrc);
+        existing.occurrences.push(occurrence);
+        existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+      } else {
+        mediaMap.set(normalizedSrc, {
+          src: normalizedSrc,
+          alt: '',
+          title: '',
+          type: determineMediaType(url),
+          usedIn: [sourcePath],
+          dimensions: {
+            width: null,
+            height: null,
+          },
+          context: 'css-background',
+          occurrences: [occurrence],
+        });
+      }
+      occurrenceIndex += 1;
+    }
+    bgMatch = CSS_PATTERNS.BACKGROUND_IMAGE.exec(style);
+  }
+}
+
+function parseSrcset(srcset, sourcePath) {
+  const mediaItems = [];
   let match;
   let occurrenceIndex = 0;
-
-  while ((match = linkRegex.exec(html)) !== null) {
-    const href = match[1];
-
-    if (href && isMediaUrl(href)) {
-      const titleMatch = match[0].match(/title\s*=\s*["']([^"']*)["']/i);
-      const title = titleMatch ? titleMatch[1] : '';
-
-      const fullMatch = match[0];
-      const linkStart = match.index + fullMatch.length;
-      const linkEnd = html.indexOf('</a>', linkStart);
-      const linkText = linkEnd > linkStart ? html.substring(linkStart, linkEnd).trim() : '';
-
-      const isExternal = isExternalAsset(href);
-
-      const hasTitle = isValidAltText(title);
-      const hasLinkText = isValidAltText(linkText);
-
-      const contextualText = getContextualTextForLink(html, match.index, linkEnd);
-
-      assets.push({
-        src: href,
-        alt: title || linkText || '',
-        type: determineAssetTypeFromUrl(href),
-        usedIn: [sourcePath],
-        dimensions: {},
-        context: isExternal ? 'external-link' : 'media-link',
-        isExternal,
-        originalHref: href,
-        occurrenceId: `${sourcePath}-link-${occurrenceIndex++}`,
-        hasAltText: hasTitle || hasLinkText,
-        occurrenceType: 'link',
-        contextualText,
-      });
-    }
-  }
-}
-
-/**
- * Determine asset type from URL
- */
-function determineAssetTypeFromUrl(url) {
-  const lowerUrl = url.toLowerCase();
-
-  if (lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/)) {
-    return 'image';
-  }
-
-  if (lowerUrl.match(/\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv)$/)) {
-    return 'video';
-  }
-
-  if (lowerUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf|odt|ods|odp)$/)) {
-    return 'document';
-  }
-
-  return 'image';
-}
-
-/**
- * Extract CSS backgrounds from style elements using regex
- */
-function extractCSSBackgrounds(html, assets, sourcePath) {
-  const styleRegex = /<style[^>]*>(.*?)<\/style>/gis;
-  let match;
-
-  while ((match = styleRegex.exec(html)) !== null) {
-    const cssText = match[1];
-    if (cssText) {
-      const bgAssets = extractBgImagesFromCSS(cssText, sourcePath);
-      assets.push(...bgAssets);
-    }
-  }
-}
-
-/**
- * Extract background images from style attribute
- */
-function extractBgImagesFromStyle(style, sourcePath) {
-  const bgImageRegex = /background(?:-image)?:\s*url\(['"]?([^'")]+)['"]?\)/gi;
-  const assets = [];
-  let match;
-
-  while ((match = bgImageRegex.exec(style)) !== null) {
+  match = CSS_PATTERNS.SRCSET_PARSE.exec(srcset);
+  while (match !== null) {
     const src = match[1];
-    if (isValidMediaSrc(src)) {
-      assets.push({
-        src: normalizeAssetSrc(src),
+    const descriptor = match[2];
+    if (src && isValidMediaSrc(src)) {
+      const normalizedSrc = normalizeMediaSrc(src);
+      const occurrenceId = generateOccurrenceId(sourcePath, normalizedSrc, occurrenceIndex);
+      const occurrence = {
+        occurrenceId,
+        pagePath: sourcePath,
+        altText: '',
+        hasAltText: false,
+        occurrenceType: 'image',
+        contextualText: 'Responsive image source',
+        context: 'srcset',
+      };
+      mediaItems.push({
+        src: normalizedSrc,
         alt: '',
+        title: '',
         type: 'image',
         usedIn: [sourcePath],
-        dimensions: {},
-        context: 'bg-style',
+        dimensions: {
+          width: null,
+          height: null,
+        },
+        context: 'srcset',
+        occurrences: [occurrence],
+        metadata: {
+          descriptor,
+        },
       });
+      occurrenceIndex += 1;
     }
+    match = CSS_PATTERNS.SRCSET_PARSE.exec(srcset);
   }
-
-  return assets;
+  return mediaItems;
 }
 
-/**
- * Extract background images from CSS text
- */
-function extractBgImagesFromCSS(cssText, sourcePath) {
-  const bgImageRegex = /background(?:-image)?:\s*url\(['"]?([^'")]+)['"]?\)/gi;
-  const assets = [];
-  let match;
-
-  while ((match = bgImageRegex.exec(cssText)) !== null) {
-    const src = match[1];
-    if (isValidMediaSrc(src)) {
-      assets.push({
-        src: normalizeAssetSrc(src),
-        alt: '',
-        type: 'image',
-        usedIn: [sourcePath],
-        dimensions: {},
-        context: 'bg-css',
-      });
-    }
-  }
-
-  return assets;
-}
-
-/**
- * Normalize asset source URL
- */
-function normalizeAssetSrc(src) {
-  if (!src) return '';
-
-  if (src.startsWith('/')) {
-    return src;
-  } if (src.startsWith('./')) {
-    return src.substring(1);
-  } if (!src.startsWith('http')) {
-    return `/${src}`;
-  }
-
-  return src;
-}
-
-/**
- * Check if source is valid media
- */
-function isValidMediaSrc(src) {
-  return src
-         && typeof src === 'string'
-         && src.trim() !== ''
-         && !src.startsWith('data:')
-         && !src.startsWith('#');
-}
-
-/**
- * Check if URL is media
- */
-function isMediaUrl(url) {
-  if (!url || typeof url !== 'string') return false;
-
-  const imageExts = 'jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico';
-  const videoExts = 'mp4|webm|ogg|avi|mov|wmv|flv';
-  const docExts = 'pdf|doc|docx|xls|xlsx|ppt|pptx';
-  const mediaExtensions = new RegExp(`\\.(${imageExts}|${videoExts}|${docExts})`, 'i');
-
-  if (mediaExtensions.test(url)) return true;
-
-  const imageServicePatterns = [
-    /scene7\.com.*\/is\/image/i,
-    /cloudinary\.com/i,
-    /imagekit\.io/i,
-    /cdn\.shopify\.com/i,
-    /images\.unsplash\.com/i,
-    /amazonaws\.com.*\.(png|jpg|jpeg|gif|webp)/i,
-  ];
-
-  return imageServicePatterns.some((pattern) => pattern.test(url));
-}
-
-/**
- * Check if asset is external
- */
-function isExternalAsset(src) {
-  if (!src) return false;
-
-  try {
-    const url = new URL(src);
-    const { hostname } = url;
-
-    const externalPatterns = [
-      'scene7.com', 'akamai.net', 'cloudfront.net', 's3.amazonaws.com',
-      'cdn.', 'static.', 'media.', 'sling.com', 'dish.com',
-    ];
-
-    return externalPatterns.some((pattern) => hostname.includes(pattern));
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Parse srcset attribute
- */
-function parseSrcset(srcset, sourcePath) {
-  return srcset.split(',')
-    .map((src) => src.trim().split(/\s+/)[0])
-    .filter((src) => src && isValidMediaSrc(src))
-    .map((src) => ({
-      src: normalizeAssetSrc(src),
-      alt: '',
-      type: 'image',
-      usedIn: [sourcePath],
-      dimensions: {},
-      context: 'srcset',
-    }));
-}
-
-/**
- * Get contextual text around HTML index
- */
-function getContextualText(html, index, maxLength = 200) {
-  const beforeText = html.substring(Math.max(0, index - maxLength), index);
-  const afterText = html.substring(index, Math.min(html.length, index + maxLength));
-
-  let contextualText = '';
-
-  const beforeElements = beforeText.match(/<([^>]+)>([^<]{10,})[^<]*<\/\1>/g);
-  if (beforeElements && beforeElements.length > 0) {
-    const lastElement = beforeElements[beforeElements.length - 1];
-    const textMatch = lastElement.match(/>([^<]{10,})[^<]*</);
-    if (textMatch && textMatch[1]) {
-      contextualText = textMatch[1].trim();
-    }
-  }
-
-  if (!contextualText) {
-    const afterElements = afterText.match(/<([^>]+)>([^<]{10,})[^<]*<\/\1>/g);
-    if (afterElements && afterElements.length > 0) {
-      const firstElement = afterElements[0];
-      const textMatch = firstElement.match(/>([^<]{10,})[^<]*</);
-      if (textMatch && textMatch[1]) {
-        contextualText = textMatch[1].trim();
-      }
-    }
-  }
-
-  if (!contextualText) {
-    const beforeMatch = beforeText.match(/>([^<]{10,})[^<]*$/);
-    const afterMatch = afterText.match(/^[^<]*([^<]{10,})</);
-
-    if (beforeMatch && beforeMatch[1]) {
-      contextualText = beforeMatch[1].trim();
-    } else if (afterMatch && afterMatch[1]) {
-      contextualText = afterMatch[1].trim();
-    }
-  }
-
-  contextualText = contextualText.replace(/\s+/g, ' ').trim();
-  if (contextualText.length > 80) {
-    contextualText = `${contextualText.substring(0, 80)}...`;
-  }
-
-  return contextualText || 'No contextual text found';
-}
-
-/**
- * Get contextual text specifically for links
- * This function is optimized for finding text around anchor tags
- */
 function getContextualTextForLink(html, linkStartIndex, linkEndIndex, maxLength = 300) {
   const beforeText = html.substring(Math.max(0, linkStartIndex - maxLength), linkStartIndex);
   const afterText = html.substring(linkEndIndex, Math.min(html.length, linkEndIndex + maxLength));
-
   let contextualText = '';
-
-  const linkText = html.substring(linkStartIndex, linkEndIndex);
-  const linkTextMatch = linkText.match(/>([^<]{5,})</);
-  if (linkTextMatch && linkTextMatch[1]) {
-    contextualText = linkTextMatch[1].trim();
+  const beforeElements = beforeText.match(CONTEXT_PATTERNS.BEFORE_ELEMENTS);
+  if (beforeElements && beforeElements[2]) {
+    contextualText = beforeElements[2].trim();
   }
-
   if (!contextualText) {
-    const beforeElements = beforeText.match(/<([^>]+)>([^<]{10,})[^<]*$/);
-    if (beforeElements && beforeElements[2]) {
-      contextualText = beforeElements[2].trim();
-    }
-  }
-
-  if (!contextualText) {
-    const afterElements = afterText.match(/^[^<]*([^<]{10,})</);
+    const afterElements = afterText.match(CONTEXT_PATTERNS.AFTER_ELEMENTS);
     if (afterElements && afterElements[1]) {
       contextualText = afterElements[1].trim();
     }
   }
-
   if (!contextualText) {
     const nearbyText = beforeText + afterText;
-    const textMatches = nearbyText.match(/>([^<]{15,})</g);
+    const textMatches = nearbyText.match(CONTEXT_PATTERNS.TEXT_MATCHES);
     if (textMatches && textMatches.length > 0) {
       const lastMatch = textMatches[textMatches.length - 1];
-      const textContent = lastMatch.match(/>([^<]{15,})</);
+      const textContent = lastMatch.match(CONTEXT_PATTERNS.TEXT_MATCHES);
       if (textContent && textContent[1]) {
         contextualText = textContent[1].trim();
       }
     }
   }
-
-  contextualText = contextualText.replace(/\s+/g, ' ').trim();
-
+  contextualText = contextualText.replace(CONTEXT_PATTERNS.WHITESPACE, ' ').trim();
   return contextualText || 'No contextual text found';
 }
 
-/**
- * Deduplicate assets while preserving occurrence information
- */
-function deduplicateAssets(assets) {
-  const seen = new Map();
-  const deduplicated = [];
-
-  assets.forEach((asset) => {
-    const key = asset.src;
-    if (!seen.has(key)) {
-      seen.set(key, asset);
-      deduplicated.push(asset);
-    } else {
-      const existing = seen.get(key);
-      existing.usedIn = [...new Set([...existing.usedIn, ...asset.usedIn])];
-
-      if (!existing.occurrences) {
-        existing.occurrences = [];
-      }
-
-      if (asset.occurrenceId) {
-        existing.occurrences.push({
-          occurrenceId: asset.occurrenceId,
-          pagePath: asset.usedIn[0],
-          altText: asset.alt,
-          hasAltText: asset.hasAltText,
-          occurrenceType: asset.occurrenceType,
-          contextualText: asset.contextualText,
-          context: asset.context,
-        });
-      }
-    }
-  });
-
-  return deduplicated;
-}
-
-/**
- * Create concurrent groups for processing
- */
-function createConcurrentGroups(array, groupSize) {
-  const groups = [];
-  for (let i = 0; i < array.length; i += groupSize) {
-    groups.push(array.slice(i, i + groupSize));
-  }
-  return groups;
-}
-
-/**
- * Stop queue processing
- */
 function stopQueueProcessing() {
   state.isRunning = false;
-
   postMessage({
     type: 'queueProcessingStopped',
     data: {},

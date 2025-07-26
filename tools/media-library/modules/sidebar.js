@@ -1,16 +1,12 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
-/* eslint-disable no-use-before-define */
 
-function updateSidebarCounts(assets, currentPage) {
-  const imageCount = assets.filter((a) => a.type === 'image').length;
-  const videoCount = assets.filter((a) => a.type === 'video').length;
-  const documentCount = assets.filter((a) => a.type === 'document').length;
-  const internalCount = assets.filter((a) => a.isExternal === false).length;
-  const externalCount = assets.filter((a) => a.isExternal === true).length;
-  const totalCount = assets.length;
-  const missingAltCount = assets.filter((a) => {
+function updateSidebarCounts(media, currentPage) {
+  const imageCount = media.filter((a) => a.type === 'image').length;
+  const videoCount = media.filter((a) => a.type === 'video').length;
+  const documentCount = media.filter((a) => a.type === 'document').length;
+  const internalCount = media.filter((a) => a.isExternal === false).length;
+  const externalCount = media.filter((a) => a.isExternal === true).length;
+  const totalCount = media.length;
+  const missingAltCount = media.filter((a) => {
     if (a.type !== 'image') return false;
 
     if (a.occurrences && a.occurrences.length > 0) {
@@ -50,7 +46,7 @@ function updateSidebarCounts(assets, currentPage) {
 
   if (currentPage) {
     const normalizedCurrentPage = normalizePath(currentPage);
-    const usedOnPage = assets.filter((a) => {
+    const usedOnPage = media.filter((a) => {
       if (!a.usedIn) return false;
 
       let usedInArr = [];
@@ -69,7 +65,9 @@ function updateSidebarCounts(assets, currentPage) {
       if (a.type !== 'image') return false;
 
       if (a.occurrences && a.occurrences.length > 0) {
-        const pageOccurrences = a.occurrences.filter((o) => normalizePath(o.pagePath) === normalizedCurrentPage);
+        const pageOccurrences = a.occurrences.filter(
+          (o) => normalizePath(o.pagePath) === normalizedCurrentPage,
+        );
         return pageOccurrences.some((o) => !o.hasAltText);
       }
 
@@ -82,4 +80,4 @@ function updateSidebarCounts(assets, currentPage) {
   setCount('usedMissingAltCount', usedMissingAltCount);
 }
 
-export { updateSidebarCounts };
+export default updateSidebarCounts;

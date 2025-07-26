@@ -1,13 +1,15 @@
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return, no-undef, no-alert, default-case, no-case-declarations, import/prefer-default-export, no-param-reassign, no-underscore-dangle, no-prototype-builtins, no-loop-func, no-empty */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax, max-len, no-unused-vars, import/no-unresolved, consistent-return */
-/* eslint-disable no-use-before-define, no-plusplus, no-continue, no-await-in-loop, no-restricted-syntax */
-/* eslint-disable no-use-before-define */
+/* eslint-disable no-use-before-define, no-console */
+
 /**
  * Folder Discovery Worker - Discovers HTML documents within a specific folder
  * Enables multi-threaded parallel document discovery across folder structure
  */
 
-import { createWorkerDaApi, createWorkerSheetUtils, createWorkerStateManager } from '../services/worker-utils.js';
+import {
+  createWorkerDaApi,
+  createWorkerSheetUtils,
+  CONTENT_DA_LIVE_BASE,
+} from '../services/worker-utils.js';
 
 const state = {
   config: null,
@@ -22,8 +24,7 @@ const state = {
 
 let config = null;
 let daApi = null;
-const sheetUtils = createWorkerSheetUtils();
-const stateManager = createWorkerStateManager();
+let sheetUtils = null;
 
 /**
  * Initialize worker with configuration
@@ -31,13 +32,8 @@ const stateManager = createWorkerStateManager();
 async function init(workerConfig) {
   config = workerConfig;
   daApi = createWorkerDaApi();
+  sheetUtils = createWorkerSheetUtils();
   await daApi.init(config);
-
-  // eslint-disable-next-line no-console
-  console.log('[Folder Discovery Worker] 🔧 Initialized with config:', {
-    folderPath: state.folderPath,
-    timestamp: new Date().toISOString(),
-  });
 }
 
 /**
@@ -46,53 +42,13 @@ async function init(workerConfig) {
 async function discoverFolder(folderPath, workerId) {
   const folderPathState = folderPath;
   const workerIdState = workerId;
-  let isRunning = true;
-
-  // eslint-disable-next-line no-console
-  console.log('[Folder Discovery Worker] 🚀 Starting folder discovery:', {
-    folderPath: folderPathState,
-    workerId: workerIdState,
-    timestamp: new Date().toISOString(),
-  });
-
   try {
-    const discoveryStartTime = Date.now();
-
-    const folderName = folderPathState === '/' ? 'root' : folderPathState.split('/').pop() || 'root';
-    const shortWorkerId = workerIdState.split('_').slice(-2).join('-');
-    const fileName = `${folderName}-${shortWorkerId}.json`;
-
-    // eslint-disable-next-line no-console
-    console.log('[Folder Discovery Worker] 📁 Discovery setup:', {
-      folderPath: folderPathState,
-      folderName,
-      fileName,
-      timestamp: new Date().toISOString(),
-    });
-
     // Progress tracking is handled by the main thread via postMessage
 
-    // eslint-disable-next-line no-console
-    console.log('[Folder Discovery Worker] 🔍 Loading existing discovery for:', folderPathState);
     const existingDocuments = await loadExistingDiscovery(folderPathState);
-
-    // eslint-disable-next-line no-console
-    console.log('[Folder Discovery Worker] 🔍 Discovering documents in folder:', folderPathState);
     const currentDocuments = await discoverDocumentsInFolder(folderPathState);
 
-    // eslint-disable-next-line no-console
-    console.log('[Folder Discovery Worker] 📊 Discovery results:', {
-      folderPath: folderPathState,
-      existingCount: existingDocuments.length,
-      currentCount: currentDocuments.length,
-      timestamp: new Date().toISOString(),
-    });
-
     const mergedDocuments = mergeDiscoveryData(existingDocuments, currentDocuments);
-
-    const discoveryEndTime = Date.now();
-    const discoveryDuration = discoveryEndTime - discoveryStartTime;
-    const discoveryDurationSeconds = Math.round(discoveryDuration / 1000);
 
     if (mergedDocuments.length > 0) {
       await saveWorkerQueue(mergedDocuments, workerIdState);
@@ -128,8 +84,6 @@ async function discoverFolder(folderPath, workerId) {
         error: error.message,
       },
     });
-  } finally {
-    isRunning = false;
   }
 }
 
@@ -155,32 +109,28 @@ function matchesExcludePatterns(path, patterns) {
  * Recursively discover documents in folder and subfolders
  */
 async function discoverDocumentsInFolder(folderPath) {
-  // eslint-disable-next-line no-console
-  console.log('[Folder Discovery Worker] 🔍 Starting document discovery in folder:', {
-    folderPath,
-    timestamp: new Date().toISOString(),
-  });
-
   const documents = [];
   const foldersToScan = [folderPath];
-
-  // eslint-disable-next-line no-console
-  console.log('[Folder Discovery Worker] 📋 Initial setup:', {
-    folderPath,
-    foldersToScan,
-    timestamp: new Date().toISOString(),
-  });
-
   let excludePatterns = [];
   try {
-    const configData = await sheetUtils.fetchSheetJson(config, 'media-library-config.json');
-    excludePatterns = [];
-    if (configData?.data) {
-      for (const row of configData.data) {
-        if (typeof row.exclude === 'string') {
-          excludePatterns.push(...row.exclude.split(',').map((s) => s.trim()).filter(Boolean));
+    const configUrl = `${CONTENT_DA_LIVE_BASE}/${config.org}/${config.repo}/.media/config.json`;
+    const configData = await sheetUtils.loadSheetFile(configUrl, config.token);
+    const parsedConfig = sheetUtils.parseSheet(configData);
+
+    if (parsedConfig && parsedConfig.data && parsedConfig.data.data
+      && Array.isArray(parsedConfig.data.data)) {
+      parsedConfig.data.data.forEach((row) => {
+        if (row.key === 'excludes' && typeof row.value === 'string') {
+          excludePatterns.push(...row.value.split(',').map((s) => s.trim()).filter(Boolean));
         }
-      }
+      });
+    }
+
+    if (excludePatterns.length > 0) {
+      // console.log(
+      //   '[Folder Discovery Worker] 📋 Loaded exclusion patterns from config.json:',
+      //   excludePatterns,
+      // );
     }
   } catch (e) {
     excludePatterns = [];
@@ -189,64 +139,26 @@ async function discoverDocumentsInFolder(folderPath) {
     console.error('[Folder Discovery Worker] Failed to load exclusion patterns:', e);
   }
 
-  // eslint-disable-next-line no-console
-  console.log('[Folder Discovery Worker] 📋 Starting folder scan with exclude patterns:', {
-    folderPath,
-    excludePatterns,
-    foldersToScan: foldersToScan.length,
-    timestamp: new Date().toISOString(),
-  });
-
   while (foldersToScan.length > 0) {
     const currentFolder = foldersToScan.shift();
 
-    // eslint-disable-next-line no-console
-    console.log('[Folder Discovery Worker] 📁 Scanning folder:', {
-      currentFolder,
-      foldersRemaining: foldersToScan.length,
-      documentsFound: documents.length,
-      timestamp: new Date().toISOString(),
-    });
-
     try {
+      // eslint-disable-next-line no-await-in-loop
       const items = await listFolderContents(currentFolder);
-
-      // Debug: Log folder detection for first few items
-      if (items.length > 0) {
-        // eslint-disable-next-line no-console
-        console.log('[Folder Discovery] Processing folder:', {
-          folder: currentFolder,
-          itemCount: items.length,
-          sampleItems: items.slice(0, 3).map((item) => ({
-            name: item.name,
-            path: item.path,
-            ext: item.ext,
-            isFolder: !item.ext,
-            isHTML: item.ext === 'html',
-          })),
-        });
-      } else {
-        // eslint-disable-next-line no-console
-        console.log('[Folder Discovery Worker] ⚠️ No items found in folder:', {
-          folder: currentFolder,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      for (const item of items) {
+      items.forEach((item) => {
         if (!item.ext) {
           if (matchesExcludePatterns(item.path, excludePatterns)) {
-            continue;
+            return;
           }
           foldersToScan.push(item.path);
-          continue;
+          return;
         }
         if (item.ext === 'html') {
           if (typeof item.lastModified === 'undefined') {
-            continue;
+            return;
           }
           if (matchesExcludePatterns(item.path, excludePatterns)) {
-            continue;
+            return;
           }
           documents.push({
             name: item.name,
@@ -255,7 +167,7 @@ async function discoverDocumentsInFolder(folderPath) {
             lastModified: item.lastModified,
           });
         }
-      }
+      });
 
       if (documents.length > 0 && documents.length % 50 === 0) {
         postMessage({
@@ -280,13 +192,6 @@ async function discoverDocumentsInFolder(folderPath) {
       // The main error will be sent when the entire discovery fails
     }
   }
-
-  // eslint-disable-next-line no-console
-  console.log('[Folder Discovery Worker] ✅ Document discovery complete:', {
-    folderPath,
-    totalDocuments: documents.length,
-    timestamp: new Date().toISOString(),
-  });
 
   return documents;
 }
@@ -321,7 +226,7 @@ function mergeDiscoveryData(existingDocuments, currentDocuments) {
           discoveryComplete: true,
           lastScanned: existingDoc.lastScanned,
           scanComplete: existingDoc.scanComplete,
-          assetCount: existingDoc.assetCount,
+          mediaCount: existingDoc.mediaCount,
           needsRescan: true,
         });
       } else {
@@ -337,7 +242,7 @@ function mergeDiscoveryData(existingDocuments, currentDocuments) {
         scanComplete: false,
         needsRescan: true,
         lastScanned: null,
-        assetCount: 0,
+        mediaCount: 0,
       });
     }
   });
@@ -359,8 +264,8 @@ async function loadExistingDiscovery(folderPath) {
       throw new Error('DA API service not initialized');
     }
 
-    // Discovery files are stored in .da/.pages, not in the folder path
-    const items = await daApi.listPath('.da/.pages');
+    // Discovery files are stored in .media/.pages, not in the folder path
+    const items = await daApi.listPath('.media/.pages');
 
     const existingFile = items.find((item) => item.name && item.name.startsWith(`${folderName}-`) && item.name.endsWith('.json'));
 
@@ -369,8 +274,7 @@ async function loadExistingDiscovery(folderPath) {
         const configData = await sheetUtils.fetchSheetJson(config, existingFile.name);
         return configData?.data || [];
       } catch (fileError) {
-        // eslint-disable-next-line no-console
-        console.log('[Folder Discovery Worker] ⚠️ Could not load existing discovery file:', fileError.message);
+        console.error('[Folder Discovery Worker] ❌ Error loading existing discovery file:', fileError);
       }
     }
 
@@ -400,13 +304,14 @@ async function saveWorkerQueue(documents, workerId) {
     }));
 
     const jsonToWrite = sheetUtils.buildSingleSheet(documentsWithMetadata);
-    const filePath = `/${config.org}/${config.repo}/.da/.pages/${folderName}-${shortWorkerId}.json`;
+    const filePath = `/${config.org}/${config.repo}/.media/.pages/${folderName}-${shortWorkerId}.json`;
     const url = `${config.baseUrl}/source${filePath}`;
 
     await sheetUtils.saveSheetFile(url, jsonToWrite, config.token);
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error('[Folder Discovery Worker] Failed to save worker queue:', {
+    const errorMsg = '[Folder Discovery Worker] Failed to save worker queue:';
+    console.error(errorMsg, {
       workerId,
       error: error.message,
       timestamp: new Date().toISOString(),
@@ -441,8 +346,6 @@ self.addEventListener('message', async (event) => {
 
       case 'discoverFolder': {
         if (state.isRunning) {
-          // eslint-disable-next-line no-console
-          console.log('[Folder Discovery Worker] ⚠️ Discovery already running, skipping duplicate request');
           return;
         }
         state.isRunning = true;
@@ -464,7 +367,8 @@ self.addEventListener('message', async (event) => {
     }
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error('[Folder Discovery Worker] ❌ Error handling message:', {
+    const errorMsg = '[Folder Discovery Worker] ❌ Error handling message:';
+    console.error(errorMsg, {
       type,
       error: error.message,
       timestamp: new Date().toISOString(),
