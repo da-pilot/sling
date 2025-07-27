@@ -143,29 +143,25 @@ export function createWorkerSheetUtils() {
 
   async function fetchSheetJson(configData, filename) {
     let basePath = '.media';
-
     if (filename === 'config.json' || filename === 'media.json') {
       basePath = '.media';
-    } else if (filename === 'checkpoint.json' || filename === 'session-state.json'
+    } else if (filename === 'session-state.json'
       || filename === 'discovery-progress.json' || filename === 'scanning-progress.json'
-      || filename === 'active-sessions.json') {
+      || filename === 'active-sessions.json' || filename === 'discovery-checkpoint.json'
+      || filename === 'scanning-checkpoint.json' || filename === 'upload-checkpoint.json') {
       basePath = '.media/.processing';
     } else if (filename.endsWith('-scan.json')) {
       basePath = '.media/.scan-status';
     } else {
       basePath = '.media/.pages';
     }
-
-    // Use content.da.live for reading
     const url = `https://content.da.live/${configData.org}/${configData.repo}/${basePath}/${filename}`;
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${configData.token}` },
     });
-
     if (!response.ok) {
       return null;
     }
-
     return response.json();
   }
 

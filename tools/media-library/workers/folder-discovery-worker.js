@@ -117,9 +117,8 @@ async function discoverDocumentsInFolder(folderPath) {
     const configData = await sheetUtils.loadSheetFile(configUrl, config.token);
     const parsedConfig = sheetUtils.parseSheet(configData);
 
-    if (parsedConfig && parsedConfig.data && parsedConfig.data.data
-      && Array.isArray(parsedConfig.data.data)) {
-      parsedConfig.data.data.forEach((row) => {
+    if (parsedConfig && parsedConfig.data && Array.isArray(parsedConfig.data)) {
+      parsedConfig.data.forEach((row) => {
         if (row.key === 'excludes' && typeof row.value === 'string') {
           excludePatterns.push(...row.value.split(',').map((s) => s.trim()).filter(Boolean));
         }
@@ -267,7 +266,7 @@ async function loadExistingDiscovery(folderPath) {
     // Discovery files are stored in .media/.pages, not in the folder path
     const items = await daApi.listPath('.media/.pages');
 
-    const existingFile = items.find((item) => item.name && item.name.startsWith(`${folderName}-`) && item.name.endsWith('.json'));
+    const existingFile = items.find((item) => item.name && item.name === `${folderName}.json`);
 
     if (existingFile) {
       try {
@@ -295,7 +294,6 @@ async function saveWorkerQueue(documents, workerId) {
       return;
     }
 
-    const shortWorkerId = workerId.split('_').slice(-2).join('-');
     const folderName = state.folderPath === '/' ? 'root' : state.folderPath.split('/').pop() || 'root';
 
     const documentsWithMetadata = documents.map((doc) => ({
@@ -304,7 +302,7 @@ async function saveWorkerQueue(documents, workerId) {
     }));
 
     const jsonToWrite = sheetUtils.buildSingleSheet(documentsWithMetadata);
-    const filePath = `/${config.org}/${config.repo}/.media/.pages/${folderName}-${shortWorkerId}.json`;
+    const filePath = `/${config.org}/${config.repo}/.media/.pages/${folderName}.json`;
     const url = `${config.baseUrl}/source${filePath}`;
 
     await sheetUtils.saveSheetFile(url, jsonToWrite, config.token);

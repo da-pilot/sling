@@ -198,25 +198,19 @@ export default function createQueueManager() {
         await resetStatsAndCheckpoints();
       }
 
-      // Check if discovery is already complete before starting discovery
-      if (!forceRescan && state.processingStateManager && sessionId) {
-        const isDiscoveryComplete = await state.processingStateManager
-          .isDiscoveryComplete(sessionId);
-        // eslint-disable-next-line no-console
-        if (isDiscoveryComplete) {
+      if (!forceRescan && state.processingStateManager) {
+        const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
+        const scanningCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
+        const uploadCheckpoint = await state.processingStateManager.loadUploadCheckpoint();
+        if (discoveryCheckpoint.status === 'completed' || discoveryCheckpoint.status === 'complete') {
           console.log('[Queue Manager] ✅ Discovery already complete, checking for structural changes...');
-
-          // Check for structural changes that require re-discovery
           const hasStructuralChanges = await checkForStructuralChanges();
-
           if (hasStructuralChanges.canUseIncremental) {
             console.log('[Queue Manager] 🔄 Structural changes detected, performing incremental discovery');
             await performIncrementalDiscovery(hasStructuralChanges.changes);
           } else {
             console.log('[Queue Manager] ✅ No structural changes detected, skipping to scanning phase');
             state.discoveryComplete = true;
-
-            // Load existing discovery files and start scanning directly
             const discoveryFiles = await loadDiscoveryFiles();
             if (discoveryFiles.length > 0) {
               console.log('[Queue Manager] 📁 Found existing discovery files:', discoveryFiles.length);
@@ -224,6 +218,10 @@ export default function createQueueManager() {
               return;
             }
           }
+        } else if (discoveryCheckpoint.status === 'running') {
+          console.log('[Queue Manager] 🔄 Resuming discovery from checkpoint');
+          await resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
+          return;
         }
       }
 
@@ -823,8 +821,7 @@ export default function createQueueManager() {
           // Ensure folderPath exists, fallback to workerId if not available
           const folderPath = data.folderPath || (data.workerId ? data.workerId.split('_')[1] : 'root');
           const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
-          const shortWorkerId = data.workerId.split('_').slice(-2).join('-');
-          const discoveryFile = `/${config.org}/${config.repo}/.media/.pages/${folderName}-${shortWorkerId}.json`;
+          const discoveryFile = `/${config.org}/${config.repo}/.media/.pages/${folderName}.json`;
 
           console.log('[Queue Manager] 🚀 Starting scanning for folder:', {
             folderPath: data.folderPath,
@@ -1187,7 +1184,7 @@ export default function createQueueManager() {
         if (state.discoveryComplete) {
           //  completion checkpoint using processing state manager
           if (state.processingStateManager && state.currentSessionId) {
-            await state.processingStateManager.saveScanningCheckpoint(state.currentSessionId, {
+            await state.processingStateManager.saveScanningCheckpointFile({
               status: 'complete',
               totalPages: state.stats.totalPages,
               scannedPages: state.stats.scannedPages,
@@ -1216,7 +1213,7 @@ export default function createQueueManager() {
 
         // Save checkpoint using processing state manager
         if (state.processingStateManager && state.currentSessionId) {
-          await state.processingStateManager.saveScanningCheckpoint(state.currentSessionId, {
+          await state.processingStateManager.saveScanningCheckpointFile({
             status: 'running',
             totalPages: state.stats.totalPages,
             scannedPages: state.stats.scannedPages,
@@ -1257,9 +1254,7 @@ export default function createQueueManager() {
       const completedFolders = [];
       folders.forEach((folder) => {
         const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop() || 'root';
-        const isCompleted = discoveryCheckpoint.files.some(
-          (file) => file.fileName.startsWith(folderName) && file.status === 'complete',
-        );
+        const isCompleted = discoveryCheckpoint.folderStatus?.[folderName]?.status === 'completed';
         if (isCompleted) {
           completedFolders.push(folder);
         } else {
@@ -1269,29 +1264,20 @@ export default function createQueueManager() {
       state.stats.totalPages = discoveryCheckpoint.totalDocuments || 0;
       state.stats.completedFolders = completedFolders.length;
       state.stats.totalFolders = folders.length;
-
       if (pendingFolders.length === 0) {
-        // eslint-disable-next-line no-console
         console.log('[Queue Manager] ✅ All folders already discovered, marking discovery complete');
         state.discoveryComplete = true;
-
         state.discoveryFilesCache = await loadDiscoveryFilesWithChangeDetection();
         state.documentsToScan = getDocumentsToScan(state.discoveryFilesCache, false);
-
         if (state.scanWorker) {
           state.scanWorker.postMessage({
             type: 'startQueueProcessing',
           });
         }
-
         emit('scanningStarted', { stats: state.stats, forceRescan: false, resumed: true });
         return;
       }
-
-      // eslint-disable-next-line no-console
       console.log('[Queue Manager] 🔄 Resuming discovery with pending folders only');
-
-      // Update discovery progress using processing state manager
       if (state.processingStateManager && state.currentSessionId) {
         await state.processingStateManager.updateDiscoveryProgress(state.currentSessionId, {
           totalFolders: folders.length,
@@ -1299,10 +1285,8 @@ export default function createQueueManager() {
           totalDocuments: discoveryCheckpoint.totalDocuments || 0,
         });
       }
-
       await state.discoveryManager.resumeDiscovery(pendingFolders, completedFolders);
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('[Queue Manager] Failed to resume discovery from checkpoint:', error);
       await state.discoveryManager.startDiscoveryWithSession(
         state.currentSessionId,
@@ -1477,18 +1461,9 @@ export default function createQueueManager() {
     emit('batchProcessingStarted', state.batchProcessingPhase);
 
     try {
-      console.log('[Queue Manager] About to call processAndUploadQueuedMedia', state.mediaProcessor);
       if (state.mediaProcessor && typeof state.mediaProcessor.processAndUploadQueuedMedia === 'function') {
-        try {
-          await state.mediaProcessor.processAndUploadQueuedMedia();
-          console.log('[Queue Manager] processAndUploadQueuedMedia completed');
-        } catch (err) {
-          console.error('[Queue Manager] Error in processAndUploadQueuedMedia:', err);
-        }
-      } else {
-        console.error('[Queue Manager] processAndUploadQueuedMedia is not a function', state.mediaProcessor);
+        await state.mediaProcessor.processAndUploadQueuedMedia();
       }
-      await processAndUploadBatches();
 
       state.batchProcessingPhase.status = 'completed';
       state.batchProcessingPhase.endTime = Date.now();
@@ -1520,6 +1495,10 @@ export default function createQueueManager() {
     await persistenceManager.init();
     const pendingBatches = await persistenceManager.getPendingBatches();
     state.batchProcessingPhase.totalBatches = pendingBatches.length;
+
+    await state.processingStateManager.updateUploadProgress(state.currentSessionId, {
+      totalBatches: pendingBatches.length,
+    });
 
     for (let i = 0; i < pendingBatches.length; i += 1) {
       const batch = pendingBatches[i];

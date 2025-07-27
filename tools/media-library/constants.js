@@ -11,7 +11,6 @@ export const DA_STORAGE = {
   PAGES_DIR: '.media/.pages',
   PROCESSING_DIR: '.media/.processing',
   FILES: {
-    STATE: 'checkpoint.json',
     DISCOVERY_QUEUE: 'media-discovery-queue.json',
     SCAN_RESULTS: 'media-scan-results.json',
     MEDIA_DATA: 'media.json',
@@ -20,25 +19,26 @@ export const DA_STORAGE = {
     DISCOVERY_PROGRESS: 'discovery-progress.json',
     SCANNING_PROGRESS: 'scanning-progress.json',
     ACTIVE_SESSIONS: 'active-sessions.json',
-    CHECKPOINTS: 'checkpoint.json',
+    DISCOVERY_CHECKPOINT: 'discovery-checkpoint.json',
+    SCANNING_CHECKPOINT: 'scanning-checkpoint.json',
+    UPLOAD_CHECKPOINT: 'upload-checkpoint.json',
   },
 };
 
 export const DA_PATHS = {
   getStorageDir: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}`,
-  getStateFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.STATE}`,
   getDiscoveryQueueFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.DISCOVERY_QUEUE}`,
   getScanResultsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.SCAN_RESULTS}`,
   getMediaDataFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.MEDIA_DATA}`,
   getConfigFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.CONFIG}`,
-
-  // Core processing paths
   getProcessingDir: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}`,
   getSessionStateFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SESSION_STATE}`,
   getDiscoveryProgressFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.DISCOVERY_PROGRESS}`,
   getScanningProgressFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SCANNING_PROGRESS}`,
   getActiveSessionsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.ACTIVE_SESSIONS}`,
-  getCheckpointsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.CHECKPOINTS}`,
+  getDiscoveryCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.DISCOVERY_CHECKPOINT}`,
+  getScanningCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SCANNING_CHECKPOINT}`,
+  getUploadCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.UPLOAD_CHECKPOINT}`,
 };
 
 export const SCAN_CONFIG = {
@@ -160,4 +160,17 @@ export const UPLOAD_CONFIG = {
   CONFIRMATION_DELAY_MS: 500,
   PROGRESS_UPDATE_INTERVAL: 1000,
   MAX_CONCURRENT_BATCHES: 1,
+};
+
+export const LOCALSTORAGE_KEYS = {
+  CHECKPOINT: 'media-discovery-checkpoint',
+  DISCOVERY_PROGRESS: 'media-discovery-progress',
+  DISCOVERY_CHECKPOINT: 'media-discovery-checkpoint',
+  SCANNING_CHECKPOINT: 'media-scanning-checkpoint',
+  UPLOAD_CHECKPOINT: 'media-upload-checkpoint',
+};
+
+export const DISCOVERY_FILE_NAMING = {
+  FOLDER_BASED: true,
+  SESSION_BASED: false,
 };

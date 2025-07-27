@@ -145,10 +145,9 @@ function createUIManager() {
 
       try {
         discoveryProgress = await state.processingStateManager
-          .loadDiscoveryProgress(state.currentSessionId);
+          .loadDiscoveryCheckpoint();
       } catch (error) {
         if (error.message.includes('404') || error.message.includes('Not Found')) {
-          // Discovery progress file doesn't exist yet, this is normal during initialization
           console.log('[UI Manager] Discovery progress file not found yet (normal during initialization)');
         } else {
           console.warn('[UI Manager] Failed to load discovery progress:', error);
@@ -157,10 +156,9 @@ function createUIManager() {
 
       try {
         scanningProgress = await state.processingStateManager
-          .loadScanningProgress(state.currentSessionId);
+          .loadScanningCheckpoint();
       } catch (error) {
         if (error.message.includes('404') || error.message.includes('Not Found')) {
-          // Scanning progress file doesn't exist yet, this is normal during initialization
           console.log('[UI Manager] Scanning progress file not found yet (normal during initialization)');
         } else {
           console.warn('[UI Manager] Failed to load scanning progress:', error);
