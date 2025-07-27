@@ -6,16 +6,15 @@
 
 import {
   DA_STORAGE,
-  CONTENT_DA_LIVE_BASE,
   LOCALSTORAGE_KEYS,
   DA_PATHS,
+  CONTENT_DA_LIVE_BASE,
 } from '../constants.js';
 import {
   buildSingleSheet,
   saveSheetFile,
-  parseSheet,
-  loadSheetFile,
 } from '../modules/sheet-utils.js';
+import createUtils from '../modules/utils.js';
 import createCheckpointQueueManager from './checkpoint-queue-manager.js';
 
 const localStorageManager = {
@@ -76,30 +75,27 @@ const localStorageManager = {
   },
 };
 
-export default function createProcessingStateManager() {
+export default function createProcessingStateManager(docAuthoringService) {
+  const utils = createUtils();
   const state = {
     config: null,
-    daApi: null,
+    daApi: docAuthoringService,
     cache: new Map(),
     listeners: new Map(),
     batchProcessingPhase: null,
     queueManager: null,
   };
 
-  async function init(docAuthoringService) {
+  async function init(config) {
     try {
-      console.log('[Processing State Manager] 🔍 Initializing with docAuthoringService:', {
-        hasDocAuthoringService: !!docAuthoringService,
-        docAuthoringServiceType: typeof docAuthoringService,
-        hasListPath: !!docAuthoringService?.listPath,
+      console.log('[Processing State Manager] 🔍 Initializing with config:', {
+        hasConfig: !!config,
+        configType: typeof config,
       });
-      state.daApi = docAuthoringService;
-      state.config = docAuthoringService.getConfig();
-      console.log('[Processing State Manager] ✅ daApi set:', {
-        hasDaApi: !!state.daApi,
-        daApiType: typeof state.daApi,
-        hasListPath: !!state.daApi?.listPath,
-      });
+      state.config = config;
+      state.daApi = config.daApi;
+      await ensureProcessingFolder();
+      console.log('[Processing State Manager] ✅ Initialized successfully');
       state.queueManager = createCheckpointQueueManager();
     } catch (error) {
       console.error('[Processing State Manager] ❌ Initialization failed:', error);
@@ -109,13 +105,22 @@ export default function createProcessingStateManager() {
 
   async function loadDiscoveryCheckpoint() {
     try {
+      const daConfig = state.daApi.getConfig();
+      if (!daConfig || !daConfig.token) {
+        throw new Error('Invalid configuration: token is missing from DA API');
+      }
       const checkpointPath = DA_PATHS.getDiscoveryCheckpointFile(
-        state.config.org,
-        state.config.repo,
+        daConfig.org,
+        daConfig.repo,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const rawData = await loadSheetFile(contentUrl, state.config.token);
-      const parsedData = parseSheet(rawData);
+      const parsedData = await utils.loadFileWithFallback(
+        contentUrl,
+        daConfig.token,
+        checkpointPath,
+        daConfig.org,
+        daConfig.repo,
+      );
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -141,13 +146,23 @@ export default function createProcessingStateManager() {
 
   async function loadScanningCheckpoint() {
     try {
+      await ensureProcessingFolder();
+      const daConfig = state.daApi.getConfig();
+      if (!daConfig || !daConfig.token) {
+        throw new Error('Invalid configuration: token is missing from DA API');
+      }
       const checkpointPath = DA_PATHS.getScanningCheckpointFile(
-        state.config.org,
-        state.config.repo,
+        daConfig.org,
+        daConfig.repo,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const rawData = await loadSheetFile(contentUrl, state.config.token);
-      const parsedData = parseSheet(rawData);
+      const parsedData = await utils.loadFileWithFallback(
+        contentUrl,
+        daConfig.token,
+        checkpointPath,
+        daConfig.org,
+        daConfig.repo,
+      );
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -175,10 +190,20 @@ export default function createProcessingStateManager() {
 
   async function loadUploadCheckpoint() {
     try {
-      const checkpointPath = DA_PATHS.getUploadCheckpointFile(state.config.org, state.config.repo);
+      await ensureProcessingFolder();
+      const daConfig = state.daApi.getConfig();
+      if (!daConfig || !daConfig.token) {
+        throw new Error('Invalid configuration: token is missing from DA API');
+      }
+      const checkpointPath = DA_PATHS.getUploadCheckpointFile(daConfig.org, daConfig.repo);
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const rawData = await loadSheetFile(contentUrl, state.config.token);
-      const parsedData = parseSheet(rawData);
+      const parsedData = await utils.loadFileWithFallback(
+        contentUrl,
+        daConfig.token,
+        checkpointPath,
+        daConfig.org,
+        daConfig.repo,
+      );
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -212,11 +237,13 @@ export default function createProcessingStateManager() {
 
   async function ensureProcessingFolder() {
     try {
-      const processingDir = `/${state.config.org}/${state.config.repo}/${DA_STORAGE.PROCESSING_DIR}`;
+      const daConfig = state.daApi.getConfig();
+      const processingDir = `/${daConfig.org}/${daConfig.repo}/${DA_STORAGE.PROCESSING_DIR}`;
       await state.daApi.ensureFolder(processingDir);
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to ensure processing folder:', error);
-      console.error('[Processing State Manager] ❌ Processing folder path:', `/${state.config.org}/${state.config.repo}/${DA_STORAGE.PROCESSING_DIR}`);
+      const daConfig = state.daApi.getConfig();
+      console.error('[Processing State Manager] ❌ Processing folder path:', `/${daConfig.org}/${daConfig.repo}/${DA_STORAGE.PROCESSING_DIR}`);
       throw error;
     }
   }
@@ -224,17 +251,19 @@ export default function createProcessingStateManager() {
   async function saveDiscoveryCheckpointFile(checkpoint) {
     try {
       await ensureProcessingFolder();
+      const daConfig = state.daApi.getConfig();
       const checkpointPath = DA_PATHS.getDiscoveryCheckpointFile(
-        state.config.org,
-        state.config.repo,
+        daConfig.org,
+        daConfig.repo,
       );
       const data = {
         ...checkpoint,
         lastUpdated: Date.now(),
       };
       const sheetData = buildSingleSheet(data);
-      const url = `${state.config.baseUrl}/source${checkpointPath}`;
-      await saveSheetFile(url, sheetData, state.config.token);
+      const url = `${daConfig.baseUrl}/source${checkpointPath}`;
+      await saveSheetFile(url, sheetData, daConfig.token);
+      await utils.previewFile(checkpointPath, daConfig.token, daConfig.org, daConfig.repo);
       return true;
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to save discovery checkpoint:', error);
@@ -245,17 +274,19 @@ export default function createProcessingStateManager() {
   async function saveScanningCheckpointFile(checkpoint) {
     try {
       await ensureProcessingFolder();
+      const daConfig = state.daApi.getConfig();
       const checkpointPath = DA_PATHS.getScanningCheckpointFile(
-        state.config.org,
-        state.config.repo,
+        daConfig.org,
+        daConfig.repo,
       );
       const data = {
         ...checkpoint,
         lastUpdated: Date.now(),
       };
       const sheetData = buildSingleSheet(data);
-      const url = `${state.config.baseUrl}/source${checkpointPath}`;
-      await saveSheetFile(url, sheetData, state.config.token);
+      const url = `${daConfig.baseUrl}/source${checkpointPath}`;
+      await saveSheetFile(url, sheetData, daConfig.token);
+      await utils.previewFile(checkpointPath, daConfig.token, daConfig.org, daConfig.repo);
       return true;
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to save scanning checkpoint:', error);
@@ -266,14 +297,16 @@ export default function createProcessingStateManager() {
   async function saveUploadCheckpointFile(checkpoint) {
     try {
       await ensureProcessingFolder();
-      const checkpointPath = DA_PATHS.getUploadCheckpointFile(state.config.org, state.config.repo);
+      const daConfig = state.daApi.getConfig();
+      const checkpointPath = DA_PATHS.getUploadCheckpointFile(daConfig.org, daConfig.repo);
       const data = {
         ...checkpoint,
         lastUpdated: Date.now(),
       };
       const sheetData = buildSingleSheet(data);
-      const url = `${state.config.baseUrl}/source${checkpointPath}`;
-      await saveSheetFile(url, sheetData, state.config.token);
+      const url = `${daConfig.baseUrl}/source${checkpointPath}`;
+      await saveSheetFile(url, sheetData, daConfig.token);
+      await utils.previewFile(checkpointPath, daConfig.token, daConfig.org, daConfig.repo);
       return true;
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to save upload checkpoint:', error);
@@ -309,22 +342,23 @@ export default function createProcessingStateManager() {
 
   async function isDiscoveryComplete() {
     const progress = await loadDiscoveryCheckpoint();
-    return progress.status === 'completed' || progress.status === 'complete';
+    return progress.status === 'completed';
   }
 
   async function clearCheckpoints() {
     try {
+      const daConfig = state.daApi.getConfig();
       const discoveryCheckpointPath = DA_PATHS.getDiscoveryCheckpointFile(
-        state.config.org,
-        state.config.repo,
+        daConfig.org,
+        daConfig.repo,
       );
       const scanningCheckpointPath = DA_PATHS.getScanningCheckpointFile(
-        state.config.org,
-        state.config.repo,
+        daConfig.org,
+        daConfig.repo,
       );
       const uploadCheckpointPath = DA_PATHS.getUploadCheckpointFile(
-        state.config.org,
-        state.config.repo,
+        daConfig.org,
+        daConfig.repo,
       );
       await state.daApi.deleteFile(discoveryCheckpointPath);
       await state.daApi.deleteFile(scanningCheckpointPath);
@@ -333,6 +367,51 @@ export default function createProcessingStateManager() {
       return true;
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to clear checkpoints:', error);
+      return false;
+    }
+  }
+  async function clearDiscoveryCheckpoint() {
+    try {
+      const daConfig = state.daApi.getConfig();
+      const discoveryCheckpointPath = DA_PATHS.getDiscoveryCheckpointFile(
+        daConfig.org,
+        daConfig.repo,
+      );
+      await state.daApi.deleteFile(discoveryCheckpointPath);
+      state.cache.delete('discoveryCheckpoint');
+      return true;
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Failed to clear discovery checkpoint:', error);
+      return false;
+    }
+  }
+  async function clearScanningCheckpoint() {
+    try {
+      const daConfig = state.daApi.getConfig();
+      const scanningCheckpointPath = DA_PATHS.getScanningCheckpointFile(
+        daConfig.org,
+        daConfig.repo,
+      );
+      await state.daApi.deleteFile(scanningCheckpointPath);
+      state.cache.delete('scanningCheckpoint');
+      return true;
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Failed to clear scanning checkpoint:', error);
+      return false;
+    }
+  }
+  async function clearUploadCheckpoint() {
+    try {
+      const daConfig = state.daApi.getConfig();
+      const uploadCheckpointPath = DA_PATHS.getUploadCheckpointFile(
+        daConfig.org,
+        daConfig.repo,
+      );
+      await state.daApi.deleteFile(uploadCheckpointPath);
+      state.cache.delete('uploadCheckpoint');
+      return true;
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Failed to clear upload checkpoint:', error);
       return false;
     }
   }
@@ -478,7 +557,7 @@ export default function createProcessingStateManager() {
 
   async function isUploadComplete() {
     const progress = await getUploadCheckpoint();
-    return progress?.status === 'completed' || progress?.status === 'complete';
+    return progress?.status === 'completed';
   }
 
   async function saveBatchStatus(batchId, status) {
@@ -550,10 +629,11 @@ export default function createProcessingStateManager() {
     }), key);
   }
   function getDiscoveryCheckpointPath() {
-    const path = DA_PATHS.getDiscoveryCheckpointFile(state.config.org, state.config.repo);
+    const daConfig = state.daApi.getConfig();
+    const path = DA_PATHS.getDiscoveryCheckpointFile(daConfig.org, daConfig.repo);
     console.log('[Processing State Manager] 📁 Discovery checkpoint path:', {
-      org: state.config.org,
-      repo: state.config.repo,
+      org: daConfig.org,
+      repo: daConfig.repo,
       path,
     });
     return path;
@@ -670,6 +750,9 @@ export default function createProcessingStateManager() {
     updateScanningProgress,
     isDiscoveryComplete,
     clearCheckpoints,
+    clearDiscoveryCheckpoint,
+    clearScanningCheckpoint,
+    clearUploadCheckpoint,
     getProcessingStats,
     clearCache,
     on,

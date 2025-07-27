@@ -54,7 +54,6 @@ export default function createMediaProcessor() {
 
       state.isInitialized = true;
 
-      console.log('[Media Processor] ✅ Initialized successfully');
       return true;
     } catch (error) {
       console.error('[Media Processor] ❌ Initialization failed:', error);
@@ -114,11 +113,9 @@ export default function createMediaProcessor() {
       throw new Error('No active session for batch processing');
     }
 
-    console.log('[Media Processor] 📥 Queueing', media.length, 'media items for batch processing');
     await state.persistenceManager.queueMediaForProcessing(media, state.currentSessionId);
     const queueItems = await state.persistenceManager.getProcessingQueue(state.currentSessionId);
     const totalQueuedItems = queueItems.reduce((sum, item) => sum + (item.media?.length || 0), 0);
-    console.log('[Media Processor] 📊 Total queued items:', totalQueuedItems);
 
     if (state.onMediaUpdatedCallback) {
       const allMedia = await getMediaData();
@@ -128,42 +125,32 @@ export default function createMediaProcessor() {
   }
 
   async function convertQueueToUploadBatches() {
-    console.log('[Media Processor] 🔄 Converting queue to upload batches...');
     const queueItems = await state.persistenceManager.getProcessingQueue();
-    console.log('[Media Processor] 📋 Found', queueItems.length, 'items in processing queue');
 
     const allRawMedia = queueItems.flatMap((item) => item.media || []);
-    console.log('[Media Processor] 🎬 Total raw media items:', allRawMedia.length);
 
     // Check for duplicate sources in raw media
     const uniqueSrcs = new Set(allRawMedia.map((m) => m.src));
-    console.log('[Media Processor] 🔍 Unique sources in raw media:', uniqueSrcs.size);
 
     // ✅ FIXED: Don't merge here, just create batches from raw media
     // The merging will happen in uploadAllBatchesToMediaJson
     const batches = createBatches(allRawMedia, 20);
-    console.log('[Media Processor] 📦 Created', batches.length, 'batches');
 
     await Promise.all(
       batches.map(async (batch, i) => {
         const batchData = { batchNumber: i + 1, media: batch };
-        console.log('[Media Processor] 💾 Creating batch', i + 1, 'with', batch.length, 'items');
         await state.persistenceManager.createUploadBatch(batchData);
       }),
     );
-    console.log('[Media Processor] ✅ All batches created successfully');
   }
 
   async function uploadAllBatchesToMediaJson() {
-    console.log('[Media Processor] 🚚 Starting batch upload to media.json...');
     const persistenceManager = createPersistenceManager();
     await persistenceManager.init();
 
     const pendingBatches = await persistenceManager.getPendingBatches();
-    console.log('[Media Processor] 📦 Found', pendingBatches.length, 'pending batches to upload');
 
     if (pendingBatches.length === 0) {
-      console.log('[Media Processor] ⚠️ No pending batches found - nothing to upload');
       return;
     }
 
@@ -174,18 +161,13 @@ export default function createMediaProcessor() {
       allBatchMedia = [...allBatchMedia, ...batch.media];
     }
 
-    console.log('[Media Processor] 📊 Total media items from all batches:', allBatchMedia.length);
-
     // Process all media in one operation
     await state.metadataManager.init(state.config);
     const existingData = await state.metadataManager.getMetadata();
-    console.log('[Media Processor] 📊 Existing data from metadata manager:', existingData?.length || 0, 'items');
-    console.log('[Media Processor] 📊 All batch media to merge:', allBatchMedia.length, 'items');
 
     const updatedMedia = await mergeMediaWithDeduplication(existingData || [], allBatchMedia);
 
     await state.metadataManager.saveMetadata(updatedMedia);
-    console.log('[Media Processor] ✅ Successfully saved all batches to media.json');
 
     // Clear cache to ensure fresh data on next getMediaData call
     state.mediaDataCache = null;
@@ -193,7 +175,6 @@ export default function createMediaProcessor() {
 
     if (state.onMediaUpdatedCallback) {
       state.onMediaUpdatedCallback(updatedMedia);
-      console.log('[Media Processor] 📱 UI updated with', updatedMedia.length, 'media items');
     }
 
     // Confirm all batches and clean up
@@ -201,22 +182,17 @@ export default function createMediaProcessor() {
       const batch = pendingBatches[i];
       // eslint-disable-next-line no-await-in-loop
       await persistenceManager.confirmBatchUpload(batch.id, { count: batch.media.length });
-      console.log('[Media Processor] ✅ Confirmed batch', i + 1, 'upload');
 
       // Remove processed media from the processing queue
       const processedIds = batch.media.map((m) => m.id);
       // eslint-disable-next-line no-await-in-loop
       await persistenceManager.removeMediaFromProcessingQueue(processedIds, batch.sessionId);
     }
-
-    console.log('[Media Processor] 🎉 All batches uploaded successfully');
   }
 
   async function processAndUploadQueuedMedia() {
-    console.log('[Media Processor] 🚀 Starting process and upload of queued media...');
     await convertQueueToUploadBatches();
     await uploadAllBatchesToMediaJson();
-    console.log('[Media Processor] ✅ Process and upload completed successfully');
   }
 
   function createBatches(array, batchSize) {
@@ -251,8 +227,6 @@ export default function createMediaProcessor() {
         if (!extractedSrcs.has(normalizedSrc)) {
           extractedSrcs.add(normalizedSrc);
           media.push(item);
-        } else {
-          console.log('[Media Processor] 🔄 Skipping duplicate media:', normalizedSrc);
         }
       });
     };
@@ -265,7 +239,6 @@ export default function createMediaProcessor() {
     addMediaWithoutDuplicates(linkMedia);
     addMediaWithoutDuplicates(cssMedia);
 
-    console.log('[Media Processor] 📊 Extracted', media.length, 'unique media items from HTML');
     return media;
   }
 
@@ -280,14 +253,6 @@ export default function createMediaProcessor() {
         ? media.alt
         : extractFilenameFromUrl(src);
 
-      // Debug: Log name generation for external media
-      if (isExternal) {
-        console.log('[Media Processor] 🏷️ Generated name for external media:', {
-          src,
-          alt: media.alt,
-          generatedName: name,
-        });
-      }
       const id = await generateHashFromSrc(src);
       // Create unique occurrenceId using hash of pageUrl + src + index
       const occurrenceId = await generateOccurrenceId(pageUrl, src, index + 1);
@@ -386,26 +351,15 @@ export default function createMediaProcessor() {
    * Merge media arrays with deduplication
    */
   async function mergeMediaWithDeduplication(existingMedia, newMedia) {
-    console.log('[Media Processor] 🔄 Starting merge with deduplication:', {
-      existingCount: existingMedia.length,
-      newCount: newMedia.length,
-    });
     const mediaMap = new Map();
     existingMedia.forEach((media) => {
       mediaMap.set(media.id, media);
     });
-    console.log('[Media Processor] 📊 Existing media map size:', mediaMap.size);
     const processedMedia = await Promise.all(
       newMedia.map(async (media) => {
         const normalizedSrc = normalizeMediaSrc(media.src, media.pageUrl || '');
         const mediaId = media.id || await generateHashFromSrc(normalizedSrc);
-        if (media.src !== normalizedSrc) {
-          console.log('[Media Processor] 🔄 Normalized source URL:', {
-            original: media.src,
-            normalized: normalizedSrc,
-            mediaId,
-          });
-        }
+
         return { media: { ...media, src: normalizedSrc }, mediaId };
       }),
     );
@@ -452,11 +406,6 @@ export default function createMediaProcessor() {
       }
     });
     const result = Array.from(mediaMap.values());
-    console.log('[Media Processor] ✅ Merge completed:', {
-      duplicatesFound,
-      newItemsAdded,
-      finalCount: result.length,
-    });
     return result;
   }
 
@@ -754,8 +703,6 @@ export default function createMediaProcessor() {
    */
   function setOnMediaUpdated(callback) {
     state.onMediaUpdatedCallback = callback;
-    // eslint-disable-next-line no-console
-    console.log('[Media Processor] 📱 Media update callback set');
   }
 
   /**
@@ -765,14 +712,6 @@ export default function createMediaProcessor() {
     state.currentSessionId = sessionId;
     state.currentUserId = userId;
     state.currentBrowserId = browserId;
-
-    // eslint-disable-next-line no-console
-    console.log('[Media Processor] 🔄 Session set:', {
-      sessionId,
-      userId,
-      browserId,
-      timestamp: new Date().toISOString(),
-    });
   }
 
   /**
@@ -786,7 +725,6 @@ export default function createMediaProcessor() {
     try {
       const cacheAge = Date.now() - (state.mediaDataCacheTimestamp || 0);
       if (state.mediaDataCache && cacheAge < 5 * 60 * 1000) {
-        console.log('[Media Processor] 📊 Returning cached media data:', state.mediaDataCache.length, 'items');
         return state.mediaDataCache;
       }
 
@@ -795,8 +733,6 @@ export default function createMediaProcessor() {
       state.mediaDataCache = mediaData;
       state.mediaDataCacheTimestamp = Date.now();
 
-      // eslint-disable-next-line no-console
-      console.log('[Media Processor] 📊 Retrieved', mediaData.length, 'media items from metadata manager');
       return mediaData;
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -814,9 +750,6 @@ export default function createMediaProcessor() {
     }
 
     try {
-      // eslint-disable-next-line no-console
-      console.log('[Media Processor] 🔄 Syncing', mediaData.length, 'media items');
-
       const existingData = await state.metadataManager.getMetadata();
       const mergedMedia = await mergeMediaWithDeduplication(existingData || [], mediaData);
 
@@ -829,8 +762,6 @@ export default function createMediaProcessor() {
         state.onMediaUpdatedCallback(mergedMedia);
       }
 
-      // eslint-disable-next-line no-console
-      console.log('[Media Processor] ✅ Media data synced successfully');
       return mergedMedia;
     } catch (error) {
       // eslint-disable-next-line no-console

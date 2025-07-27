@@ -3,6 +3,62 @@
  * Common utility functions inspired by DA Live patterns
  */
 
+import { loadSheetFile, parseSheet } from './sheet-utils.js';
+
+const AEM_PREVIEW_REQUEST_URL = 'https://admin.hlx.page/preview';
+
+/**
+ * Preview a file using AEM Admin API
+ * @param {string} filePath - Relative path to the file
+ * @param {string} token - API token
+ * @param {string} org - Organization name
+ * @param {string} site - Site ID
+ * @param {string} ref - Repository reference
+ * @returns {Promise<boolean>} - Success status
+ */
+async function previewFile(filePath, token, org = 'da-pilot', site = 'sling', ref = 'main') {
+  const cleanPath = filePath.replace(`/${org}/${site}`, '');
+  const previewUrl = `${AEM_PREVIEW_REQUEST_URL}/${org}/${site}/${ref}${cleanPath}`;
+  const opts = {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  };
+  try {
+    const resp = await fetch(previewUrl, opts);
+    return resp.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Load file with fallback to preview URL
+ * @param {string} primaryUrl - Primary content.da.live URL
+ * @param {string} token - API token
+ * @param {string} filePath - File path for fallback
+ * @param {string} org - Organization name
+ * @param {string} site - Site ID
+ * @returns {Promise<Object>} - Parsed data or empty object
+ */
+async function loadFileWithFallback(primaryUrl, token, filePath, org = 'da-pilot', site = 'sling') {
+  try {
+    const rawData = await loadSheetFile(primaryUrl, token);
+    return parseSheet(rawData);
+  } catch (error) {
+    if (error.message.includes('404')) {
+      try {
+        const cleanPath = filePath.replace(`/${org}/${site}`, '');
+        const fallbackUrl = `https://main--${site}--${org}.aem.page${cleanPath}`;
+        const rawData = await loadSheetFile(fallbackUrl, token);
+        return parseSheet(rawData);
+      } catch (fallbackError) {
+        return { data: [] };
+      }
+    }
+    return { data: [] };
+  }
+}
+
 /**
  * Debounce function calls (from DA Live Utils)
  */
@@ -32,6 +88,8 @@ function createUtils() {
   return {
     debounce,
     delay,
+    previewFile,
+    loadFileWithFallback,
   };
 }
 
@@ -40,37 +98,6 @@ export default createUtils;
 export function getOrgRepo(context) {
   if (context?.org && context?.repo) {
     return { org: context.org, repo: context.repo };
-  }
-  try {
-    let org; let repo;
-    if (context && context.org && context.repo) {
-      org = context.org;
-      repo = context.repo;
-      const key = `media_${org}_${repo}_ctx`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.org && parsed.repo) {
-          return { org: parsed.org, repo: parsed.repo };
-        }
-      }
-    } else {
-      for (let i = 0; i < localStorage.length; i += 1) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('media_') && k.endsWith('_ctx')) {
-          const stored = localStorage.getItem(k);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed.org && parsed.repo) {
-              return { org: parsed.org, repo: parsed.repo };
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error('[Utils] Error getting org and repo:', e);
   }
   try {
     const { hostname } = window.location;
@@ -85,7 +112,6 @@ export function getOrgRepo(context) {
       }
     }
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.error('[Utils] Error getting org and repo:', e);
   }
   throw new Error('Unable to determine org and repo');

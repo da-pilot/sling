@@ -12,8 +12,10 @@ import {
   CONTENT_DA_LIVE_BASE,
 } from './sheet-utils.js';
 import { DA_PATHS } from '../constants.js';
+import createUtils from './utils.js';
 
 function createDiscoveryManager() {
+  const utils = createUtils();
   const state = {
     apiConfig: null,
     daApi: null,
@@ -72,31 +74,50 @@ function createDiscoveryManager() {
         state.apiConfig.repo,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const rawData = await loadSheetFile(contentUrl, state.apiConfig.token);
-      const parsedData = parseSheet(rawData);
+      console.log('[Discovery Manager] 📂 Loading checkpoint file from:', contentUrl);
+      const parsedData = await utils.loadFileWithFallback(
+        contentUrl,
+        state.apiConfig.token,
+        checkpointPath,
+        state.apiConfig.org,
+        state.apiConfig.repo,
+      );
+      console.log('[Discovery Manager] 📋 Parsed checkpoint data:', parsedData);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
-        return parsedData.data[0];
+        const checkpoint = parsedData.data[0];
+        const discoveryType = checkpoint.status === 'completed' ? 'incremental' : 'full';
+        return {
+          discoveryType,
+          checkpoint,
+        };
       }
       return {
-        totalFolders: 0,
-        completedFolders: 0,
-        totalDocuments: 0,
-        status: 'idle',
-        folderStatus: {},
-        excludedFolders: 0,
-        excludedPatterns: [],
-        lastUpdated: null,
+        discoveryType: 'full',
+        checkpoint: {
+          totalFolders: 0,
+          completedFolders: 0,
+          totalDocuments: 0,
+          status: 'idle',
+          folderStatus: {},
+          excludedFolders: 0,
+          excludedPatterns: [],
+          lastUpdated: null,
+        },
       };
     } catch (error) {
+      console.log('[Discovery Manager] ❌ Error loading checkpoint file:', error.message);
       return {
-        totalFolders: 0,
-        completedFolders: 0,
-        totalDocuments: 0,
-        status: 'idle',
-        folderStatus: {},
-        excludedFolders: 0,
-        excludedPatterns: [],
-        lastUpdated: null,
+        discoveryType: 'full',
+        checkpoint: {
+          totalFolders: 0,
+          completedFolders: 0,
+          totalDocuments: 0,
+          status: 'idle',
+          folderStatus: {},
+          excludedFolders: 0,
+          excludedPatterns: [],
+          lastUpdated: null,
+        },
       };
     }
   }
@@ -113,11 +134,112 @@ function createDiscoveryManager() {
       const sheetData = buildSingleSheet([checkpoint]);
       const url = `${state.apiConfig.baseUrl}/source${checkpointPath}`;
       await saveSheetFile(url, sheetData, state.apiConfig.token);
+      await utils.previewFile(
+        checkpointPath,
+        state.apiConfig.token,
+        state.apiConfig.org,
+        state.apiConfig.repo,
+      );
       console.log('[Discovery Manager] ✅ Discovery checkpoint saved successfully:', checkpointPath);
     } catch (error) {
       console.error('[Discovery Manager] ❌ Failed to save discovery checkpoint:', error);
       throw error;
     }
+  }
+
+  async function loadExistingDiscoveryFile(folderPath) {
+    try {
+      const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
+      const fileName = `${folderName}.json`;
+      const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
+      const fileUrl = `${CONTENT_DA_LIVE_BASE}${filePath}`;
+      const parsedData = await utils.loadFileWithFallback(
+        fileUrl,
+        state.apiConfig.token,
+        filePath,
+        state.apiConfig.org,
+        state.apiConfig.repo,
+      );
+      return parsedData.data || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function mergeDiscoveryData(existingEntries, currentEntries) {
+    const existingMap = new Map();
+    const merged = [];
+    const changes = {
+      created: [],
+      updated: [],
+      deleted: [],
+      unchanged: [],
+    };
+
+    existingEntries.forEach((entry) => {
+      existingMap.set(entry.path, entry);
+    });
+
+    currentEntries.forEach((currentEntry) => {
+      const existingEntry = existingMap.get(currentEntry.path);
+      if (existingEntry) {
+        if (currentEntry.lastModified > existingEntry.lastModified) {
+          const updatedEntry = {
+            ...existingEntry,
+            lastModified: currentEntry.lastModified,
+            discoveredAt: new Date().toISOString(),
+            scanComplete: false,
+            needsRescan: true,
+            lastScanned: '',
+            mediaCount: 0,
+            scanStatus: 'pending',
+            lastScannedAt: '',
+            scanAttempts: 0,
+            scanErrors: [],
+            entryStatus: 'updated',
+          };
+          merged.push(updatedEntry);
+          changes.updated.push(currentEntry.path);
+        } else {
+          merged.push({
+            ...existingEntry,
+            entryStatus: 'unchanged',
+          });
+          changes.unchanged.push(currentEntry.path);
+        }
+        existingMap.delete(currentEntry.path);
+      } else {
+        const newEntry = {
+          path: currentEntry.path,
+          lastModified: currentEntry.lastModified,
+          discoveredAt: new Date().toISOString(),
+          discoveryComplete: true,
+          scanComplete: false,
+          needsRescan: true,
+          lastScanned: '',
+          mediaCount: 0,
+          scanStatus: 'pending',
+          lastScannedAt: '',
+          scanAttempts: 0,
+          scanErrors: [],
+          entryStatus: 'new',
+        };
+        merged.push(newEntry);
+        changes.created.push(currentEntry.path);
+      }
+    });
+
+    existingMap.forEach((existingEntry) => {
+      const deletedEntry = {
+        ...existingEntry,
+        entryStatus: 'deleted',
+        deletedAt: new Date().toISOString(),
+      };
+      merged.push(deletedEntry);
+      changes.deleted.push(existingEntry.path);
+    });
+
+    return { merged, changes };
   }
 
   function applyFolderDiscoveryUpdate(checkpoint, update) {
@@ -187,6 +309,30 @@ function createDiscoveryManager() {
       };
     }
     return checkpoint;
+  }
+
+  function updateDiscoveryHistory(checkpoint, discoveryType, changes) {
+    const historyEntry = {
+      discoveryId: `discovery_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      startedAt: Date.now(),
+      completedAt: Date.now(),
+      type: discoveryType,
+      changes,
+    };
+
+    const discoveryHistory = checkpoint.discoveryHistory || [];
+    discoveryHistory.push(historyEntry);
+
+    if (discoveryHistory.length > 10) {
+      discoveryHistory.shift();
+    }
+
+    return {
+      ...checkpoint,
+      discoveryHistory,
+      lastDiscoveryType: discoveryType,
+      lastDiscoveryAt: Date.now(),
+    };
   }
 
   async function updateDiscoveryCheckpoint(update) {
@@ -812,17 +958,9 @@ function createDiscoveryManager() {
       try {
         worker = new Worker('./workers/folder-discovery-worker.js', { type: 'module' });
       } catch (workerError) {
-        // eslint-disable-next-line no-console
-        console.error('[Discovery Manager] ❌ Failed to create worker:', {
-          workerId,
-          folderPath: folder.path,
-          error: workerError.message,
-          stack: workerError.stack,
-        });
         reject(workerError);
         return;
       }
-
       state.folderWorkers.set(workerId, {
         worker,
         folder,
@@ -830,7 +968,6 @@ function createDiscoveryManager() {
       });
       worker.onmessage = async (event) => {
         const { type, data } = event.data;
-
         switch (type) {
           case 'initialized':
             worker.postMessage({
@@ -838,10 +975,10 @@ function createDiscoveryManager() {
               data: {
                 folderPath: folder.path,
                 workerId,
+                discoveryType: state.discoveryType,
               },
             });
             break;
-
           case 'folderProgress':
             emit('folderProgress', {
               ...data,
@@ -850,73 +987,91 @@ function createDiscoveryManager() {
               completedFolders: state.stats.completedFolders,
             });
             break;
-
           case 'folderDiscoveryComplete': {
             state.stats.completedFolders += 1;
             state.stats.totalDocuments += data.documentCount;
             state.completedWorkers += 1;
-
             await updateProgressThrottled();
-
-            // Discovery file creation with scan status tracking
+            let changeSummary = null;
             if (data.documents && data.documents.length > 0) {
               const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop() || 'root';
               const fileName = `${folderName}.json`;
-
-              // Discovery file with scan status tracking
-              const documentsWithMetadata = data.documents.map((doc) => ({
-                ...doc,
-                scanStatus: 'pending',
-                scanComplete: false,
-                needsRescan: false,
-                lastScannedAt: null,
-                scanAttempts: 0,
-                scanErrors: [],
-                mediaCount: 0,
-              }));
-
-              const jsonToWrite = buildSingleSheet(documentsWithMetadata);
+              let documentsToSave = data.documents;
+              if (state.discoveryType === 'incremental') {
+                const existingEntries = await loadExistingDiscoveryFile(folder.path);
+                const { merged, changes } = mergeDiscoveryData(existingEntries, data.documents);
+                documentsToSave = merged;
+                changeSummary = changes;
+                console.log(`[Discovery Manager] 📊 Changes found in ${folder.path}: Created: ${changes.created.length}, Updated: ${changes.updated.length}, Deleted: ${changes.deleted.length}, Unchanged: ${changes.unchanged.length}`);
+                if (changes.deleted.length > 0) {
+                  emit('pageDeleted', {
+                    folderPath: folder.path,
+                    deletedPaths: changes.deleted,
+                  });
+                }
+              } else {
+                documentsToSave = data.documents.map((doc) => ({
+                  ...doc,
+                  scanStatus: 'pending',
+                  scanComplete: false,
+                  needsRescan: false,
+                  lastScannedAt: null,
+                  scanAttempts: 0,
+                  scanErrors: [],
+                  mediaCount: 0,
+                }));
+              }
+              const jsonToWrite = buildSingleSheet(documentsToSave);
               const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
               const url = `${state.apiConfig.baseUrl}/source${filePath}`;
-
               await state.daApi.ensureFolder(
                 `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages`,
               );
               await saveSheetFile(url, jsonToWrite, state.apiConfig.token);
-
               const folderStatus = JSON.parse(localStorage.getItem('discovery-folder-status') || '{}');
               folderStatus[folder.path] = {
                 status: 'completed',
                 completedAt: Date.now(),
-                documentCount: data.documentCount,
+                documentCount: documentsToSave.length,
                 discoveryFile: fileName,
               };
               localStorage.setItem('discovery-folder-status', JSON.stringify(folderStatus));
               await updateDiscoveryCheckpoint({
                 type: 'markFolderComplete',
                 folderName: folder.path,
-                documentCount: data.documentCount,
+                documentCount: documentsToSave.length,
                 discoveryFile: fileName,
                 timestamp: Date.now(),
               });
             }
-
             emit('folderComplete', {
               ...data,
               folderPath: folder.path,
               workerId,
               stats: state.stats,
+              changeSummary: changeSummary || null,
             });
-
             if (data.documents.length > 0) {
               emit('documentsDiscovered', {
                 documents: data.documents,
                 folder: folder.path,
               });
+              if (changeSummary) {
+                const changedDocuments = data.documents.filter((doc) => {
+                  const isCreated = changeSummary.created.includes(doc.path);
+                  const isUpdated = changeSummary.updated.includes(doc.path);
+                  return isCreated || isUpdated;
+                });
+                if (changedDocuments.length > 0) {
+                  emit('documentsChanged', {
+                    documents: changedDocuments,
+                    folder: folder.path,
+                    changes: changeSummary,
+                  });
+                }
+              }
             }
-
             cleanup(workerId);
-
             if (state.completedWorkers >= state.expectedWorkers
               && !state.discoveryCompleteEmitted
               && state.stats.completedFolders >= state.stats.totalFolders
@@ -926,12 +1081,6 @@ function createDiscoveryManager() {
               });
               const folderStatus = JSON.parse(localStorage.getItem('discovery-folder-status') || '{}');
               const excludedData = JSON.parse(localStorage.getItem('discovery-excluded-data') || '{"excludedFolders": 0, "excludedPatterns": []}');
-              console.log('[Discovery Manager] Final localStorage data:', {
-                folderStatusKeys: Object.keys(folderStatus),
-                excludedData,
-                completedWorkers: state.completedWorkers,
-                expectedWorkers: state.expectedWorkers,
-              });
               const finalCheckpoint = {
                 totalFolders: state.stats.totalFolders,
                 completedFolders: state.stats.completedFolders,
@@ -948,29 +1097,17 @@ function createDiscoveryManager() {
                 completedAt: Date.now(),
                 lastUpdated: Date.now(),
               };
-              console.log('[Discovery Manager] 🎯 Creating final discovery checkpoint:', finalCheckpoint);
               await saveDiscoveryCheckpointFile(finalCheckpoint);
               triggerDiscoveryComplete();
             }
-
             resolve();
             break;
           }
-
           case 'folderDiscoveryError':
-            // eslint-disable-next-line no-console
-            console.error('[Discovery Manager] ❌ Folder discovery error:', {
-              workerId,
-              folderPath: folder.path,
-              error: data.error,
-            });
             state.stats.completedFolders += 1;
             state.completedWorkers += 1;
-
             await updateProgressThrottled();
-
             cleanup(workerId);
-
             if (state.completedWorkers >= state.expectedWorkers
               && !state.discoveryCompleteEmitted
               && state.stats.completedFolders >= state.stats.totalFolders
@@ -979,69 +1116,35 @@ function createDiscoveryManager() {
                 triggerDiscoveryComplete();
               }
             }
-
             reject(new Error(data.error));
             break;
-
           case 'error':
-            // eslint-disable-next-line no-console
-            console.error('[Discovery Manager] ❌ Worker error:', {
-              workerId,
-              folderPath: folder.path,
-              error: data.error,
-              originalType: data.originalType,
-            });
             state.stats.completedFolders += 1;
             state.completedWorkers += 1;
-
             await updateProgressThrottled();
-
             cleanup(workerId);
-
             if (state.completedWorkers >= state.expectedWorkers
               && !state.discoveryCompleteEmitted
               && state.stats.completedFolders >= state.stats.totalFolders
             ) {
               triggerDiscoveryComplete();
             }
-
             reject(new Error(data.error));
             break;
-
           default:
-            // eslint-disable-next-line no-console
-            console.warn('[Discovery Manager] ⚠️ Unknown worker message type:', {
-              workerId,
-              folderPath: folder.path,
-              messageType: type,
-            });
+            break;
         }
       };
-
       worker.onerror = async (error) => {
-        // eslint-disable-next-line no-console
-        console.error('[Discovery Manager] ❌ Worker error event:', {
-          workerId,
-          folderPath: folder.path,
-          error: error.message,
-          filename: error.filename,
-          lineno: error.lineno,
-          colno: error.colno,
-        });
         state.stats.completedFolders += 1;
         state.completedWorkers += 1;
-
         await updateProgressThrottled();
-
         cleanup(workerId);
-
         if (state.completedWorkers >= state.expectedWorkers && !state.discoveryCompleteEmitted) {
-          // Double-check that we have the expected number of completed folders
           if (state.stats.completedFolders >= state.stats.totalFolders) {
             triggerDiscoveryComplete();
           }
         }
-
         reject(error);
       };
       worker.postMessage({
@@ -1056,57 +1159,20 @@ function createDiscoveryManager() {
   /**
    * Start multi-threaded document discovery with session management
    */
-  async function startDiscoveryWithSession(sessionId, userId, browserId) {
-    // Reset state first to prevent race conditions
+  async function startDiscoveryWithSession(sessionId) {
     resetDiscoveryState();
-
-    if (state.isRunning) {
-      return;
-    }
-
-    if (state.discoveryCompleteEmitted) {
-      return;
-    }
-
-    // Set current session
-    state.currentSessionId = sessionId;
-    state.currentUserId = userId;
-    state.currentBrowserId = browserId;
     state.isRunning = true;
     resetStats();
     state.expectedWorkers = 0;
     state.completedWorkers = 0;
     state.discoveryCompleteEmitted = false;
-    console.log('[DEBUG] Discovery manager state:', {
-      hasProcessingStateManager: !!state.processingStateManager,
-      processingStateManagerKeys: state.processingStateManager ? Object.keys(state.processingStateManager) : 'N/A',
-    });
     setDiscoveryActive(true);
-    // Set a timeout to ensure discovery completion is triggered even if workers get stuck
-    state.discoveryTimeout = setTimeout(async () => {
-      if (!state.discoveryCompleteEmitted && state.completedWorkers > 0) {
-        // eslint-disable-next-line no-console
-        console.log('[Discovery Manager] ⏰ Timeout: Triggering discovery complete after timeout');
-        await triggerDiscoveryComplete();
-      }
-    }, 300000); // 5 minutes timeout
-
     const discoveryStartTime = Date.now();
     state.discoveryStartTime = discoveryStartTime;
-
-    // Update session heartbeat
-    if (state.sessionManager && sessionId) {
-      await state.sessionManager.updateSessionHeartbeat(sessionId, {
-        currentStage: 'discovery',
-        currentProgress: {
-          totalFolders: 0,
-          completedFolders: 0,
-          totalDocuments: 0,
-        },
-      });
-    }
-
     try {
+      const { discoveryType } = await loadDiscoveryCheckpoint();
+      state.discoveryType = discoveryType;
+      console.log(`[Discovery Manager] 🔍 Discovery type determined: ${discoveryType} (checkpoint exists: ${discoveryType === 'incremental' ? 'YES' : 'NO'})`);
       const { folders, files } = await getTopLevelItems();
       const excludedData = JSON.parse(
         localStorage.getItem('discovery-excluded-data') || '{"excludedFolders": 0, "excludedPatterns": []}',
@@ -1116,8 +1182,6 @@ function createDiscoveryManager() {
       const excludedCount = excludedData.excludedFolders;
       const totalFolders = folderCount + fileCount + excludedCount;
       state.stats.totalFolders = totalFolders;
-
-      // Update progress with state manager
       if (state.processingStateManager && sessionId) {
         await state.processingStateManager.updateDiscoveryProgress(sessionId, {
           totalFolders,
@@ -1127,17 +1191,13 @@ function createDiscoveryManager() {
           startTime: discoveryStartTime,
         });
       }
-
-      // Legacy state manager removed - using processing state manager instead
       state.lastProgressUpdate = 0;
-
       emit('discoveryStarted', {
         totalFolders,
         maxWorkers: state.maxWorkers,
         sessionId,
+        discoveryType,
       });
-
-      // Save initial checkpoint immediately
       const initialExcludedData = JSON.parse(localStorage.getItem('discovery-excluded-data') || '{"excludedFolders": 0, "excludedPatterns": []}');
       const initialCheckpoint = {
         totalFolders,
@@ -1150,21 +1210,15 @@ function createDiscoveryManager() {
         startedAt: Date.now(),
         lastUpdated: Date.now(),
       };
-      console.log('[Discovery Manager] 🚀 Saving initial discovery checkpoint:', initialCheckpoint);
       await saveDiscoveryCheckpointFile(initialCheckpoint);
-
       state.expectedWorkers = (files.length > 0 ? 1 : 0) + folders.length;
-
       if (files.length > 0) {
         await processRootFiles(files);
       }
-
       if (folders.length > 0) {
         await processFoldersInParallel(folders);
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Discovery Manager] ❌ Discovery failed:', error);
       state.isRunning = false;
       emit('discoveryError', { error: error.message, sessionId });
     }
@@ -1335,10 +1389,12 @@ function createDiscoveryManager() {
     on,
     off,
     emit,
-    // Checkpoint management
     updateDiscoveryCheckpoint,
     processAllPendingCheckpointUpdates,
     setDiscoveryActive,
+    loadExistingDiscoveryFile,
+    mergeDiscoveryData,
+    updateDiscoveryHistory,
   };
 }
 

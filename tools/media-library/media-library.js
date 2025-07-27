@@ -172,11 +172,11 @@ async function initializeCoreServices() {
   mediaInsertion.init(daActions, daContext);
 
   sessionManager = createSessionManager();
-  processingStateManager = createProcessingStateManager();
+  processingStateManager = createProcessingStateManager(docAuthoringService);
   mediaProcessor = createMediaProcessor();
 
   await sessionManager.init(docAuthoringService);
-  await processingStateManager.init(docAuthoringService);
+  await processingStateManager.init({ daApi: docAuthoringService });
   await mediaProcessor.init(
     docAuthoringService,
     sessionManager,
@@ -516,7 +516,7 @@ async function initializeScanning() {
   }
 
   try {
-    await startFullScan();
+    await startFullScan(true);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.warn('Failed to start full scan, continuing:', error);

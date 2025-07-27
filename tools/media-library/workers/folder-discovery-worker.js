@@ -39,23 +39,18 @@ async function init(workerConfig) {
 /**
  * Start discovering documents in assigned folder
  */
-async function discoverFolder(folderPath, workerId) {
+async function discoverFolder(folderPath, workerId, discoveryType = 'full') {
   const folderPathState = folderPath;
   const workerIdState = workerId;
   try {
-    // Progress tracking is handled by the main thread via postMessage
-
-    const existingDocuments = await loadExistingDiscovery(folderPathState);
+    const existingDocuments = discoveryType === 'incremental' ? await loadExistingDiscovery(folderPathState) : [];
     const currentDocuments = await discoverDocumentsInFolder(folderPathState);
-
-    const mergedDocuments = mergeDiscoveryData(existingDocuments, currentDocuments);
-
+    const mergedDocuments = discoveryType === 'incremental'
+      ? mergeDiscoveryData(existingDocuments, currentDocuments)
+      : currentDocuments;
     if (mergedDocuments.length > 0) {
-      await saveWorkerQueue(mergedDocuments, workerIdState);
+      await saveWorkerQueue(mergedDocuments);
     }
-
-    // State management is handled by the main thread via postMessage
-
     postMessage({
       type: 'folderDiscoveryComplete',
       data: {
@@ -65,18 +60,10 @@ async function discoverFolder(folderPath, workerId) {
         workerId: workerIdState,
         existingCount: existingDocuments.length,
         currentCount: currentDocuments.length,
+        discoveryType,
       },
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[Folder Discovery Worker] Folder discovery failed:', {
-      folderPath: folderPathState,
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Error handling is done via postMessage to main thread
-
     postMessage({
       type: 'folderDiscoveryError',
       data: {
@@ -124,18 +111,8 @@ async function discoverDocumentsInFolder(folderPath) {
         }
       });
     }
-
-    if (excludePatterns.length > 0) {
-      // console.log(
-      //   '[Folder Discovery Worker] 📋 Loaded exclusion patterns from config.json:',
-      //   excludePatterns,
-      // );
-    }
   } catch (e) {
     excludePatterns = [];
-
-    // eslint-disable-next-line no-console
-    console.error('[Folder Discovery Worker] Failed to load exclusion patterns:', e);
   }
 
   while (foldersToScan.length > 0) {
@@ -180,13 +157,6 @@ async function discoverDocumentsInFolder(folderPath) {
         });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Folder Discovery Worker] ❌ Error scanning folder:', {
-        folder: currentFolder,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
-
       // Don't send individual folder scan errors, just log them
       // The main error will be sent when the entire discovery fails
     }
@@ -208,28 +178,32 @@ async function listFolderContents(folderPath) {
 function mergeDiscoveryData(existingDocuments, currentDocuments) {
   const existingMap = new Map();
   const merged = [];
-
   existingDocuments.forEach((doc) => {
     existingMap.set(doc.path, doc);
   });
-
   currentDocuments.forEach((currentDoc) => {
     const existingDoc = existingMap.get(currentDoc.path);
-
     if (existingDoc) {
       if (currentDoc.lastModified > existingDoc.lastModified) {
         merged.push({
-          path: currentDoc.path,
+          ...existingDoc,
           lastModified: currentDoc.lastModified,
           discoveredAt: new Date().toISOString(),
-          discoveryComplete: true,
-          lastScanned: existingDoc.lastScanned,
-          scanComplete: existingDoc.scanComplete,
-          mediaCount: existingDoc.mediaCount,
+          scanComplete: false,
           needsRescan: true,
+          lastScanned: '',
+          mediaCount: 0,
+          scanStatus: 'pending',
+          lastScannedAt: '',
+          scanAttempts: 0,
+          scanErrors: [],
+          entryStatus: 'updated',
         });
       } else {
-        merged.push(existingDoc);
+        merged.push({
+          ...existingDoc,
+          entryStatus: 'unchanged',
+        });
       }
       existingMap.delete(currentDoc.path);
     } else {
@@ -240,16 +214,23 @@ function mergeDiscoveryData(existingDocuments, currentDocuments) {
         discoveryComplete: true,
         scanComplete: false,
         needsRescan: true,
-        lastScanned: null,
+        lastScanned: '',
         mediaCount: 0,
+        scanStatus: 'pending',
+        lastScannedAt: '',
+        scanAttempts: 0,
+        scanErrors: [],
+        entryStatus: 'new',
       });
     }
   });
-
   existingMap.forEach((existingDoc) => {
-    merged.push(existingDoc);
+    merged.push({
+      ...existingDoc,
+      entryStatus: 'deleted',
+      deletedAt: new Date().toISOString(),
+    });
   });
-
   return merged;
 }
 
@@ -262,21 +243,16 @@ async function loadExistingDiscovery(folderPath) {
     if (!daApi) {
       throw new Error('DA API service not initialized');
     }
-
-    // Discovery files are stored in .media/.pages, not in the folder path
     const items = await daApi.listPath('.media/.pages');
-
     const existingFile = items.find((item) => item.name && item.name === `${folderName}.json`);
-
     if (existingFile) {
       try {
         const configData = await sheetUtils.fetchSheetJson(config, existingFile.name);
         return configData?.data || [];
       } catch (fileError) {
-        console.error('[Folder Discovery Worker] ❌ Error loading existing discovery file:', fileError);
+        return [];
       }
     }
-
     return [];
   } catch (error) {
     return [];
@@ -286,34 +262,22 @@ async function loadExistingDiscovery(folderPath) {
 /**
  * Save worker's own queue file
  */
-async function saveWorkerQueue(documents, workerId) {
+async function saveWorkerQueue(documents) {
   try {
     if (!config) {
-      // eslint-disable-next-line no-console
-      console.error('[Folder Discovery Worker] No config available for queue save');
       return;
     }
-
     const folderName = state.folderPath === '/' ? 'root' : state.folderPath.split('/').pop() || 'root';
-
     const documentsWithMetadata = documents.map((doc) => ({
       ...doc,
       discoveryComplete: true,
     }));
-
     const jsonToWrite = sheetUtils.buildSingleSheet(documentsWithMetadata);
     const filePath = `/${config.org}/${config.repo}/.media/.pages/${folderName}.json`;
     const url = `${config.baseUrl}/source${filePath}`;
-
     await sheetUtils.saveSheetFile(url, jsonToWrite, config.token);
   } catch (error) {
-    // eslint-disable-next-line no-console
-    const errorMsg = '[Folder Discovery Worker] Failed to save worker queue:';
-    console.error(errorMsg, {
-      workerId,
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
+    // Ignore errors
   }
 }
 
@@ -349,7 +313,7 @@ self.addEventListener('message', async (event) => {
         state.isRunning = true;
         state.folderPath = data.folderPath;
         state.workerId = data.workerId;
-        await discoverFolder(data.folderPath, data.workerId);
+        await discoverFolder(data.folderPath, data.workerId, data.discoveryType);
         break;
       }
 
@@ -359,18 +323,10 @@ self.addEventListener('message', async (event) => {
       }
 
       default: {
-        // eslint-disable-next-line no-console
-        console.warn('[Folder Discovery Worker] ⚠️ Unknown message type:', type);
+        break;
       }
     }
   } catch (error) {
-    // eslint-disable-next-line no-console
-    const errorMsg = '[Folder Discovery Worker] ❌ Error handling message:';
-    console.error(errorMsg, {
-      type,
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
     postMessage({
       type: 'error',
       data: { error: error.message, originalType: type },

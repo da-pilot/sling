@@ -41,6 +41,7 @@ export default function createSessionManager() {
 
   async function loadSessionState(sessionId) {
     try {
+      await ensureProcessingFolder();
       const normalizedSessionId = normalizeSessionId(sessionId);
       const sessionPath = `/${state.config.org}/${state.config.repo}/${DA_STORAGE.PROCESSING_DIR}/${normalizedSessionId}.json`;
 

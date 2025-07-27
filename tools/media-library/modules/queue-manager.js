@@ -89,8 +89,8 @@ export default function createQueueManager() {
       if (processingStateManagerInstance) {
         state.processingStateManager = processingStateManagerInstance;
       } else {
-        state.processingStateManager = createProcessingStateManager();
-        await state.processingStateManager.init(docAuthoringService);
+        state.processingStateManager = createProcessingStateManager(docAuthoringService);
+        await state.processingStateManager.init(config);
       }
 
       if (mediaProcessorInstance) {
@@ -198,39 +198,33 @@ export default function createQueueManager() {
         await resetStatsAndCheckpoints();
       }
 
-      if (!forceRescan && state.processingStateManager) {
+      if (state.processingStateManager) {
         const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
         const scanningCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
         const uploadCheckpoint = await state.processingStateManager.loadUploadCheckpoint();
-        if (discoveryCheckpoint.status === 'completed' || discoveryCheckpoint.status === 'complete') {
-          console.log('[Queue Manager] ✅ Discovery already complete, checking for structural changes...');
-          const hasStructuralChanges = await checkForStructuralChanges();
-          if (hasStructuralChanges.canUseIncremental) {
-            console.log('[Queue Manager] 🔄 Structural changes detected, performing incremental discovery');
-            await performIncrementalDiscovery(hasStructuralChanges.changes);
-          } else {
-            console.log('[Queue Manager] ✅ No structural changes detected, skipping to scanning phase');
-            state.discoveryComplete = true;
-            const discoveryFiles = await loadDiscoveryFiles();
-            if (discoveryFiles.length > 0) {
-              console.log('[Queue Manager] 📁 Found existing discovery files:', discoveryFiles.length);
-              await startScanningPhase(discoveryFiles[0]?.fileName || null);
-              return;
-            }
-          }
+        const needsDiscovery = forceRescan || discoveryCheckpoint.status !== 'completed';
+        const needsScanning = forceRescan || scanningCheckpoint.status !== 'completed';
+        const needsUpload = forceRescan || uploadCheckpoint.status !== 'completed';
+        if (forceRescan) {
+          if (needsDiscovery) await state.processingStateManager.clearDiscoveryCheckpoint();
+          if (needsScanning) await state.processingStateManager.clearScanningCheckpoint();
+          if (needsUpload) await state.processingStateManager.clearUploadCheckpoint();
+        }
+        if (needsDiscovery && state.discoveryManager) {
+          setupDiscoveryManagerHandlers();
+          await state.discoveryManager.startDiscoveryWithSession(sessionId);
         } else if (discoveryCheckpoint.status === 'running') {
           console.log('[Queue Manager] 🔄 Resuming discovery from checkpoint');
           await resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
-          return;
         }
-      }
-
-      if (state.discoveryManager) {
-        // Setup discovery manager event handlers
-        setupDiscoveryManagerHandlers();
-
-        // Start discovery with session management
-        await state.discoveryManager.startDiscoveryWithSession(sessionId, userId, browserId);
+        const discoveryStatus = await checkDiscoveryFilesExist();
+        if (needsScanning && discoveryStatus.filesExist) {
+          await startScanningPhase();
+        }
+        const uploadStatus = await checkMediaAvailable();
+        if (needsUpload && uploadStatus.mediaAvailable) {
+          await triggerUploadPhase();
+        }
       }
 
       // eslint-disable-next-line no-console
@@ -651,6 +645,9 @@ export default function createQueueManager() {
           state.stats.totalMedia += data?.mediaCount || 0;
           state.stats.queuedPages = Math.max(0, state.stats.queuedPages - 1);
           state.stats.scannedPages += 1;
+          if (data?.mediaCount > 0) {
+            await triggerUploadPhase();
+          }
 
           // Calculate scan rate (pages per minute)
           const now = Date.now();
@@ -1290,8 +1287,6 @@ export default function createQueueManager() {
       console.error('[Queue Manager] Failed to resume discovery from checkpoint:', error);
       await state.discoveryManager.startDiscoveryWithSession(
         state.currentSessionId,
-        state.currentUserId,
-        state.currentBrowserId,
       );
     }
   }
@@ -1364,6 +1359,50 @@ export default function createQueueManager() {
    * @returns {Promise<Object>} Object containing change details and whether
    * incremental discovery is possible
    */
+  async function checkDiscoveryFilesExist() {
+    try {
+      const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
+      const discoveryFiles = await loadDiscoveryFiles();
+      return {
+        checkpointValid: discoveryCheckpoint.status === 'completed',
+        filesExist: discoveryFiles.length > 0,
+        shouldRunDiscovery: discoveryCheckpoint.status !== 'completed' || discoveryFiles.length === 0,
+      };
+    } catch (error) {
+      console.error('[Queue Manager] Error checking discovery files:', error);
+      return {
+        checkpointValid: false,
+        filesExist: false,
+        shouldRunDiscovery: true,
+      };
+    }
+  }
+  async function checkMediaAvailable() {
+    try {
+      const uploadCheckpoint = await state.processingStateManager.loadUploadCheckpoint();
+      const persistenceManager = createPersistenceManager();
+      await persistenceManager.init();
+      const queueItems = await persistenceManager.getProcessingQueue(state.currentSessionId);
+      return {
+        checkpointValid: uploadCheckpoint.status === 'completed',
+        mediaAvailable: queueItems.length > 0,
+        shouldRunUpload: uploadCheckpoint.status !== 'completed' && queueItems.length > 0,
+      };
+    } catch (error) {
+      console.error('[Queue Manager] Error checking media availability:', error);
+      return {
+        checkpointValid: false,
+        mediaAvailable: false,
+        shouldRunUpload: false,
+      };
+    }
+  }
+  async function triggerUploadPhase() {
+    const uploadStatus = await checkMediaAvailable();
+    if (uploadStatus.shouldRunUpload && state.batchProcessingPhase?.status !== 'running') {
+      await startBatchProcessingPhase();
+    }
+  }
   async function checkForStructuralChanges() {
     try {
       if (!config) {

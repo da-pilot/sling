@@ -5,6 +5,7 @@ import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import { crawl } from 'https://da.live/nx/public/utils/tree.js';
 
 const ADMIN_DA_LIVE_BASE = 'https://admin.da.live';
+const CONTENT_DA_LIVE_BASE = 'https://content.da.live';
 
 /**
  * Create Document Authoring Service using official DA SDK and utilities
@@ -13,6 +14,7 @@ const ADMIN_DA_LIVE_BASE = 'https://admin.da.live';
 function createDocAuthoringService() {
   const state = {
     baseUrl: ADMIN_DA_LIVE_BASE,
+    contentBaseUrl: CONTENT_DA_LIVE_BASE,
     token: null,
     org: null,
     repo: null,
@@ -109,19 +111,10 @@ function createDocAuthoringService() {
     state.path = daContext.path || '/';
     state.token = daContext.token;
     state.baseUrl = daContext.baseUrl || ADMIN_DA_LIVE_BASE;
+    state.contentBaseUrl = daContext.contentBaseUrl || CONTENT_DA_LIVE_BASE;
 
     if (!state.org || !state.repo) {
       throw new Error('This plugin must be opened from within DA Admin.');
-    }
-
-    // Only use localStorage if available (not in Web Workers)
-    if (typeof localStorage !== 'undefined') {
-      const key = `media_${state.org}_${state.repo}_ctx`;
-      localStorage.setItem(key, JSON.stringify({
-        org: state.org,
-        repo: state.repo,
-        token: state.token,
-      }));
     }
 
     state.initialized = true;
@@ -226,6 +219,7 @@ function createDocAuthoringService() {
 
     return {
       baseUrl: state.baseUrl,
+      contentBaseUrl: state.contentBaseUrl,
       token: state.token,
       org: state.org,
       repo: state.repo,

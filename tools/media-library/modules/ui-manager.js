@@ -140,32 +140,15 @@ function createUIManager() {
       const sessionInfo = await state.sessionManager.getCurrentSession();
 
       // Get processing progress - handle 404 errors gracefully
-      let discoveryProgress = null;
-      let scanningProgress = null;
+      let processingStats = null;
 
       try {
-        discoveryProgress = await state.processingStateManager
-          .loadDiscoveryCheckpoint();
+        processingStats = await state.processingStateManager.getProcessingStats();
       } catch (error) {
-        if (error.message.includes('404') || error.message.includes('Not Found')) {
-          console.log('[UI Manager] Discovery progress file not found yet (normal during initialization)');
-        } else {
-          console.warn('[UI Manager] Failed to load discovery progress:', error);
-        }
+        console.warn('[UI Manager] Failed to load processing stats:', error);
       }
 
-      try {
-        scanningProgress = await state.processingStateManager
-          .loadScanningCheckpoint();
-      } catch (error) {
-        if (error.message.includes('404') || error.message.includes('Not Found')) {
-          console.log('[UI Manager] Scanning progress file not found yet (normal during initialization)');
-        } else {
-          console.warn('[UI Manager] Failed to load scanning progress:', error);
-        }
-      }
-
-      updateProgressDisplay(sessionInfo, discoveryProgress, scanningProgress);
+      updateProgressDisplay(sessionInfo, processingStats?.discovery, processingStats?.scanning);
     } catch (error) {
       // eslint-disable-next-line no-console
       console.warn('[UI Manager] Failed to update status:', error);
