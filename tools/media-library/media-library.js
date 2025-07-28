@@ -480,22 +480,6 @@ function renderMedia(mediaToRender = media) {
  * Initialize scanning functionality
  */
 async function initializeScanning() {
-  // eslint-disable-next-line no-console
-  console.log('🔧 [SCAN-INIT] initializeScanning() called');
-
-  // eslint-disable-next-line no-console
-  console.log('📊 [SCAN-INIT] isScanning before scan start:', isScanning);
-  try {
-    // eslint-disable-next-line no-console
-    console.log('💾 [SCAN-INIT] Initializing state persistence...');
-
-    // eslint-disable-next-line no-console
-    console.log('✅ [SCAN-INIT] State persistence initialized');
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn('❌ [SCAN-INIT] Failed to initialize state persistence, continuing:', error);
-  }
-
   if (useQueueBasedScanning) {
     await initializeQueueManager();
   }

@@ -10,6 +10,7 @@ export const DA_STORAGE = {
   DIR: '.media',
   PAGES_DIR: '.media/.pages',
   PROCESSING_DIR: '.media/.processing',
+  SESSIONS_DIR: '.media/.sessions',
   FILES: {
     DISCOVERY_QUEUE: 'media-discovery-queue.json',
     SCAN_RESULTS: 'media-scan-results.json',
@@ -22,6 +23,9 @@ export const DA_STORAGE = {
     DISCOVERY_CHECKPOINT: 'discovery-checkpoint.json',
     SCANNING_CHECKPOINT: 'scanning-checkpoint.json',
     UPLOAD_CHECKPOINT: 'upload-checkpoint.json',
+    SESSION_CHECKPOINT: 'session-checkpoint.json',
+    SESSION_STATUS: 'session-status.json',
+    SESSION_HISTORY: 'session-history.json',
   },
 };
 
@@ -32,13 +36,18 @@ export const DA_PATHS = {
   getMediaDataFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.MEDIA_DATA}`,
   getConfigFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.CONFIG}`,
   getProcessingDir: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}`,
-  getSessionStateFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SESSION_STATE}`,
+  getSessionsDir: (org, repo) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}`,
+  getSessionStateFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/${DA_STORAGE.FILES.SESSION_STATE}`,
   getDiscoveryProgressFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.DISCOVERY_PROGRESS}`,
   getScanningProgressFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SCANNING_PROGRESS}`,
-  getActiveSessionsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.ACTIVE_SESSIONS}`,
+  getActiveSessionsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/${DA_STORAGE.FILES.ACTIVE_SESSIONS}`,
   getDiscoveryCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.DISCOVERY_CHECKPOINT}`,
   getScanningCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SCANNING_CHECKPOINT}`,
   getUploadCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.UPLOAD_CHECKPOINT}`,
+  getSessionFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-${sessionId}.json`,
+  getSessionCheckpointFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-checkpoint-${sessionId}.json`,
+  getSessionStatusFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-status-${sessionId}.json`,
+  getSessionHistoryFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-history-${sessionId}.json`,
 };
 
 export const SCAN_CONFIG = {

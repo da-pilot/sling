@@ -11,7 +11,6 @@ import {
   loadSheetFile,
   CONTENT_DA_LIVE_BASE,
 } from './sheet-utils.js';
-import { DA_PATHS } from '../constants.js';
 import createUtils from './utils.js';
 
 function createDiscoveryManager() {
@@ -69,43 +68,13 @@ function createDiscoveryManager() {
 
   async function loadDiscoveryCheckpoint() {
     try {
-      const checkpointPath = DA_PATHS.getDiscoveryCheckpointFile(
-        state.apiConfig.org,
-        state.apiConfig.repo,
-      );
-      const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      console.log('[Discovery Manager] 📂 Loading checkpoint file from:', contentUrl);
-      const parsedData = await utils.loadFileWithFallback(
-        contentUrl,
-        state.apiConfig.token,
-        checkpointPath,
-        state.apiConfig.org,
-        state.apiConfig.repo,
-      );
-      console.log('[Discovery Manager] 📋 Parsed checkpoint data:', parsedData);
-      if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
-        const checkpoint = parsedData.data[0];
-        const discoveryType = checkpoint.status === 'completed' ? 'incremental' : 'full';
-        return {
-          discoveryType,
-          checkpoint,
-        };
-      }
+      const checkpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
+      const discoveryType = checkpoint.status === 'completed' ? 'incremental' : 'full';
       return {
-        discoveryType: 'full',
-        checkpoint: {
-          totalFolders: 0,
-          completedFolders: 0,
-          totalDocuments: 0,
-          status: 'idle',
-          folderStatus: {},
-          excludedFolders: 0,
-          excludedPatterns: [],
-          lastUpdated: null,
-        },
+        discoveryType,
+        checkpoint,
       };
     } catch (error) {
-      console.log('[Discovery Manager] ❌ Error loading checkpoint file:', error.message);
       return {
         discoveryType: 'full',
         checkpoint: {
@@ -124,23 +93,8 @@ function createDiscoveryManager() {
 
   async function saveDiscoveryCheckpointFile(checkpoint) {
     try {
-      await state.daApi.ensureFolder(
-        `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.processing`,
-      );
-      const checkpointPath = DA_PATHS.getDiscoveryCheckpointFile(
-        state.apiConfig.org,
-        state.apiConfig.repo,
-      );
-      const sheetData = buildSingleSheet([checkpoint]);
-      const url = `${state.apiConfig.baseUrl}/source${checkpointPath}`;
-      await saveSheetFile(url, sheetData, state.apiConfig.token);
-      await utils.previewFile(
-        checkpointPath,
-        state.apiConfig.token,
-        state.apiConfig.org,
-        state.apiConfig.repo,
-      );
-      console.log('[Discovery Manager] ✅ Discovery checkpoint saved successfully:', checkpointPath);
+      const checkpointData = checkpoint.checkpoint || checkpoint;
+      await state.processingStateManager.saveDiscoveryCheckpointFile(checkpointData);
     } catch (error) {
       console.error('[Discovery Manager] ❌ Failed to save discovery checkpoint:', error);
       throw error;
@@ -153,13 +107,8 @@ function createDiscoveryManager() {
       const fileName = `${folderName}.json`;
       const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
       const fileUrl = `${CONTENT_DA_LIVE_BASE}${filePath}`;
-      const parsedData = await utils.loadFileWithFallback(
-        fileUrl,
-        state.apiConfig.token,
-        filePath,
-        state.apiConfig.org,
-        state.apiConfig.repo,
-      );
+      const rawData = await utils.loadSheetFile(fileUrl, state.apiConfig.token);
+      const parsedData = utils.parseSheet(rawData);
       return parsedData.data || [];
     } catch (error) {
       return [];
@@ -257,13 +206,14 @@ function createDiscoveryManager() {
       const completedFolders = Object.values(updatedFolderStatus).filter(
         (folder) => folder.status === 'completed',
       ).length;
-      const totalFolders = checkpoint.totalFolders || Object.keys(updatedFolderStatus).length;
+      const { totalFolders } = checkpoint;
       const totalDocuments = Object.values(updatedFolderStatus).reduce(
         (sum, folder) => sum + (folder.documentCount || 0),
         0,
       );
       return {
         ...checkpoint,
+        status: checkpoint.status || 'running',
         folderStatus: updatedFolderStatus,
         totalFolders,
         completedFolders,
@@ -290,6 +240,7 @@ function createDiscoveryManager() {
       }
       return {
         ...checkpoint,
+        status: checkpoint.status || 'running',
         ...mergedUpdates,
         lastUpdated: update.timestamp,
       };
@@ -1370,6 +1321,110 @@ function createDiscoveryManager() {
       console.error('[Discovery Manager] ❌ Error clearing discovery queue:', error);
     }
   }
+  async function getStructuralChanges() {
+    try {
+      const { folders, files } = await getTopLevelItems();
+      const existingDiscoveryFiles = await getExistingRootFiles();
+      const changes = {
+        newFolders: [],
+        deletedFolders: [],
+        newFiles: [],
+        deletedFiles: [],
+        modifiedFiles: [],
+      };
+      const existingFolderPaths = new Set(existingDiscoveryFiles.map((file) => file.folderPath));
+      const currentFolderPaths = new Set(folders.map((folder) => folder.path));
+      folders.forEach((folder) => {
+        if (!existingFolderPaths.has(folder.path)) {
+          changes.newFolders.push(folder.path);
+        }
+      });
+      existingFolderPaths.forEach((existingPath) => {
+        if (!currentFolderPaths.has(existingPath)) {
+          changes.deletedFolders.push(existingPath);
+        }
+      });
+      if (files.length > 0) {
+        const existingFileNames = new Set(existingDiscoveryFiles.map((file) => file.fileName));
+        const currentFileNames = new Set(files.map((file) => file.name));
+        files.forEach((file) => {
+          if (!existingFileNames.has(file.name)) {
+            changes.newFiles.push(file.name);
+          }
+        });
+        existingFileNames.forEach((existingFileName) => {
+          if (!currentFileNames.has(existingFileName)) {
+            changes.deletedFiles.push(existingFileName);
+          }
+        });
+      }
+      return changes;
+    } catch (error) {
+      console.error('[Discovery Manager] ❌ Error getting structural changes:', error);
+      return {
+        newFolders: [],
+        deletedFolders: [],
+        newFiles: [],
+        deletedFiles: [],
+        modifiedFiles: [],
+      };
+    }
+  }
+  async function performIncrementalDiscovery(changes) {
+    try {
+      const { folders, files } = await getTopLevelItems();
+      const incrementalResults = [];
+      const foldersToProcess = folders.filter((folder) => changes.newFolders.includes(folder.path)
+        || changes.deletedFolders.includes(folder.path));
+      const filesToProcess = files.filter((file) => changes.newFiles.includes(file.name)
+        || changes.deletedFiles.includes(file.name));
+      if (foldersToProcess.length > 0) {
+        await processFoldersInParallel(foldersToProcess);
+      }
+      if (filesToProcess.length > 0) {
+        await processRootFiles(filesToProcess);
+      }
+      return incrementalResults;
+    } catch (error) {
+      console.error('[Discovery Manager] ❌ Error during incremental discovery:', error);
+      return [];
+    }
+  }
+  async function mergeIncrementalResults(incrementalResults) {
+    try {
+      const existingFiles = await getExistingRootFiles();
+      const mergedFiles = [];
+      existingFiles.forEach((existingFile) => {
+        const incrementalFile = incrementalResults.find(
+          (result) => result.fileName === existingFile.fileName,
+        );
+        if (incrementalFile) {
+          const mergedData = mergeDiscoveryData(
+            existingFile.documents,
+            incrementalFile.documents,
+          );
+          mergedFiles.push({
+            fileName: existingFile.fileName,
+            documents: mergedData.merged,
+          });
+        } else {
+          mergedFiles.push(existingFile);
+        }
+      });
+      incrementalResults.forEach((incrementalFile) => {
+        const existingFile = existingFiles.find(
+          (existing) => existing.fileName === incrementalFile.fileName,
+        );
+        if (!existingFile) {
+          mergedFiles.push(incrementalFile);
+        }
+      });
+      return mergedFiles;
+    } catch (error) {
+      console.error('[Discovery Manager] ❌ Error merging incremental results:', error);
+      return [];
+    }
+  }
 
   return {
     init,
@@ -1395,6 +1450,9 @@ function createDiscoveryManager() {
     loadExistingDiscoveryFile,
     mergeDiscoveryData,
     updateDiscoveryHistory,
+    getStructuralChanges,
+    performIncrementalDiscovery,
+    mergeIncrementalResults,
   };
 }
 

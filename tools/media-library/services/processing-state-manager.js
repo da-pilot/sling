@@ -114,13 +114,8 @@ export default function createProcessingStateManager(docAuthoringService) {
         daConfig.repo,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const parsedData = await utils.loadFileWithFallback(
-        contentUrl,
-        daConfig.token,
-        checkpointPath,
-        daConfig.org,
-        daConfig.repo,
-      );
+      const rawData = await utils.loadSheetFile(contentUrl, daConfig.token);
+      const parsedData = utils.parseSheet(rawData);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -156,13 +151,8 @@ export default function createProcessingStateManager(docAuthoringService) {
         daConfig.repo,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const parsedData = await utils.loadFileWithFallback(
-        contentUrl,
-        daConfig.token,
-        checkpointPath,
-        daConfig.org,
-        daConfig.repo,
-      );
+      const rawData = await utils.loadSheetFile(contentUrl, daConfig.token);
+      const parsedData = utils.parseSheet(rawData);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -197,13 +187,8 @@ export default function createProcessingStateManager(docAuthoringService) {
       }
       const checkpointPath = DA_PATHS.getUploadCheckpointFile(daConfig.org, daConfig.repo);
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const parsedData = await utils.loadFileWithFallback(
-        contentUrl,
-        daConfig.token,
-        checkpointPath,
-        daConfig.org,
-        daConfig.repo,
-      );
+      const rawData = await utils.loadSheetFile(contentUrl, daConfig.token);
+      const parsedData = utils.parseSheet(rawData);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -263,7 +248,6 @@ export default function createProcessingStateManager(docAuthoringService) {
       const sheetData = buildSingleSheet(data);
       const url = `${daConfig.baseUrl}/source${checkpointPath}`;
       await saveSheetFile(url, sheetData, daConfig.token);
-      await utils.previewFile(checkpointPath, daConfig.token, daConfig.org, daConfig.repo);
       return true;
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to save discovery checkpoint:', error);
@@ -286,7 +270,6 @@ export default function createProcessingStateManager(docAuthoringService) {
       const sheetData = buildSingleSheet(data);
       const url = `${daConfig.baseUrl}/source${checkpointPath}`;
       await saveSheetFile(url, sheetData, daConfig.token);
-      await utils.previewFile(checkpointPath, daConfig.token, daConfig.org, daConfig.repo);
       return true;
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to save scanning checkpoint:', error);
@@ -306,7 +289,6 @@ export default function createProcessingStateManager(docAuthoringService) {
       const sheetData = buildSingleSheet(data);
       const url = `${daConfig.baseUrl}/source${checkpointPath}`;
       await saveSheetFile(url, sheetData, daConfig.token);
-      await utils.previewFile(checkpointPath, daConfig.token, daConfig.org, daConfig.repo);
       return true;
     } catch (error) {
       console.error('[Processing State Manager] ❌ Failed to save upload checkpoint:', error);
@@ -560,7 +542,7 @@ export default function createProcessingStateManager(docAuthoringService) {
     return progress?.status === 'completed';
   }
 
-  async function saveBatchStatus(batchId, status) {
+  async function saveBatchStatus(sessionId, batchId, status) {
     const checkpoint = await loadUploadCheckpoint();
     if (!checkpoint.batchStatus) {
       checkpoint.batchStatus = {};
@@ -582,7 +564,7 @@ export default function createProcessingStateManager(docAuthoringService) {
       .map(([batchId]) => batchId);
   }
 
-  async function updateRetryAttempts(batchId, attempts) {
+  async function updateRetryAttempts(sessionId, batchId, attempts) {
     const checkpoint = await loadUploadCheckpoint();
     if (!checkpoint.retryAttempts) {
       checkpoint.retryAttempts = {};

@@ -11,7 +11,6 @@ import {
   isValidAltText,
   isProbablyUrl,
   determineMediaType,
-  normalizeMediaSrc,
   extractFilenameFromUrl,
   generateHashFromSrc,
   generateOccurrenceId,
@@ -126,16 +125,8 @@ export default function createMediaProcessor() {
 
   async function convertQueueToUploadBatches() {
     const queueItems = await state.persistenceManager.getProcessingQueue();
-
     const allRawMedia = queueItems.flatMap((item) => item.media || []);
-
-    // Check for duplicate sources in raw media
-    const uniqueSrcs = new Set(allRawMedia.map((m) => m.src));
-
-    // ✅ FIXED: Don't merge here, just create batches from raw media
-    // The merging will happen in uploadAllBatchesToMediaJson
     const batches = createBatches(allRawMedia, 20);
-
     await Promise.all(
       batches.map(async (batch, i) => {
         const batchData = { batchNumber: i + 1, media: batch };
@@ -208,37 +199,30 @@ export default function createMediaProcessor() {
    */
   function extractMediaFromHTML(htmlContent) {
     const media = [];
-    const extractedSrcs = new Set(); // Track already extracted sources
+    const extractedSrcs = new Set();
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
-
-    // Extract different types of media
     const imgMedia = extractImgTags(doc);
     const pictureMedia = extractPictureImages(doc);
     const videoMedia = extractVideoSources(doc);
     const backgroundMedia = extractBackgroundImages(doc);
     const linkMedia = extractMediaLinks(doc);
     const cssMedia = extractCSSBackgrounds(doc);
-
-    // Helper function to add media without duplicates
     const addMediaWithoutDuplicates = (mediaArray) => {
       mediaArray.forEach((item) => {
-        const normalizedSrc = normalizeMediaSrc(item.src || item.url, '');
-        if (!extractedSrcs.has(normalizedSrc)) {
-          extractedSrcs.add(normalizedSrc);
+        const src = item.src || item.url;
+        if (!extractedSrcs.has(src)) {
+          extractedSrcs.add(src);
           media.push(item);
         }
       });
     };
-
-    // Add media in order of priority (img tags first, then others)
     addMediaWithoutDuplicates(imgMedia);
     addMediaWithoutDuplicates(pictureMedia);
     addMediaWithoutDuplicates(videoMedia);
     addMediaWithoutDuplicates(backgroundMedia);
     addMediaWithoutDuplicates(linkMedia);
     addMediaWithoutDuplicates(cssMedia);
-
     return media;
   }
 
@@ -247,14 +231,12 @@ export default function createMediaProcessor() {
    */
   async function normalizeMediaArray(mediaArray, pageUrl) {
     const normalizedMediaPromises = mediaArray.map(async (media, index) => {
-      const src = normalizeMediaSrc(media.src || media.url, pageUrl);
+      const src = media.src || media.url;
       const isExternal = isExternalMedia(src);
       const name = media.alt && !isProbablyUrl(media.alt) && isValidAltText(media.alt)
         ? media.alt
         : extractFilenameFromUrl(src);
-
       const id = await generateHashFromSrc(src);
-      // Create unique occurrenceId using hash of pageUrl + src + index
       const occurrenceId = await generateOccurrenceId(pageUrl, src, index + 1);
       const normalizedMediaItem = {
         id,
@@ -286,10 +268,8 @@ export default function createMediaProcessor() {
           format: media.format || null,
         },
       };
-
       return normalizedMediaItem;
     });
-
     return Promise.all(normalizedMediaPromises);
   }
 
@@ -357,17 +337,14 @@ export default function createMediaProcessor() {
     });
     const processedMedia = await Promise.all(
       newMedia.map(async (media) => {
-        const normalizedSrc = normalizeMediaSrc(media.src, media.pageUrl || '');
+        const normalizedSrc = media.src;
         const mediaId = media.id || await generateHashFromSrc(normalizedSrc);
 
         return { media: { ...media, src: normalizedSrc }, mediaId };
       }),
     );
-    let duplicatesFound = 0;
-    let newItemsAdded = 0;
     processedMedia.forEach(({ media, mediaId }) => {
       if (mediaMap.has(mediaId)) {
-        duplicatesFound += 1;
         const existing = mediaMap.get(mediaId);
         const existingUsedIn = Array.isArray(existing.usedIn) ? existing.usedIn : [];
         const newUsedIn = Array.isArray(media.usedIn) ? media.usedIn : [];
@@ -397,7 +374,6 @@ export default function createMediaProcessor() {
         };
         mediaMap.set(mediaId, merged);
       } else {
-        newItemsAdded += 1;
         const normalizedMedia = validateAndCleanMedia({
           ...media,
           id: mediaId,

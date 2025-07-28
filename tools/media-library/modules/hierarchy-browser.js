@@ -401,6 +401,10 @@ export async function initHierarchyBrowser() {
   };
   await waitForMediaSource();
 
+  window.toggleHierarchyView = toggleHierarchyView;
+  window.returnToAllMedia = returnToAllMedia;
+  window.handleViewChange = window.handleViewChange || (() => {});
+
   // Try to get media data from media processor or media browser
   if (window.mediaProcessor && typeof window.mediaProcessor.getMediaData === 'function') {
     try {

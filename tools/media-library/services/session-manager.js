@@ -4,7 +4,7 @@
  * Provides comprehensive session management for multi-user operations
  */
 
-import { DA_STORAGE, CONTENT_DA_LIVE_BASE } from '../constants.js';
+import { DA_PATHS, CONTENT_DA_LIVE_BASE } from '../constants.js';
 import {
   buildSingleSheet,
   saveSheetFile,
@@ -25,6 +25,7 @@ export default function createSessionManager() {
     try {
       state.daApi = docAuthoringService;
       state.config = docAuthoringService.getConfig();
+      await cleanupOldSessionFiles();
       console.log('[Session Manager] ✅ Initialized successfully');
     } catch (error) {
       console.error('[Session Manager] ❌ Initialization failed:', error);
@@ -41,20 +42,19 @@ export default function createSessionManager() {
 
   async function loadSessionState(sessionId) {
     try {
-      await ensureProcessingFolder();
+      await ensureSessionsFolder();
       const normalizedSessionId = normalizeSessionId(sessionId);
-      const sessionPath = `/${state.config.org}/${state.config.repo}/${DA_STORAGE.PROCESSING_DIR}/${normalizedSessionId}.json`;
-
-      // Use content.da.live for reading
+      const sessionPath = DA_PATHS.getSessionFile(
+        state.config.org,
+        state.config.repo,
+        normalizedSessionId,
+      );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${sessionPath}`;
       const rawData = await loadSheetFile(contentUrl, state.config.token);
       const parsedData = parseSheet(rawData);
-
-      // Handle the parsed data correctly - it should be the first item in the data array
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
-
       return {
         sessionId,
         userId: null,
@@ -80,21 +80,25 @@ export default function createSessionManager() {
     }
   }
 
-  async function ensureProcessingFolder() {
+  async function ensureSessionsFolder() {
     try {
-      const processingDir = `/${state.config.org}/${state.config.repo}/${DA_STORAGE.PROCESSING_DIR}`;
-      await state.daApi.ensureFolder(processingDir);
+      const sessionsDir = DA_PATHS.getSessionsDir(state.config.org, state.config.repo);
+      await state.daApi.ensureFolder(sessionsDir);
     } catch (error) {
-      console.error('[Session Manager] ❌ Failed to ensure processing folder:', error);
+      console.error('[Session Manager] ❌ Failed to ensure sessions folder:', error);
       throw error;
     }
   }
 
   async function saveSessionState(sessionId, sessionData) {
     try {
-      await ensureProcessingFolder();
+      await ensureSessionsFolder();
       const normalizedSessionId = normalizeSessionId(sessionId);
-      const sessionPath = `/${state.config.org}/${state.config.repo}/${DA_STORAGE.PROCESSING_DIR}/${normalizedSessionId}.json`;
+      const sessionPath = DA_PATHS.getSessionFile(
+        state.config.org,
+        state.config.repo,
+        normalizedSessionId,
+      );
       const data = {
         ...sessionData,
         lastUpdated: Date.now(),
@@ -290,6 +294,49 @@ export default function createSessionManager() {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[Session Manager] ❌ Failed to cleanup stale sessions:', error);
+    }
+  }
+  async function cleanupOldSessionFiles() {
+    try {
+      await ensureSessionsFolder();
+      const sessionsDir = DA_PATHS.getSessionsDir(state.config.org, state.config.repo);
+      const items = await state.daApi.listPath(
+        sessionsDir.replace(`/${state.config.org}/${state.config.repo}/`, ''),
+      );
+      const now = Date.now();
+      const cleanupPromises = [];
+      items.forEach((item) => {
+        if (item.name && item.ext === 'json' && item.name.startsWith('session-')) {
+          const sessionId = item.name.replace('.json', '');
+          const sessionPath = DA_PATHS.getSessionFile(
+            state.config.org,
+            state.config.repo,
+            sessionId,
+          );
+          const contentUrl = `${CONTENT_DA_LIVE_BASE}${sessionPath}`;
+          loadSheetFile(contentUrl, state.config.token).then((rawData) => {
+            const parsedData = parseSheet(rawData);
+            if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
+              const sessionData = parsedData.data[0];
+              const sessionAge = now - (sessionData.lastUpdated || sessionData.createdAt || now);
+              const shouldCleanup = sessionData.status === 'completed'
+                || sessionData.status === 'failed'
+                || sessionData.status === 'interrupted'
+                || sessionAge > 24 * 60 * 60 * 1000;
+              if (shouldCleanup) {
+                cleanupPromises.push(state.daApi.deleteFile(sessionPath));
+              }
+            }
+          }).catch(() => {
+            cleanupPromises.push(state.daApi.deleteFile(sessionPath));
+          });
+        }
+      });
+      if (cleanupPromises.length > 0) {
+        await Promise.all(cleanupPromises);
+      }
+    } catch (error) {
+      console.error('[Session Manager] ❌ Failed to cleanup old session files:', error);
     }
   }
 
@@ -501,6 +548,7 @@ export default function createSessionManager() {
     pauseSession,
     resumeSession,
     cleanupStaleSessions,
+    cleanupOldSessionFiles,
     getActiveSessions,
     checkForConflictingSessions,
     coordinateSessions,

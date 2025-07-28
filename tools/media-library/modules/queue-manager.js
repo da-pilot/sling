@@ -56,7 +56,7 @@ export default function createQueueManager() {
       endTime: null,
     },
     batchProcessingConfig: {
-      queueThreshold: 15,
+      queueThreshold: 10,
       minInterval: 2000,
     },
     lastBatchProcessingTime: 0,
@@ -111,15 +111,6 @@ export default function createQueueManager() {
       setupScanWorkerHandlers();
 
       await initializeWorker(state.scanWorker, 'scan', config);
-
-      console.log('[Queue Manager] ✅ Initialized with core services:', {
-        hasSessionManager: !!state.sessionManager,
-        hasProcessingStateManager: !!state.processingStateManager,
-        hasScanStatusManager: !!state.scanStatusManager,
-        hasMediaProcessor: !!state.mediaProcessor,
-        timestamp: new Date().toISOString(),
-      });
-
       return true;
     } catch (error) {
       console.error('Queue Manager initialization failed:', error.message);
@@ -195,53 +186,64 @@ export default function createQueueManager() {
       }
 
       if (forceRescan) {
-        await resetStatsAndCheckpoints();
+        resetStats();
       }
 
       if (state.processingStateManager) {
         const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
         const scanningCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
         const uploadCheckpoint = await state.processingStateManager.loadUploadCheckpoint();
-        const needsDiscovery = forceRescan || discoveryCheckpoint.status !== 'completed';
-        const needsScanning = forceRescan || scanningCheckpoint.status !== 'completed';
-        const needsUpload = forceRescan || uploadCheckpoint.status !== 'completed';
-        if (forceRescan) {
-          if (needsDiscovery) await state.processingStateManager.clearDiscoveryCheckpoint();
-          if (needsScanning) await state.processingStateManager.clearScanningCheckpoint();
-          if (needsUpload) await state.processingStateManager.clearUploadCheckpoint();
-        }
+        const isIncremental = (forceRescan || (!forceRescan && discoveryCheckpoint.status === 'completed'));
+        const needsDiscovery = forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle';
+        const needsScanning = scanningCheckpoint.status !== 'completed';
+        const needsUpload = uploadCheckpoint.status !== 'completed';
         if (needsDiscovery && state.discoveryManager) {
           setupDiscoveryManagerHandlers();
-          await state.discoveryManager.startDiscoveryWithSession(sessionId);
-        } else if (discoveryCheckpoint.status === 'running') {
-          console.log('[Queue Manager] 🔄 Resuming discovery from checkpoint');
-          await resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
+          if (isIncremental) {
+            const changeResult = await checkForStructuralChanges();
+            const incrementalSuccess = await performIncrementalDiscovery(changeResult.changes);
+            if (!incrementalSuccess) {
+              await state.discoveryManager.startDiscoveryWithSession(sessionId);
+            }
+          } else if (discoveryCheckpoint.status === 'running') {
+            await resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
+          } else {
+            await state.discoveryManager.startDiscoveryWithSession(sessionId);
+          }
+          const discoveryStatus = await checkDiscoveryFilesExist();
+          if (needsScanning && discoveryStatus.filesExist) {
+            if (scanningCheckpoint.status === 'running') {
+              await resumeScanningFromCheckpoint(scanningCheckpoint);
+            } else {
+              await startScanningPhase(null, forceRescan);
+            }
+          }
+          const uploadStatus = await checkMediaAvailable();
+          if (needsUpload && uploadStatus.mediaAvailable) {
+            if (uploadCheckpoint.status === 'running') {
+              await startBatchProcessingPhase();
+            } else {
+              await triggerUploadPhase();
+            }
+          }
         }
-        const discoveryStatus = await checkDiscoveryFilesExist();
-        if (needsScanning && discoveryStatus.filesExist) {
-          await startScanningPhase();
-        }
-        const uploadStatus = await checkMediaAvailable();
-        if (needsUpload && uploadStatus.mediaAvailable) {
-          await triggerUploadPhase();
-        }
+
+        // eslint-disable-next-line no-console
+        console.log('[Queue Manager] 🚀 Queue scanning started:', {
+          forceRescan,
+          sessionId,
+          userId,
+          browserId,
+          timestamp: new Date().toISOString(),
+        });
+
+        emit('queueScanningStarted', {
+          forceRescan,
+          sessionId,
+          userId,
+          browserId,
+        });
       }
-
-      // eslint-disable-next-line no-console
-      console.log('[Queue Manager] 🚀 Queue scanning started:', {
-        forceRescan,
-        sessionId,
-        userId,
-        browserId,
-        timestamp: new Date().toISOString(),
-      });
-
-      emit('queueScanningStarted', {
-        forceRescan,
-        sessionId,
-        userId,
-        browserId,
-      });
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[Queue Manager] ❌ Failed to start queue scanning:', error);
@@ -398,12 +400,14 @@ export default function createQueueManager() {
   /**
    * Start scanning phase immediately when first discovery file is available
    */
-  async function startScanningPhase(discoveryFile = null) {
+  async function startScanningPhase(discoveryFile = null, forceRescan = false) {
     try {
       console.log('🚀 [SCANNING] Starting scanning phase with discovery file:', discoveryFile);
-      // Load discovery files to calculate total pages
-      const discoveryFiles = await loadDiscoveryFiles();
-      const documentsToScan = getDocumentsToScan(discoveryFiles, false);
+      let discoveryFiles = state.discoveryFilesCache;
+      if (!discoveryFiles) {
+        discoveryFiles = await loadDiscoveryFiles();
+      }
+      const documentsToScan = getDocumentsToScan(discoveryFiles, forceRescan);
       const totalPages = discoveryFiles.reduce((sum, file) => sum + file.documents.length, 0);
 
       console.log('🚀 [SCANNING] Calculated total pages:', {
@@ -412,14 +416,12 @@ export default function createQueueManager() {
         discoveryFiles: discoveryFiles.length,
       });
 
-      // Update local stats with correct total pages
       state.stats.totalPages = totalPages;
       state.stats.queuedPages = documentsToScan.length;
       state.stats.startTime = Date.now();
       state.discoveryFilesCache = discoveryFiles;
       state.documentsToScan = documentsToScan;
 
-      // Initialize scanning progress with correct total pages
       if (state.processingStateManager && state.currentSessionId) {
         await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
           totalPages,
@@ -435,7 +437,6 @@ export default function createQueueManager() {
         });
       }
 
-      // Start the scanning worker
       if (state.scanWorker) {
         state.scanWorker.postMessage({
           type: 'startQueueProcessing',
@@ -469,7 +470,7 @@ export default function createQueueManager() {
       // If scanning is not yet active, start it
       if (!state.isActive) {
         console.log('[Queue Manager] 🚀 Starting scanning phase for first folder');
-        await startScanningPhase(discoveryFile);
+        await startScanningPhase(discoveryFile, false);
         return;
       }
 
@@ -577,28 +578,19 @@ export default function createQueueManager() {
 
   async function checkThresholdTrigger() {
     try {
-      console.log('[Queue Manager] Checking threshold trigger...');
-
-      if (state.batchProcessingPhase?.status === 'running') {
-        console.log('[Queue Manager] Batch processing already running, skipping');
-        return;
-      }
-
       const now = Date.now();
-      if (now - state.lastBatchProcessingTime < state.batchProcessingConfig.minInterval) {
-        console.log('[Queue Manager] Too soon since last batch, skipping');
-        return;
-      }
-
       const persistenceManager = createPersistenceManager();
       await persistenceManager.init();
       const queueItems = await persistenceManager.getProcessingQueue(state.currentSessionId);
       const totalQueuedItems = queueItems.reduce((sum, item) => sum + (item.media?.length || 0), 0);
-
-      console.log('[Queue Manager] Queue size:', totalQueuedItems, 'Threshold:', state.batchProcessingConfig.queueThreshold);
-
-      if (totalQueuedItems >= state.batchProcessingConfig.queueThreshold) {
-        console.log('[Queue Manager] Threshold reached, starting batch processing');
+      const isStateStuck = state.batchProcessingPhase?.status === 'running'
+        && (now - (state.batchProcessingPhase.startTime || now) > 30000);
+      const hasPendingItems = totalQueuedItems > 0;
+      const canProcess = isStateStuck || (!state.batchProcessingPhase?.status === 'running' && hasPendingItems);
+      const timeSinceLastBatch = now - state.lastBatchProcessingTime;
+      const minIntervalMet = timeSinceLastBatch >= state.batchProcessingConfig.minInterval;
+      const thresholdMet = totalQueuedItems >= state.batchProcessingConfig.queueThreshold;
+      if (canProcess && minIntervalMet && thresholdMet) {
         state.lastBatchProcessingTime = now;
         await startBatchProcessingPhase();
       }
@@ -644,7 +636,8 @@ export default function createQueueManager() {
         case 'pageScanned': {
           state.stats.totalMedia += data?.mediaCount || 0;
           state.stats.queuedPages = Math.max(0, state.stats.queuedPages - 1);
-          state.stats.scannedPages += 1;
+          const newScannedPages = state.stats.scannedPages + 1;
+          state.stats.scannedPages = Math.min(newScannedPages, state.stats.totalPages);
           if (data?.mediaCount > 0) {
             await triggerUploadPhase();
           }
@@ -679,14 +672,16 @@ export default function createQueueManager() {
           }
 
           // Check if scanning is complete
-          if (state.stats.scannedPages >= state.stats.totalPages && state.stats.totalPages > 0) {
-            console.log('✅ [SCANNING] Scanning completed:', {
-              totalPages: state.stats.totalPages,
+          const isScanningComplete = state.stats.scannedPages >= state.stats.totalPages
+            && state.stats.totalPages > 0 && state.stats.scannedPages <= state.stats.totalPages;
+          if (isScanningComplete) {
+            await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
+              status: 'completed',
               scannedPages: state.stats.scannedPages,
+              pendingPages: 0,
               totalMedia: state.stats.totalMedia,
+              endTime: Date.now(),
             });
-
-            // Process any remaining media when scanning completes
             await processRemainingMedia();
           }
 
@@ -704,21 +699,28 @@ export default function createQueueManager() {
 
         case 'batchComplete': {
           emit('batchComplete', { ...data, stats: state.stats });
-          // Check discovery completion status directly
           const isDiscoveryComplete = state.processingStateManager
             ? await state.processingStateManager.isDiscoveryComplete(state.currentSessionId)
             : false;
-
-          // Update processing state manager
+          const isScanningComplete = state.stats.scannedPages >= state.stats.totalPages
+            && state.stats.totalPages > 0 && state.stats.scannedPages <= state.stats.totalPages;
           if (state.processingStateManager && state.currentSessionId) {
-            await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
-              status: 'running',
-              lastUpdated: Date.now(),
-            });
+            if (isScanningComplete) {
+              await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
+                status: 'completed',
+                scannedPages: state.stats.scannedPages,
+                pendingPages: 0,
+                totalMedia: state.stats.totalMedia,
+                endTime: Date.now(),
+              });
+            } else {
+              await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
+                status: 'running',
+                lastUpdated: Date.now(),
+              });
+            }
           }
-
-          if (isDiscoveryComplete && !state.isStopping) {
-            // Start batch processing phase instead of just completing
+          if (isDiscoveryComplete && isScanningComplete && !state.isStopping) {
             await startBatchProcessingPhase();
           }
           break;
@@ -835,7 +837,7 @@ export default function createQueueManager() {
         if (data.completedFolders >= data.totalFolders) {
           state.discoveryComplete = true;
           console.log('[Queue Manager] 🎯 All folders completed, triggering final scanning phase');
-          await startScanningPhase();
+          await startScanningPhase(null, false);
         }
       } catch (error) {
         console.error('[Queue Manager] ❌ Failed to handle folder completion:', error);
@@ -878,23 +880,6 @@ export default function createQueueManager() {
     };
     state.discoveryFilesCache = null;
     state.documentsToScan = [];
-  }
-
-  /**
-   * Reset statistics and clear checkpoints for fresh start
-   */
-  async function resetStatsAndCheckpoints() {
-    resetStats();
-
-    // Clear checkpoints using processing state manager
-    if (state.processingStateManager && state.currentSessionId) {
-      try {
-        await state.processingStateManager.clearCheckpoints(state.currentSessionId);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn('[Queue Manager] ⚠️ Failed to clear checkpoints:', error.message);
-      }
-    }
   }
 
   /**
@@ -1182,13 +1167,13 @@ export default function createQueueManager() {
           //  completion checkpoint using processing state manager
           if (state.processingStateManager && state.currentSessionId) {
             await state.processingStateManager.saveScanningCheckpointFile({
-              status: 'complete',
+              status: 'completed',
               totalPages: state.stats.totalPages,
               scannedPages: state.stats.scannedPages,
               totalMedia: state.stats.totalMedia,
               files: state.discoveryFilesCache.map((file) => ({
                 fileName: file.fileName,
-                status: 'complete',
+                status: 'completed',
                 totalDocuments: file.documents.length,
                 scannedDocuments: file.documents.filter((doc) => doc.scanStatus === 'completed').length,
               })),
@@ -1222,7 +1207,7 @@ export default function createQueueManager() {
             remainingDocuments: state.documentsToScan.length,
             files: state.discoveryFilesCache.map((file) => ({
               fileName: file.fileName,
-              status: file.documents.every((doc) => doc.scanStatus === 'completed') ? 'complete' : 'partial',
+              status: file.documents.every((doc) => doc.scanStatus === 'completed') ? 'completed' : 'partial',
               totalDocuments: file.documents.length,
               scannedDocuments: file.documents.filter((doc) => doc.scanStatus === 'completed').length,
             })),
@@ -1500,9 +1485,7 @@ export default function createQueueManager() {
     emit('batchProcessingStarted', state.batchProcessingPhase);
 
     try {
-      if (state.mediaProcessor && typeof state.mediaProcessor.processAndUploadQueuedMedia === 'function') {
-        await state.mediaProcessor.processAndUploadQueuedMedia();
-      }
+      await state.mediaProcessor.processAndUploadQueuedMedia();
 
       state.batchProcessingPhase.status = 'completed';
       state.batchProcessingPhase.endTime = Date.now();
@@ -1532,7 +1515,7 @@ export default function createQueueManager() {
   async function processAndUploadBatches() {
     const persistenceManager = createPersistenceManager();
     await persistenceManager.init();
-    const pendingBatches = await persistenceManager.getPendingBatches();
+    const pendingBatches = await persistenceManager.getPendingBatches(state.currentSessionId);
     state.batchProcessingPhase.totalBatches = pendingBatches.length;
 
     await state.processingStateManager.updateUploadProgress(state.currentSessionId, {
@@ -1699,7 +1682,7 @@ export default function createQueueManager() {
     off,
     getQueueSize,
     cleanup,
-    resetStatsAndCheckpoints,
+    resetStats,
     resumeDiscoveryFromCheckpoint,
     resumeScanningFromCheckpoint,
     detectChangedDocuments,

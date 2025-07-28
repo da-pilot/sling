@@ -756,7 +756,8 @@ body {
 
 /* List view overrides: no card styles, full width rows */
 .media-grid.list-view {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -768,15 +769,21 @@ body {
 }
 
 .media-grid.list-view .media-item {
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  margin: 0;
-  background: none;
+  display: flex;
   flex-direction: row;
   align-items: center;
+  border: none;
+  box-shadow: none;
+  padding: 8px 0;
+  margin: 0;
+  background: none;
   min-height: 48px;
   height: auto;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.media-grid.list-view .media-item:hover {
+  background: var(--color-hover);
 }
 
 .media-grid.list-view .list-header {
@@ -799,10 +806,6 @@ body {
   display: flex;
   align-items: center;
   box-sizing: border-box;
-}
-
-.media-grid.list-view .list-row:hover {
-  background: var(--color-hover);
 }
 
 /* Grid view overrides: card styles only in grid */
@@ -885,6 +888,14 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 6px;
+}
+
+.list-cell-thumb img {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
 }
 
 .video-play-overlay {
@@ -1683,7 +1694,12 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 6px;
-  padding: 8px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .list-cell-thumb .document-icon,
@@ -2426,11 +2442,14 @@ body {
   margin-bottom: 4px;
 }
 
+.fix-instructions li {
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
 
 .alt-warning-guidance li {
   margin-bottom: 6px;
 }
-
 
 .no-alt-guidance li:last-child {
   margin-bottom: 0;
@@ -2725,11 +2744,13 @@ body {
 .media-grid.list-view .list-header,
 .media-grid.list-view .media-item {
   display: grid;
-  grid-template-columns: 56px minmax(120px, 2fr) minmax(120px, 1fr) minmax(220px, 1fr); /* thumbnail, name, type, actions */
+  grid-template-columns: 56px minmax(120px, 2fr) minmax(90px, 1fr) minmax(220px, 1fr); /* thumbnail, name, type, actions */
   align-items: center;
   width: 100%;
   min-width: 0;
   gap: 0;
+  height: 64px;
+  overflow: hidden;
 }
 
 .media-grid.list-view .list-header-cell,
@@ -3429,11 +3450,6 @@ body {
   padding-left: 20px;
 }
 
-.fix-instructions li {
-  margin-bottom: 6px;
-  line-height: 1.4;
-}
-
 .fix-instructions li:last-child {
   margin-bottom: 0;
 }
@@ -3465,5 +3481,92 @@ body {
   to {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+/* AI Alt Text Generation Button Styles */
+.occurrence-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.generate-ai-alt-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgb(102 126 234 / 30%);
+}
+
+.generate-ai-alt-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgb(102 126 234 / 40%);
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+.generate-ai-alt-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgb(102 126 234 / 30%);
+}
+
+.generate-ai-alt-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgb(102 126 234 / 20%);
+}
+
+.generate-ai-alt-btn:disabled:hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgb(102 126 234 / 20%);
+}
+
+.ai-btn-text {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.ai-btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Toast notification for AI generation */
+.toast-notification.success {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border-left: 4px solid #155724;
+}
+
+.toast-notification.success .toast-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Loading state for AI button */
+.generate-ai-alt-btn.loading {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
   }
 }

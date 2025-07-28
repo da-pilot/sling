@@ -1,4 +1,63 @@
+import { CLOUDFLARE_AI_CONFIG, getCloudflareAIUrl, validateCloudflareConfig } from '../config/ai-config.js';
+
 let currentModalData = null;
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = 'Copied to clipboard!';
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 2000);
+  }).catch(() => {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification error';
+    toast.textContent = 'Failed to copy to clipboard';
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 2000);
+  });
+}
+
+async function generateAltTextWithCloudflare(imageUrl, imageName) {
+  try {
+    const configValidation = validateCloudflareConfig();
+    if (!configValidation.isValid) {
+      throw new Error('Cloudflare AI is not properly configured');
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CLOUDFLARE_AI_CONFIG.TIMEOUT);
+    const response = await fetch(getCloudflareAIUrl(), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${CLOUDFLARE_AI_CONFIG.API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: `Generate a concise, descriptive alt text for this image. Focus on what's visually important and keep it under ${CLOUDFLARE_AI_CONFIG.MAX_ALT_TEXT_LENGTH} characters. Image name: ${imageName}`,
+        images: [imageUrl],
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Cloudflare API error: ${errorData.errors?.[0]?.message || response.statusText}`);
+    }
+    const result = await response.json();
+    let generatedText = result.result?.response || result.result?.text || '';
+    generatedText = generatedText.replace(/^["']|["']$/g, '');
+    if (generatedText.length > CLOUDFLARE_AI_CONFIG.MAX_ALT_TEXT_LENGTH) {
+      generatedText = `${generatedText.substring(0, CLOUDFLARE_AI_CONFIG.MAX_ALT_TEXT_LENGTH - 3)}...`;
+    }
+    return generatedText || null;
+  } catch (error) {
+    return null;
+  }
+}
 
 export function closeMediaInfoModal() {
   if (currentModalData) {
@@ -18,12 +77,11 @@ export function closeMediaInfoModal() {
   remainingModals.forEach((modal) => modal.remove());
 }
 
-window.clearStuckModals = function () {
+window.clearStuckModals = function clearStuckModals() {
   document.querySelectorAll('.modal-overlay, .media-info-modal').forEach((el) => el.remove());
   document.querySelectorAll('div[style*="background: rgba(0, 0, 0, 0.5)"]').forEach((el) => el.remove());
   document.body.style.overflow = '';
   currentModalData = null;
-  console.log('Cleared all stuck modals');
 };
 
 /**
@@ -196,10 +254,16 @@ export function showMediaInfoModal(media) {
                   ${!o.hasAltText ? `
                     <div class="occurrence-context">
                       "${o.contextualText || 'No context available'}"
-                      <button class="copy-context-btn" onclick="copyToClipboard('${o.contextualText || 'No context available'}')" title="Copy to clipboard">📋</button>
+                      ${o.contextualText ? `<button class="copy-context-btn" onclick="copyToClipboard('${o.contextualText}')" title="Copy to clipboard">📋</button>` : ''}
                     </div>
                     <div class="occurrence-status-text">
                       No ${isLinkMedia ? 'title' : 'alt text'}
+                    </div>
+                    <div class="occurrence-actions">
+                      <button class="generate-ai-alt-btn" onclick="generateAIAltText('${media.id}', '${o.occurrenceId || index}')" title="Generate AI alt text">
+                        <span class="ai-btn-text">Generate Alt Text</span>
+                        <span class="ai-btn-icon">✨</span>
+                      </button>
                     </div>
                   ` : `
                     <div class="alt-text">${isLinkMedia ? 'Title' : 'Alt'}: "${o.altText}"</div>
@@ -289,24 +353,62 @@ export function showMediaInfoModal(media) {
       }
     });
   }
-  window.copyToClipboard = function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      const toast = document.createElement('div');
-      toast.className = 'toast-notification';
-      toast.textContent = 'Copied to clipboard!';
-      document.body.appendChild(toast);
-      setTimeout(() => {
-        document.body.removeChild(toast);
-      }, 2000);
-    }).catch(() => {
-      const toast = document.createElement('div');
-      toast.className = 'toast-notification error';
-      toast.textContent = 'Failed to copy to clipboard';
-      document.body.appendChild(toast);
-      setTimeout(() => {
-        document.body.removeChild(toast);
-      }, 2000);
-    });
+  window.generateAIAltText = function generateAIAltText(mediaId, occurrenceId) {
+    const button = window.event.target.closest('.generate-ai-alt-btn');
+    const btnText = button.querySelector('.ai-btn-text');
+    const btnIcon = button.querySelector('.ai-btn-icon');
+    const originalText = btnText.textContent;
+    const originalIcon = btnIcon.textContent;
+    btnText.textContent = 'Generating...';
+    btnIcon.textContent = '⏳';
+    button.disabled = true;
+    const mediaData = currentModalData?.media || {};
+    const imageUrl = mediaData.src;
+    const imageName = mediaData.name || 'image';
+    generateAltTextWithCloudflare(imageUrl, imageName)
+      .then((generatedAltText) => {
+        if (generatedAltText) {
+          btnText.textContent = 'Copy Generated Text';
+          btnIcon.textContent = '📋';
+          button.onclick = () => copyToClipboard(generatedAltText);
+          const toast = document.createElement('div');
+          toast.className = 'toast-notification success';
+          toast.innerHTML = `
+            <div>Generated alt text:</div>
+            <div style="font-style: italic; margin-top: 4px;">"${generatedAltText}"</div>
+          `;
+          document.body.appendChild(toast);
+          setTimeout(() => {
+            if (toast.parentNode) {
+              document.body.removeChild(toast);
+            }
+          }, 4000);
+        } else {
+          throw new Error('No alt text generated');
+        }
+      })
+      .catch(() => {
+        btnText.textContent = 'Retry';
+        btnIcon.textContent = '🔄';
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification error';
+        toast.textContent = 'AI generation failed. Please try again.';
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          if (toast.parentNode) {
+            document.body.removeChild(toast);
+          }
+        }, 3000);
+      })
+      .finally(() => {
+        setTimeout(() => {
+          btnText.textContent = originalText;
+          btnIcon.textContent = originalIcon;
+          button.disabled = false;
+          button.onclick = () => generateAIAltText(mediaId, occurrenceId);
+        }, 10000);
+      });
   };
-  currentModalData = { modal, overlay };
+
+  currentModalData = { modal, overlay, media };
 }
