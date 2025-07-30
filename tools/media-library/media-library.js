@@ -225,7 +225,7 @@ function setupMediaUpdateHandler() {
       console.log('[Media Library] 📱 Updating UI with', updatedMedia.length, 'media');
       // Update global media array to keep it in sync
       media = updatedMedia || [];
-      mediaBrowser.updateMedia(updatedMedia);
+      mediaBrowser.setMedia(updatedMedia);
     });
   }
 }
@@ -421,7 +421,7 @@ function renderMedia(mediaToRender = media) {
     hasMediaBrowser: !!mediaBrowser,
   });
 
-  if (mediaBrowser) mediaBrowser.updateMedia(mediaToRender);
+  if (mediaBrowser) mediaBrowser.setMedia(mediaToRender);
 
   const grid = document.getElementById('mediaGrid');
   const loadingMsg = document.getElementById('mediaLoadingMessage');
@@ -766,15 +766,15 @@ function handleSearch(query) {
  */
 function handleViewChange(view) {
   console.log('[MediaLibrary] 🔄 handleViewChange called with view:', view);
-  
+
   const hierarchyContainer = document.getElementById('hierarchyContainer');
   const isInFolderView = hierarchyContainer && hierarchyContainer.style.display !== 'none';
-  
+
   console.log('[MediaLibrary] Current state:', {
     view,
     isInFolderView,
     hierarchyContainer: !!hierarchyContainer,
-    hierarchyDisplay: hierarchyContainer?.style.display
+    hierarchyDisplay: hierarchyContainer?.style.display,
   });
 
   const viewBtns = document.querySelectorAll('.view-btn');

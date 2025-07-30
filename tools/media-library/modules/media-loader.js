@@ -117,7 +117,7 @@ export async function loadMediaFromIndexedDB() {
     console.log('[Media Loader] Loaded', mediaCount, 'media items from IndexedDB');
 
     if (mediaBrowserRef && metadata) {
-      mediaBrowserRef.updateMedia(metadata);
+      mediaBrowserRef.setMedia(metadata);
     }
 
     return {

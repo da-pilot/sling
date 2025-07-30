@@ -1,8 +1,6 @@
 /* eslint-disable no-console */
 /* eslint-disable no-use-before-define */
 
-import isExternalMedia from './external-media.js';
-
 /**
  * Create Media Browser Module
  * Handles displaying and managing media in grid and list views
@@ -31,13 +29,11 @@ export default function createMediaBrowser(container, context = null) {
     emit,
     setMedia,
     addMedia,
-    updateMedia,
     setView,
     setSort,
     setFilter,
     getSelectedMedia,
     clearSelection,
-    processExternalMedia,
     markInitialLoadComplete,
   };
 
@@ -63,6 +59,7 @@ export default function createMediaBrowser(container, context = null) {
 
     applyFiltersAndSort();
     render();
+    updateFilterCounts();
   }
 
   function addMedia(newMedia, isScanning = false) {
@@ -86,46 +83,52 @@ export default function createMediaBrowser(container, context = null) {
 
   function renderWithNewMediaIndicators(newMedia) {
     if (!state.container) return;
-
     if (state.currentView === 'list') {
       state.container.classList.add('list-view');
     } else {
       state.container.classList.remove('list-view');
     }
-
-    state.container.innerHTML = '';
-
+    const newContent = document.createDocumentFragment();
     if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
-      renderEmptyState();
-      return;
-    }
-
-    if (state.currentView === 'list') {
-      renderListHeader();
-    }
-
-    state.filteredMedia.forEach((media) => {
-      const mediaElement = createMediaElement(media);
-      mediaElement.setAttribute('data-media-id', media.id);
-
-      if (newMedia.some((newMediaItem) => newMediaItem.src === media.src)) {
-        mediaElement.classList.add('new-media');
-        setTimeout(() => {
-          mediaElement.classList.remove('new-media');
-        }, 3000);
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'empty-state';
+      emptyDiv.innerHTML = `
+        <div class="empty-content">
+          <h3>No media found</h3>
+          <p>Try adjusting your filters or scanning for media.</p>
+        </div>
+      `;
+      newContent.appendChild(emptyDiv);
+    } else {
+      if (state.currentView === 'list') {
+        const header = document.createElement('div');
+        header.className = 'list-header';
+        header.innerHTML = `
+          <div class="list-header-cell"></div>
+          <div class="list-header-cell">Name</div>
+          <div class="list-header-cell">Type</div>
+          <div class="list-header-cell">Actions</div>
+        `;
+        newContent.appendChild(header);
       }
-
-      state.container.appendChild(mediaElement);
-    });
+      state.filteredMedia.forEach((media) => {
+        const mediaElement = createMediaElement(media);
+        mediaElement.setAttribute('data-media-id', media.id);
+        if (newMedia.some((newMediaItem) => newMediaItem.src === media.src)) {
+          mediaElement.classList.add('new-media');
+          setTimeout(() => {
+            mediaElement.classList.remove('new-media');
+          }, 3000);
+        }
+        newContent.appendChild(mediaElement);
+      });
+    }
+    state.container.innerHTML = '';
+    state.container.appendChild(newContent);
   }
 
   function setView(view) {
-    console.log('[MediaBrowser] 🔄 setView called with view:', view);
-    console.log('[MediaBrowser] Previous view was:', state.currentView);
-
     state.currentView = view;
-    console.log('[MediaBrowser] New view set to:', state.currentView);
-
     render();
   }
 
@@ -149,17 +152,17 @@ export default function createMediaBrowser(container, context = null) {
     let pagePathForFiltering = state.context.currentPagePath;
     if (pagePathForFiltering && pagePathForFiltering.includes('tools/media-library/media-library')) {
       const homePagePath = `/${state.context.org}/${state.context.repo}/index.html`;
-      console.log('[Media Browser] On media library page, using home page path for filtering:', homePagePath);
+
       pagePathForFiltering = homePagePath;
     } else if (pagePathForFiltering && !pagePathForFiltering.startsWith(`/${state.context.org}/${state.context.repo}`)) {
       // If path doesn't start with full org/repo structure, construct full path
       const fullPath = `/${state.context.org}/${state.context.repo}${pagePathForFiltering}.html`;
-      console.log('[Media Browser] Constructing full path for filtering:', pagePathForFiltering, '→', fullPath);
+
       pagePathForFiltering = fullPath;
     } else if (pagePathForFiltering && !pagePathForFiltering.includes('.html')) {
       // If path doesn't end with .html, add it
       const fullPath = `${pagePathForFiltering}.html`;
-      console.log('[Media Browser] Adding .html extension for filtering:', pagePathForFiltering, '→', fullPath);
+
       pagePathForFiltering = fullPath;
     }
 
@@ -244,63 +247,45 @@ export default function createMediaBrowser(container, context = null) {
   }
 
   function render() {
-    console.log('[MediaBrowser] 🎨 render called with view:', state.currentView);
-
     if (!state.container) {
-      console.log('[MediaBrowser] ⚠️ No container available');
       return;
     }
-
     if (state.currentView === 'list') {
       state.container.classList.add('list-view');
-      console.log('[MediaBrowser] Added list-view class');
     } else {
       state.container.classList.remove('list-view');
-      console.log('[MediaBrowser] Removed list-view class');
     }
-
-    state.container.innerHTML = '';
-
+    const newContent = document.createDocumentFragment();
     if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
-      console.log('[MediaBrowser] Rendering empty state');
-      renderEmptyState();
-      return;
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'empty-state';
+      emptyDiv.innerHTML = `
+        <div class="empty-content">
+          <h3>No media found</h3>
+          <p>Try adjusting your filters or scanning for media.</p>
+        </div>
+      `;
+      newContent.appendChild(emptyDiv);
+    } else {
+      if (state.currentView === 'list') {
+        const header = document.createElement('div');
+        header.className = 'list-header';
+        header.innerHTML = `
+          <div class="list-header-cell"></div>
+          <div class="list-header-cell">Name</div>
+          <div class="list-header-cell">Type</div>
+          <div class="list-header-cell">Actions</div>
+        `;
+        newContent.appendChild(header);
+      }
+      state.filteredMedia.forEach((media) => {
+        const mediaElement = createMediaElement(media);
+        mediaElement.setAttribute('data-media-id', media.id);
+        newContent.appendChild(mediaElement);
+      });
     }
-
-    if (state.currentView === 'list') {
-      renderListHeader();
-    }
-
-    console.log('[MediaBrowser] Rendering', state.filteredMedia.length, 'media items');
-    state.filteredMedia.forEach((media) => {
-      const mediaElement = createMediaElement(media);
-      mediaElement.setAttribute('data-media-id', media.id);
-      state.container.appendChild(mediaElement);
-    });
-  }
-
-  function renderEmptyState() {
-    const emptyDiv = document.createElement('div');
-    emptyDiv.className = 'empty-state';
-    emptyDiv.innerHTML = `
-      <div class="empty-content">
-        <h3>No media found</h3>
-        <p>Try adjusting your filters or scanning for media.</p>
-      </div>
-    `;
-    state.container.appendChild(emptyDiv);
-  }
-
-  function renderListHeader() {
-    const header = document.createElement('div');
-    header.className = 'list-header';
-    header.innerHTML = `
-      <div class="list-header-cell"></div> <!-- Thumbnail column -->
-      <div class="list-header-cell">Name</div>
-      <div class="list-header-cell">Type</div>
-      <div class="list-header-cell">Actions</div>
-    `;
-    state.container.appendChild(header);
+    state.container.innerHTML = '';
+    state.container.appendChild(newContent);
   }
 
   function createMediaElement(media) {
@@ -499,23 +484,21 @@ export default function createMediaBrowser(container, context = null) {
     let usedExternalCount = '-';
     let usedMissingAltCount = '-';
 
-    console.log('[Media Browser] Current page path for "Used on Page" metrics:', state.context.currentPagePath);
-
     // Use home page path if we're on the media library page
     let pagePathForMetrics = state.context.currentPagePath;
     if (pagePathForMetrics && pagePathForMetrics.includes('tools/media-library/media-library')) {
       const homePagePath = `/${state.context.org}/${state.context.repo}/index.html`;
-      console.log('[Media Browser] On media library page, using home page path instead:', homePagePath);
+
       pagePathForMetrics = homePagePath;
     } else if (pagePathForMetrics && !pagePathForMetrics.startsWith(`/${state.context.org}/${state.context.repo}`)) {
       // If path doesn't start with full org/repo structure, construct full path
       const fullPath = `/${state.context.org}/${state.context.repo}${pagePathForMetrics}.html`;
-      console.log('[Media Browser] Constructing full path:', pagePathForMetrics, '→', fullPath);
+
       pagePathForMetrics = fullPath;
     } else if (pagePathForMetrics && !pagePathForMetrics.includes('.html')) {
       // If path doesn't end with .html, add it
       const fullPath = `${pagePathForMetrics}.html`;
-      console.log('[Media Browser] Adding .html extension:', pagePathForMetrics, '→', fullPath);
+
       pagePathForMetrics = fullPath;
     }
 
@@ -525,9 +508,6 @@ export default function createMediaBrowser(container, context = null) {
         const usedInPages = typeof a.usedIn === 'string' ? a.usedIn.split(',') : a.usedIn;
         return usedInPages.includes(pagePathForMetrics);
       });
-
-      console.log('[Media Browser] Found', usedOnPage.length, 'media items used on page:', pagePathForMetrics);
-      console.log('[Media Browser] Used on page items:', usedOnPage.map((a) => ({ name: a.name, usedIn: a.usedIn })));
 
       usedOnPageCount = usedOnPage.length;
       usedInternalCount = usedOnPage.filter((a) => a.isExternal === false).length;
@@ -542,8 +522,6 @@ export default function createMediaBrowser(container, context = null) {
         }
         return !a.alt || a.alt.trim() === '' || a.alt === 'Untitled Media';
       }).length;
-    } else {
-      console.log('[Media Browser] No current page path available for "Used on Page" metrics');
     }
 
     const setCount = (id, count) => {
@@ -580,67 +558,6 @@ export default function createMediaBrowser(container, context = null) {
 
   function markInitialLoadComplete() {
     state.isInitialLoad = false;
-  }
-
-  /**
-   * Process media to detect external links and add metadata
-   */
-  function processExternalMedia(media, pageContext = {}) {
-    const internalDomains = [];
-
-    if (pageContext && typeof pageContext === 'object') {
-      if (pageContext.site) internalDomains.push(pageContext.site);
-      if (pageContext.org) internalDomains.push(pageContext.org);
-    }
-
-    if (internalDomains.length === 0) {
-      internalDomains.push(window.location.hostname);
-    }
-
-    return media.map((mediaItem) => {
-      const isExternal = isExternalMedia(mediaItem.src, internalDomains);
-      return {
-        ...mediaItem,
-        isExternal,
-      };
-    });
-  }
-
-  // Add method to update media progressively
-  function updateMedia(newMedia) {
-    try {
-      console.log('[Media Browser] 📱 Updating media progressively:', {
-        currentCount: state.media.length,
-        newCount: newMedia.length,
-        timestamp: new Date().toISOString(),
-      });
-
-      // Merge with existing media (deduplicate by src)
-      const existingMediaSrcs = new Set(state.media.map((mediaItem) => mediaItem.src));
-      const uniqueNewMedia = newMedia.filter((mediaItem) => !existingMediaSrcs.has(mediaItem.src));
-      if (uniqueNewMedia.length > 0) {
-        state.media = [...state.media, ...uniqueNewMedia];
-      } else {
-        // If no new unique media, still update with the latest data (in case metadata changed)
-        state.media = [...newMedia];
-      }
-
-      // Apply current filters and sort
-      applyFiltersAndSort();
-
-      // Re-render the grid
-      render();
-
-      // Update filter counts
-      updateFilterCounts();
-
-      // Update loading state if this is the first batch
-      if (state.media.length > 0 && state.isInitialLoad) {
-        state.isInitialLoad = false;
-      }
-    } catch (error) {
-      console.error('[Media Browser] ❌ Error updating media:', error);
-    }
   }
 
   return api;
