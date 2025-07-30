@@ -120,7 +120,12 @@ export default function createMediaBrowser(container, context = null) {
   }
 
   function setView(view) {
+    console.log('[MediaBrowser] 🔄 setView called with view:', view);
+    console.log('[MediaBrowser] Previous view was:', state.currentView);
+
     state.currentView = view;
+    console.log('[MediaBrowser] New view set to:', state.currentView);
+
     render();
   }
 
@@ -239,17 +244,25 @@ export default function createMediaBrowser(container, context = null) {
   }
 
   function render() {
-    if (!state.container) return;
+    console.log('[MediaBrowser] 🎨 render called with view:', state.currentView);
+
+    if (!state.container) {
+      console.log('[MediaBrowser] ⚠️ No container available');
+      return;
+    }
 
     if (state.currentView === 'list') {
       state.container.classList.add('list-view');
+      console.log('[MediaBrowser] Added list-view class');
     } else {
       state.container.classList.remove('list-view');
+      console.log('[MediaBrowser] Removed list-view class');
     }
 
     state.container.innerHTML = '';
 
     if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
+      console.log('[MediaBrowser] Rendering empty state');
       renderEmptyState();
       return;
     }
@@ -258,6 +271,7 @@ export default function createMediaBrowser(container, context = null) {
       renderListHeader();
     }
 
+    console.log('[MediaBrowser] Rendering', state.filteredMedia.length, 'media items');
     state.filteredMedia.forEach((media) => {
       const mediaElement = createMediaElement(media);
       mediaElement.setAttribute('data-media-id', media.id);

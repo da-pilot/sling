@@ -765,18 +765,40 @@ function handleSearch(query) {
  * Handle view changes
  */
 function handleViewChange(view) {
+  console.log('[MediaLibrary] 🔄 handleViewChange called with view:', view);
+  
+  const hierarchyContainer = document.getElementById('hierarchyContainer');
+  const isInFolderView = hierarchyContainer && hierarchyContainer.style.display !== 'none';
+  
+  console.log('[MediaLibrary] Current state:', {
+    view,
+    isInFolderView,
+    hierarchyContainer: !!hierarchyContainer,
+    hierarchyDisplay: hierarchyContainer?.style.display
+  });
+
   const viewBtns = document.querySelectorAll('.view-btn');
   viewBtns.forEach((btn) => btn.classList.remove('active'));
 
   const activeBtn = document.querySelector(`[data-view="${view}"]`);
   if (activeBtn) activeBtn.classList.add('active');
 
-  if (mediaBrowser) mediaBrowser.setView(view);
+  if (mediaBrowser) {
+    console.log('[MediaLibrary] Setting mediaBrowser view to:', view);
+    mediaBrowser.setView(view);
+  } else {
+    console.log('[MediaLibrary] ⚠️ mediaBrowser not available');
+  }
 
-  const hierarchyContainer = document.getElementById('hierarchyContainer');
-  const isInFolderView = hierarchyContainer && hierarchyContainer.style.display !== 'none';
   if (!isInFolderView) {
     document.getElementById('hierarchyToggle')?.classList.remove('active');
+  } else {
+    console.log('[MediaLibrary] ⚠️ Still in folder view, calling returnToAllMedia');
+    if (typeof window.returnToAllMedia === 'function') {
+      window.returnToAllMedia();
+    } else {
+      console.log('[MediaLibrary] ❌ returnToAllMedia function not available');
+    }
   }
 }
 
