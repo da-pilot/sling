@@ -305,7 +305,7 @@ export default function createSessionManager() {
       const cleanupPromises = [];
       items.forEach((item) => {
         if (item.name && item.ext === 'json' && item.name.startsWith('session-')) {
-          const sessionId = item.name.replace('.json', '');
+          const sessionId = item.name.replace('.json', '').replace(/^session-/, '');
           const sessionPath = DA_PATHS.getSessionFile(
             state.config.org,
             state.config.repo,

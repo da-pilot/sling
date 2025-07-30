@@ -108,7 +108,7 @@ function createDocAuthoringService() {
     state.org = daContext.org;
     state.repo = daContext.repo;
     state.ref = daContext.ref;
-    state.path = daContext.path || '/';
+    state.path = daContext.path;
     state.token = daContext.token;
     state.baseUrl = daContext.baseUrl || ADMIN_DA_LIVE_BASE;
     state.contentBaseUrl = daContext.contentBaseUrl || CONTENT_DA_LIVE_BASE;

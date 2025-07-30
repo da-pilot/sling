@@ -50,7 +50,7 @@ export function createWorkerDaApi() {
     if (!config) {
       throw new Error('Worker DA API not initialized');
     }
-    const url = `${config.baseUrl}/source${path}`;
+    const url = `${CONTENT_DA_LIVE_BASE}${path}`;
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${config.token}`,

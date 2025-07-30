@@ -26,6 +26,7 @@ export const DA_STORAGE = {
     SESSION_CHECKPOINT: 'session-checkpoint.json',
     SESSION_STATUS: 'session-status.json',
     SESSION_HISTORY: 'session-history.json',
+    STRUCTURE_BASELINE: 'structure-baseline.json',
   },
 };
 
@@ -48,6 +49,7 @@ export const DA_PATHS = {
   getSessionCheckpointFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-checkpoint-${sessionId}.json`,
   getSessionStatusFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-status-${sessionId}.json`,
   getSessionHistoryFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-history-${sessionId}.json`,
+  getStructureBaselineFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.STRUCTURE_BASELINE}`,
 };
 
 export const SCAN_CONFIG = {

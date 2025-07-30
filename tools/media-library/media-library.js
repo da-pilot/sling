@@ -154,7 +154,11 @@ async function initializeCoreServices() {
   metadataManager = createMetadataManager(docAuthoringService, metadataPath);
   await metadataManager.init(docAuthoringService.getConfig());
 
-  mediaBrowser = createMediaBrowser(document.getElementById('mediaGrid'));
+  mediaBrowser = createMediaBrowser(document.getElementById('mediaGrid'), {
+    currentPagePath: daContext.path,
+    org: daContext.org,
+    repo: daContext.repo,
+  });
   mediaBrowser.setView('grid');
   mediaBrowser.setSort('discovery');
   mediaBrowser.on('mediaSelected', handleMediaSelection);
@@ -500,7 +504,7 @@ async function initializeScanning() {
   }
 
   try {
-    await startFullScan(true);
+    await startFullScan(false);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.warn('Failed to start full scan, continuing:', error);

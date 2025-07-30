@@ -1,4 +1,4 @@
-/* eslint-disable no-use-before-define, no-console */
+/* eslint-disable no-use-before-define, no-console, no-await-in-loop */
 
 /**
  * Folder Discovery Worker - Discovers HTML documents within a specific folder
@@ -44,7 +44,8 @@ async function discoverFolder(folderPath, workerId, discoveryType = 'full') {
   const workerIdState = workerId;
   try {
     const existingDocuments = discoveryType === 'incremental' ? await loadExistingDiscovery(folderPathState) : [];
-    const currentDocuments = await discoverDocumentsInFolder(folderPathState);
+    const discoveryResult = await discoverDocumentsInFolder(folderPathState);
+    const { documents: currentDocuments, folderStructure } = discoveryResult;
     const mergedDocuments = discoveryType === 'incremental'
       ? mergeDiscoveryData(existingDocuments, currentDocuments)
       : currentDocuments;
@@ -57,6 +58,7 @@ async function discoverFolder(folderPath, workerId, discoveryType = 'full') {
         folderPath: folderPathState,
         documents: mergedDocuments,
         documentCount: mergedDocuments.length,
+        folderStructure,
         workerId: workerIdState,
         existingCount: existingDocuments.length,
         currentCount: currentDocuments.length,
@@ -98,11 +100,11 @@ function matchesExcludePatterns(path, patterns) {
 async function discoverDocumentsInFolder(folderPath) {
   const documents = [];
   const foldersToScan = [folderPath];
+  const folderStructure = {};
   let excludePatterns = [];
   try {
     const configUrl = `${CONTENT_DA_LIVE_BASE}/${config.org}/${config.repo}/.media/config.json`;
     const parsedConfig = await sheetUtils.loadData(configUrl, config.token);
-
     if (parsedConfig && parsedConfig.data && Array.isArray(parsedConfig.data)) {
       parsedConfig.data.forEach((row) => {
         if (row.key === 'excludes' && typeof row.value === 'string') {
@@ -113,37 +115,45 @@ async function discoverDocumentsInFolder(folderPath) {
   } catch (e) {
     excludePatterns = [];
   }
-
+  const orgRepoPrefix = `/${config.org}/${config.repo}`;
   while (foldersToScan.length > 0) {
     const currentFolder = foldersToScan.shift();
-
     try {
-      // eslint-disable-next-line no-await-in-loop
       const items = await listFolderContents(currentFolder);
+      const relativePath = currentFolder.replace(orgRepoPrefix, '');
+      if (!folderStructure[relativePath]) {
+        folderStructure[relativePath] = {
+          path: relativePath,
+          lastModified: null,
+          files: [],
+          subfolders: {},
+        };
+      }
       items.forEach((item) => {
         if (!item.ext) {
-          if (matchesExcludePatterns(item.path, excludePatterns)) {
-            return;
-          }
+          if (matchesExcludePatterns(item.path, excludePatterns)) return;
           foldersToScan.push(item.path);
+          const relativeSubPath = item.path.replace(orgRepoPrefix, '');
+          folderStructure[relativePath].subfolders[relativeSubPath] = {
+            path: relativeSubPath,
+            lastModified: item.lastModified,
+            files: [],
+            subfolders: {},
+          };
           return;
         }
         if (item.ext === 'html') {
-          if (typeof item.lastModified === 'undefined') {
-            return;
-          }
-          if (matchesExcludePatterns(item.path, excludePatterns)) {
-            return;
-          }
-          documents.push({
+          if (typeof item.lastModified === 'undefined') return;
+          if (matchesExcludePatterns(item.path, excludePatterns)) return;
+          const fileEntry = {
             name: item.name,
-            path: item.path,
             ext: item.ext,
             lastModified: item.lastModified,
-          });
+          };
+          documents.push(fileEntry);
+          folderStructure[relativePath].files.push(fileEntry);
         }
       });
-
       if (documents.length > 0 && documents.length % 50 === 0) {
         postMessage({
           type: 'folderProgress',
@@ -156,12 +166,10 @@ async function discoverDocumentsInFolder(folderPath) {
         });
       }
     } catch (error) {
-      // Don't send individual folder scan errors, just log them
-      // The main error will be sent when the entire discovery fails
+      console.log('[FolderDiscoveryWorker] Error in folder scan', error);
     }
   }
-
-  return documents;
+  return { documents, folderStructure };
 }
 
 /**

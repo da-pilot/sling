@@ -192,8 +192,21 @@ export default function createQueueManager() {
         const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
         const scanningCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
         const uploadCheckpoint = await state.processingStateManager.loadUploadCheckpoint();
-        const isIncremental = (forceRescan || (!forceRescan && discoveryCheckpoint.status === 'completed'));
-        const needsDiscovery = forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle';
+        const isIncremental = (!forceRescan && discoveryCheckpoint.status === 'completed');
+        console.log('[Queue Manager] 🔍 Discovery checkpoint analysis:', {
+          forceRescan,
+          discoveryStatus: discoveryCheckpoint.status,
+          isIncremental,
+          needsDiscovery: forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle' || (isIncremental && discoveryCheckpoint.status === 'completed'),
+        });
+        if (forceRescan) {
+          await state.processingStateManager.clearCheckpoints();
+          await clearDiscoveryFiles();
+          if (state.discoveryManager && typeof state.discoveryManager.clearStructureBaseline === 'function') {
+            await state.discoveryManager.clearStructureBaseline();
+          }
+        }
+        const needsDiscovery = forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle' || (isIncremental && discoveryCheckpoint.status === 'completed');
         const needsScanning = scanningCheckpoint.status !== 'completed';
         const needsUpload = uploadCheckpoint.status !== 'completed';
         if (needsDiscovery && state.discoveryManager) {
@@ -202,12 +215,12 @@ export default function createQueueManager() {
             const changeResult = await checkForStructuralChanges();
             const incrementalSuccess = await performIncrementalDiscovery(changeResult.changes);
             if (!incrementalSuccess) {
-              await state.discoveryManager.startDiscoveryWithSession(sessionId);
+              await state.discoveryManager.startDiscoveryWithSession(sessionId, forceRescan);
             }
           } else if (discoveryCheckpoint.status === 'running') {
             await resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
           } else {
-            await state.discoveryManager.startDiscoveryWithSession(sessionId);
+            await state.discoveryManager.startDiscoveryWithSession(sessionId, forceRescan);
           }
           const discoveryStatus = await checkDiscoveryFilesExist();
           if (needsScanning && discoveryStatus.filesExist) {
@@ -230,6 +243,8 @@ export default function createQueueManager() {
         // eslint-disable-next-line no-console
         console.log('[Queue Manager] 🚀 Queue scanning started:', {
           forceRescan,
+          isIncremental,
+          discoveryType: isIncremental ? 'incremental' : 'full',
           sessionId,
           userId,
           browserId,
@@ -898,10 +913,8 @@ export default function createQueueManager() {
           filePromises.push((async () => {
             try {
               const fileUrl = `${CONTENT_DA_LIVE_BASE}/${config.org}/${config.repo}/.media/.pages/${item.name}.json`;
-              // eslint-disable-next-line no-console
               console.log('[Queue Manager] 📄 Fetching discovery file:', fileUrl);
               const parsedData = await loadData(fileUrl, config.token);
-              // Handle both single-sheet and multi-sheet formats
               let documents;
               if (parsedData.data && parsedData.data.data) {
                 documents = parsedData.data.data;
@@ -925,7 +938,6 @@ export default function createQueueManager() {
                 });
               }
             } catch (fileError) {
-              // eslint-disable-next-line no-console
               console.log('[Queue Manager] ❌ Error loading discovery file:', {
                 fileName: item.name,
                 error: fileError.message,
@@ -941,6 +953,49 @@ export default function createQueueManager() {
       // eslint-disable-next-line no-console
       console.error('[Queue Manager] Error loading discovery files:', error);
       return [];
+    }
+  }
+
+  /**
+   * Clear discovery files from .pages folder
+   */
+  async function clearDiscoveryFiles() {
+    try {
+      if (!config) {
+        console.error('[Queue Manager] Config not available for clearDiscoveryFiles');
+        return;
+      }
+      if (!state.daApi) {
+        console.error('[Queue Manager] DA API service not initialized');
+        return;
+      }
+      const items = await state.daApi.listPath('.media/.pages');
+      const filePromises = [];
+      items.forEach((item) => {
+        const isJsonFile = item.name && item.ext === 'json';
+        if (isJsonFile) {
+          filePromises.push((async () => {
+            try {
+              const filePath = `/${config.org}/${config.repo}/.media/.pages/${item.name}`;
+              const url = `${state.daApi.getConfig().baseUrl}/source${filePath}.json`;
+              await state.daApi.deleteFile(url);
+              console.log('[Queue Manager] 🗑️ Deleted discovery file:', filePath);
+            } catch (error) {
+              console.log('[Queue Manager] ⚠️ Error deleting discovery file:', {
+                fileName: item.name,
+                error: error.message,
+              });
+            }
+          })());
+        }
+      });
+      await Promise.all(filePromises);
+      if (state.discoveryManager && typeof state.discoveryManager.clearStructureBaseline === 'function') {
+        await state.discoveryManager.clearStructureBaseline();
+      }
+      console.log('[Queue Manager] ✅ Cleared all discovery files and structural baseline');
+    } catch (error) {
+      console.error('[Queue Manager] Error clearing discovery files:', error);
     }
   }
 
@@ -1017,6 +1072,21 @@ export default function createQueueManager() {
         }
       });
     });
+
+    console.log('[Queue Manager] 📋 Document scanning analysis:', {
+      totalDocuments,
+      documentsToScan: documentsToScan.length,
+      alreadyScanned,
+      newDocuments,
+      changedDocuments,
+      needsRescan,
+      missingScanComplete,
+      scanReasons: documentsToScan.reduce((acc, doc) => {
+        acc[doc.scanReason] = (acc[doc.scanReason] || 0) + 1;
+        return acc;
+      }, {}),
+    });
+
     return documentsToScan;
   }
 
@@ -1304,6 +1374,7 @@ export default function createQueueManager() {
   }
   async function checkForStructuralChanges() {
     try {
+      console.log('[Queue Manager] 🔍 Starting structural change detection');
       if (!config) {
         console.error('[Queue Manager] Config not available for checkForStructuralChanges');
         return { hasChanges: false, canUseIncremental: false };
@@ -1371,9 +1442,30 @@ export default function createQueueManager() {
       }
 
       const incrementalResults = await state.discoveryManager.performIncrementalDiscovery(changes);
+      console.log('[Queue Manager] 📊 Incremental discovery results:', {
+        incrementalResultsCount: incrementalResults.length,
+        incrementalResults: incrementalResults.map((r) => ({
+          fileName: r.fileName,
+          documentCount: r.documents.length,
+        })),
+      });
       const mergedFiles = await state.discoveryManager.mergeIncrementalResults(incrementalResults);
+      console.log('[Queue Manager] 📊 Merged files:', {
+        mergedFilesCount: mergedFiles.length,
+        mergedFiles: mergedFiles.map((f) => ({
+          fileName: f.fileName,
+          documentCount: f.documents.length,
+        })),
+      });
       state.discoveryFilesCache = mergedFiles;
       state.documentsToScan = getDocumentsToScan(mergedFiles, false);
+      console.log('[Queue Manager] 📋 Documents to scan after incremental discovery:', {
+        totalDocuments: state.documentsToScan.length,
+        documentsByReason: state.documentsToScan.reduce((acc, doc) => {
+          acc[doc.scanReason] = (acc[doc.scanReason] || 0) + 1;
+          return acc;
+        }, {}),
+      });
 
       return true;
     } catch (error) {
