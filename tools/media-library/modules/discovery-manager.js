@@ -220,19 +220,13 @@ function createDiscoveryManager() {
     if (update.type === 'updateDiscoveryProgress') {
       const mergedUpdates = { ...update.updates };
       if (update.updates.totalDocuments !== undefined) {
-        if (update.updates.totalDocuments > 0 || checkpoint.totalDocuments === 0) {
-          mergedUpdates.totalDocuments = update.updates.totalDocuments;
-        }
+        mergedUpdates.totalDocuments = update.updates.totalDocuments;
       }
       if (update.updates.completedFolders !== undefined) {
-        if (update.updates.completedFolders > 0 || checkpoint.completedFolders === 0) {
-          mergedUpdates.completedFolders = update.updates.completedFolders;
-        }
+        mergedUpdates.completedFolders = update.updates.completedFolders;
       }
       if (update.updates.totalFolders !== undefined) {
-        if (update.updates.totalFolders > 0 || checkpoint.totalFolders === 0) {
-          mergedUpdates.totalFolders = update.updates.totalFolders;
-        }
+        mergedUpdates.totalFolders = update.updates.totalFolders;
       }
       return {
         ...checkpoint,
@@ -662,14 +656,18 @@ function createDiscoveryManager() {
   async function processRootFiles(files) {
     try {
       if (files && files.length > 0) {
+        state.stats.totalFolders += 1;
+        if (state.processingStateManager && state.currentSessionId) {
+          await state.processingStateManager.updateDiscoveryProgress(state.currentSessionId, {
+            totalFolders: state.stats.totalFolders,
+            completedFolders: state.stats.completedFolders,
+            status: 'running',
+          });
+        }
         const existingRootFiles = await getExistingRootFiles();
-
         if (existingRootFiles.length > 0) {
           const existingFile = existingRootFiles[0];
-          // Return existing documents instead of creating new ones
           const existingDocuments = existingFile.documents || [];
-
-          // Update discovery progress with state manager
           if (state.processingStateManager && state.currentSessionId) {
             await state.processingStateManager.updateDiscoveryProgress(state.currentSessionId, {
               totalFolders: state.stats.totalFolders,
@@ -677,8 +675,6 @@ function createDiscoveryManager() {
               totalDocuments: state.stats.totalDocuments,
             });
           }
-
-          // Start scanning phase immediately when existing file is found
           if (state.currentSessionId && !state.scanningStarted) {
             state.scanningStarted = true;
             const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${existingFile.name}`;
@@ -688,13 +684,10 @@ function createDiscoveryManager() {
               timestamp: new Date().toISOString(),
             });
           }
-
-          // Emit events for existing documents
           emit('documentsDiscovered', {
             documents: existingDocuments,
             folder: '/',
           });
-
           emit('folderComplete', {
             documentCount: existingDocuments.length,
             documents: existingDocuments,
@@ -702,18 +695,11 @@ function createDiscoveryManager() {
             workerId: 'root',
             stats: state.stats,
           });
-
-          // Update stats with existing documents
           state.stats.completedFolders += 1;
           state.stats.totalDocuments += existingDocuments.length;
           state.completedWorkers += 1;
-
           return;
         }
-
-        // Only create new discovery file if no existing one was found
-
-        // Discovery file with scan status tracking
         const documentsWithMetadata = files.map((file) => ({
           path: file.path,
           lastModified: file.lastModified,
@@ -727,16 +713,13 @@ function createDiscoveryManager() {
           scanErrors: [],
           mediaCount: 0,
         }));
-
         const jsonToWrite = buildSingleSheet(documentsWithMetadata);
         const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/root.json`;
         const url = `${state.apiConfig.baseUrl}/source${filePath}`;
-
         await state.daApi.ensureFolder(
           `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages`,
         );
         await saveSheetFile(url, jsonToWrite, state.apiConfig.token);
-
         await updateDiscoveryCheckpoint({
           type: 'markFolderComplete',
           folderName: '/',
@@ -744,7 +727,6 @@ function createDiscoveryManager() {
           discoveryFile: 'root.json',
           timestamp: Date.now(),
         });
-
         await updateDiscoveryCheckpoint({
           type: 'updateDiscoveryProgress',
           updates: {
@@ -755,16 +737,13 @@ function createDiscoveryManager() {
           timestamp: Date.now(),
         });
       }
-
       state.stats.completedFolders += 1;
       state.stats.totalDocuments += files?.length || 0;
       state.completedWorkers += 1;
-
       emit('documentsDiscovered', {
         documents: files || [],
         folder: '/',
       });
-
       emit('folderComplete', {
         documentCount: files?.length || 0,
         documents: files || [],
@@ -772,61 +751,13 @@ function createDiscoveryManager() {
         workerId: 'root',
         stats: state.stats,
       });
-
-      if (state.completedWorkers >= state.expectedWorkers && !state.discoveryCompleteEmitted) {
-        // eslint-disable-next-line no-console
-        console.log('[Discovery Manager] 🎯 All workers completed, triggering discovery complete');
-        // Double-check that we have the expected number of completed folders
-        if (state.stats.completedFolders >= state.stats.totalFolders) {
-          triggerDiscoveryComplete();
-        } else {
-          // eslint-disable-next-line no-console
-          console.log('[Discovery Manager] ⚠️ Verification failed: Not all folders completed yet (root files case)', {
-            completedFolders: state.stats.completedFolders,
-            totalFolders: state.stats.totalFolders,
-            completedWorkers: state.completedWorkers,
-            expectedWorkers: state.expectedWorkers,
-          });
-        }
-      }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Discovery Manager] Failed to process root files:', error);
-      state.stats.completedFolders += 1;
-      state.stats.totalDocuments += files?.length || 0;
-      state.completedWorkers += 1;
-
-      await updateProgressThrottled();
-
-      emit('documentsDiscovered', {
-        documents: files || [],
-        folder: '/',
-      });
-
-      emit('folderComplete', {
-        documentCount: files?.length || 0,
-        documents: files || [],
+      state.stats.errors += 1;
+      emit('folderError', {
         folderPath: '/',
+        error: error.message,
         workerId: 'root',
-        stats: state.stats,
       });
-
-      if (state.completedWorkers >= state.expectedWorkers && !state.discoveryCompleteEmitted) {
-        // eslint-disable-next-line no-console
-        console.log('[Discovery Manager] 🎯 All workers completed (with errors), triggering discovery complete');
-        // Double-check that we have the expected number of completed folders
-        if (state.stats.completedFolders >= state.stats.totalFolders) {
-          triggerDiscoveryComplete();
-        } else {
-          // eslint-disable-next-line no-console
-          console.log('[Discovery Manager] ⚠️ Verification failed: Not all folders completed yet (root files error case)', {
-            completedFolders: state.stats.completedFolders,
-            totalFolders: state.stats.totalFolders,
-            completedWorkers: state.completedWorkers,
-            expectedWorkers: state.expectedWorkers,
-          });
-        }
-      }
     }
   }
 
@@ -862,7 +793,17 @@ function createDiscoveryManager() {
         folders: batch.map((f) => f.path),
       });
 
-      const workerPromises = batch.map((folder) => processFolder(folder));
+      const workerPromises = batch.map((folder) => {
+        state.stats.totalFolders += 1;
+        if (state.processingStateManager && state.currentSessionId) {
+          state.processingStateManager.updateDiscoveryProgress(state.currentSessionId, {
+            totalFolders: state.stats.totalFolders,
+            completedFolders: state.stats.completedFolders,
+            status: 'running',
+          });
+        }
+        return processFolder(folder);
+      });
       return Promise.all(workerPromises);
     });
 
@@ -1117,19 +1058,11 @@ function createDiscoveryManager() {
     try {
       const { discoveryType } = await loadDiscoveryCheckpoint();
       state.discoveryType = discoveryType;
-      console.log(`[Discovery Manager] 🔍 Discovery type determined: ${discoveryType} (checkpoint exists: ${discoveryType === 'incremental' ? 'YES' : 'NO'})`);
       const { folders, files } = await getTopLevelItems();
-      const excludedData = JSON.parse(
-        localStorage.getItem('discovery-excluded-data') || '{"excludedFolders": 0, "excludedPatterns": []}',
-      );
-      const folderCount = folders.length;
-      const fileCount = files.length > 0 ? 1 : 0;
-      const excludedCount = excludedData.excludedFolders;
-      const totalFolders = folderCount + fileCount + excludedCount;
-      state.stats.totalFolders = totalFolders;
+      state.stats.totalFolders = 0;
       if (state.processingStateManager && sessionId) {
         await state.processingStateManager.updateDiscoveryProgress(sessionId, {
-          totalFolders,
+          totalFolders: 0,
           completedFolders: 0,
           totalDocuments: files.length,
           status: 'running',
@@ -1138,14 +1071,14 @@ function createDiscoveryManager() {
       }
       state.lastProgressUpdate = 0;
       emit('discoveryStarted', {
-        totalFolders,
+        totalFolders: 0,
         maxWorkers: state.maxWorkers,
         sessionId,
         discoveryType,
       });
       const initialExcludedData = JSON.parse(localStorage.getItem('discovery-excluded-data') || '{"excludedFolders": 0, "excludedPatterns": []}');
       const initialCheckpoint = {
-        totalFolders,
+        totalFolders: 0,
         completedFolders: 0,
         totalDocuments: files.length,
         status: 'running',
