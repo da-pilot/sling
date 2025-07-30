@@ -400,58 +400,42 @@ export default function createQueueManager() {
    * Start scanning phase immediately when first discovery file is available
    */
   async function startScanningPhase(discoveryFile = null, forceRescan = false) {
-    try {
-      console.log('🚀 [SCANNING] Starting scanning phase with discovery file:', discoveryFile);
-      let discoveryFiles = state.discoveryFilesCache;
-      if (!discoveryFiles) {
-        discoveryFiles = await loadDiscoveryFiles();
-      }
-      const documentsToScan = getDocumentsToScan(discoveryFiles, forceRescan);
-      const totalPages = discoveryFiles.reduce((sum, file) => sum + file.documents.length, 0);
-
-      console.log('🚀 [SCANNING] Calculated total pages:', {
+    let { discoveryFilesCache: discoveryFiles, documentsToScan } = state;
+    let { totalPages } = state.stats;
+    if (!discoveryFiles || discoveryFiles.length === 0) {
+      discoveryFiles = await loadDiscoveryFiles();
+      documentsToScan = getDocumentsToScan(discoveryFiles, forceRescan);
+      totalPages = discoveryFiles.reduce((sum, file) => sum + file.documents.length, 0);
+    }
+    state.stats.totalPages = totalPages;
+    state.stats.queuedPages = documentsToScan.length;
+    state.stats.startTime = Date.now();
+    state.discoveryFilesCache = discoveryFiles;
+    state.documentsToScan = documentsToScan;
+    if (state.processingStateManager && state.currentSessionId) {
+      await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
         totalPages,
-        documentsToScan: documentsToScan.length,
-        discoveryFiles: discoveryFiles.length,
+        scannedPages: 0,
+        pendingPages: documentsToScan.length,
+        failedPages: 0,
+        totalMedia: 0,
+        currentDiscoveryFile: discoveryFile,
+        currentPage: null,
+        lastScannedAt: null,
+        scanRate: 0,
+        status: 'running',
       });
-
-      state.stats.totalPages = totalPages;
-      state.stats.queuedPages = documentsToScan.length;
-      state.stats.startTime = Date.now();
-      state.discoveryFilesCache = discoveryFiles;
-      state.documentsToScan = documentsToScan;
-
-      if (state.processingStateManager && state.currentSessionId) {
-        await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
-          totalPages,
-          scannedPages: 0,
-          pendingPages: documentsToScan.length,
-          failedPages: 0,
-          totalMedia: 0,
-          currentDiscoveryFile: discoveryFile,
-          currentPage: null,
-          lastScannedAt: null,
-          scanRate: 0,
-          status: 'running',
-        });
-      }
-
-      if (state.scanWorker) {
-        state.scanWorker.postMessage({
-          type: 'startQueueProcessing',
-          data: {
-            sessionId: state.currentSessionId,
-            userId: state.currentUserId,
-            browserId: state.currentBrowserId,
-            discoveryFile,
-          },
-        });
-      }
-
-      console.log('🚀 [SCANNING] Scanning phase started successfully');
-    } catch (error) {
-      console.error('[Queue Manager] ❌ Failed to start scanning phase:', error);
-      throw error;
+    }
+    if (state.scanWorker) {
+      state.scanWorker.postMessage({
+        type: 'startQueueProcessing',
+        data: {
+          sessionId: state.currentSessionId,
+          userId: state.currentUserId,
+          browserId: state.currentBrowserId,
+          discoveryFile,
+        },
+      });
     }
   }
 
@@ -460,15 +444,8 @@ export default function createQueueManager() {
    */
   async function addFolderToScanningQueue(discoveryFile, documents) {
     try {
-      console.log('[Queue Manager] 📝 Adding folder to scanning queue:', {
-        discoveryFile,
-        documentCount: documents.length,
-        isScanningActive: state.isActive,
-      });
-
       // If scanning is not yet active, start it
       if (!state.isActive) {
-        console.log('[Queue Manager] 🚀 Starting scanning phase for first folder');
         await startScanningPhase(discoveryFile, false);
         return;
       }
@@ -486,13 +463,6 @@ export default function createQueueManager() {
         // Update stats incrementally
         state.stats.totalPages += documents.length;
         state.stats.queuedPages += uniqueNewDocuments.length;
-
-        console.log('[Queue Manager] 📊 Incrementally updated scanning queue:', {
-          newDocuments: uniqueNewDocuments.length,
-          totalPages: state.stats.totalPages,
-          queuedPages: state.stats.queuedPages,
-        });
-
         // Update scanning progress
         if (state.processingStateManager && state.currentSessionId) {
           await state.processingStateManager.updateScanningProgress(state.currentSessionId, {
@@ -519,45 +489,17 @@ export default function createQueueManager() {
    */
   async function processMediaImmediately(media, sessionId) {
     try {
-      console.log('[Queue Manager] 📝 Processing media immediately:', {
-        mediaCount: media?.length || 0,
-        sessionId,
-        hasMediaProcessor: !!state.mediaProcessor,
-        currentUserId: state.currentUserId,
-        currentBrowserId: state.currentBrowserId,
-      });
-
       if (!state.mediaProcessor) {
-        console.error('[Queue Manager] ❌ Media processor not available');
         return;
       }
-
       if (sessionId && state.currentUserId && state.currentBrowserId) {
-        console.log('[Queue Manager] 🔧 Setting session for media processor:', {
-          sessionId,
-          userId: state.currentUserId,
-          browserId: state.currentBrowserId,
-        });
         state.mediaProcessor.setCurrentSession(
           sessionId,
           state.currentUserId,
           state.currentBrowserId,
         );
-      } else {
-        console.warn('[Queue Manager] ⚠️ Missing session info for media processor:', {
-          sessionId,
-          currentUserId: state.currentUserId,
-          currentBrowserId: state.currentBrowserId,
-        });
       }
-
-      console.log('[Queue Manager] 📤 Calling queueMediaForBatchProcessing with', media?.length || 0, 'items');
       await state.mediaProcessor.queueMediaForBatchProcessing(media);
-
-      await checkThresholdTrigger();
-
-      console.log('[Queue Manager] ✅ Media processing completed successfully');
-
       if (state.processingStateManager && sessionId) {
         await state.processingStateManager.updateScanningProgress(sessionId, {
           totalMedia: media.length,
@@ -565,13 +507,7 @@ export default function createQueueManager() {
         });
       }
     } catch (error) {
-      console.error('[Queue Manager] ❌ Error processing media immediately:', error);
-      console.error('[Queue Manager] ❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        mediaCount: media?.length || 0,
-        sessionId,
-      });
+      state.stats.errors += 1;
     }
   }
 
@@ -582,19 +518,15 @@ export default function createQueueManager() {
       await persistenceManager.init();
       const queueItems = await persistenceManager.getProcessingQueue(state.currentSessionId);
       const totalQueuedItems = queueItems.reduce((sum, item) => sum + (item.media?.length || 0), 0);
-      const isStateStuck = state.batchProcessingPhase?.status === 'running'
-        && (now - (state.batchProcessingPhase.startTime || now) > 30000);
-      const hasPendingItems = totalQueuedItems > 0;
-      const canProcess = isStateStuck || (!state.batchProcessingPhase?.status === 'running' && hasPendingItems);
       const timeSinceLastBatch = now - state.lastBatchProcessingTime;
       const minIntervalMet = timeSinceLastBatch >= state.batchProcessingConfig.minInterval;
       const thresholdMet = totalQueuedItems >= state.batchProcessingConfig.queueThreshold;
-      if (canProcess && minIntervalMet && thresholdMet) {
+      if (minIntervalMet && thresholdMet && totalQueuedItems > 0) {
         state.lastBatchProcessingTime = now;
-        await startBatchProcessingPhase();
+        setTimeout(() => startBatchProcessingPhase(), 0);
       }
     } catch (error) {
-      console.error('[Queue Manager] Error checking threshold trigger:', error);
+      state.stats.errors += 1;
     }
   }
 
@@ -804,7 +736,6 @@ export default function createQueueManager() {
 
     state.discoveryManager.on('folderComplete', async (data) => {
       try {
-        // Update discovery progress
         if (state.processingStateManager && state.currentSessionId) {
           await state.processingStateManager.updateDiscoveryProgress(state.currentSessionId, {
             completedFolders: data.completedFolders || 0,
@@ -813,33 +744,18 @@ export default function createQueueManager() {
             status: data.completedFolders >= data.totalFolders ? 'completed' : 'running',
           });
         }
-
-        // Start scanning for this folder's discovery file
         if (data.documents && data.documents.length > 0) {
-          // Ensure folderPath exists, fallback to workerId if not available
           const folderPath = data.folderPath || (data.workerId ? data.workerId.split('_')[1] : 'root');
           const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
           const discoveryFile = `/${config.org}/${config.repo}/.media/.pages/${folderName}.json`;
-
-          console.log('[Queue Manager] 🚀 Starting scanning for folder:', {
-            folderPath: data.folderPath,
-            discoveryFile,
-            documentCount: data.documents.length,
-            workerId: data.workerId,
-          });
-
-          // Add this folder's documents to the scanning queue
           await addFolderToScanningQueue(discoveryFile, data.documents);
         }
-
-        // Final completion check
         if (data.completedFolders >= data.totalFolders) {
           state.discoveryComplete = true;
-          console.log('[Queue Manager] 🎯 All folders completed, triggering final scanning phase');
           await startScanningPhase(null, false);
         }
       } catch (error) {
-        console.error('[Queue Manager] ❌ Failed to handle folder completion:', error);
+        state.stats.errors += 1;
       }
     });
   }

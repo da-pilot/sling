@@ -183,9 +183,7 @@ async function scanPageForMedia(page) {
     const media = await extractMediaFromHTML(html, page.path);
     const scanTime = Date.now() - startTime;
 
-    // Process media immediately for progressive loading
     if (media.length > 0) {
-      // Send media to main thread for processing
       postMessage({
         type: 'mediaDiscovered',
         data: {

@@ -30,6 +30,7 @@ export default function createMediaProcessor() {
     onMediaUpdatedCallback: null,
     mediaDataCache: null,
     mediaDataCacheTimestamp: null,
+    deduplicationCache: new Map(),
     stats: {
       totalProcessed: 0,
       totalMedia: 0,
@@ -43,21 +44,14 @@ export default function createMediaProcessor() {
    * Initialize media processor with dependencies
    */
   async function init(docAuthoringService) {
-    try {
-      state.config = docAuthoringService.getConfig();
-      state.metadataManager = createMetadataManager(docAuthoringService, '/.media/media.json');
-      state.persistenceManager = createPersistenceManager();
-
-      await state.metadataManager.init(state.config);
-      await state.persistenceManager.init();
-
-      state.isInitialized = true;
-
-      return true;
-    } catch (error) {
-      console.error('[Media Processor] ❌ Initialization failed:', error);
-      throw error;
-    }
+    state.config = docAuthoringService.getConfig();
+    state.metadataManager = createMetadataManager(docAuthoringService, '/.media/media.json');
+    state.persistenceManager = createPersistenceManager();
+    await state.metadataManager.init(state.config);
+    await state.persistenceManager.init();
+    await initializeDeduplicationCache();
+    state.isInitialized = true;
+    return true;
   }
 
   /**
@@ -138,52 +132,33 @@ export default function createMediaProcessor() {
   async function uploadAllBatchesToMediaJson() {
     const persistenceManager = createPersistenceManager();
     await persistenceManager.init();
-
     const pendingBatches = await persistenceManager.getPendingBatches();
-
     if (pendingBatches.length === 0) {
       return;
     }
-
-    // ✅ FIXED: Collect all media from all batches first, then process in one go
-    let allBatchMedia = [];
-    for (let i = 0; i < pendingBatches.length; i += 1) {
-      const batch = pendingBatches[i];
-      allBatchMedia = [...allBatchMedia, ...batch.media];
-    }
-
-    // Process all media in one operation
+    const allBatchMedia = pendingBatches.flatMap((batch) => batch.media);
     await state.metadataManager.init(state.config);
     const existingData = await state.metadataManager.getMetadata();
-
     const updatedMedia = await mergeMediaWithDeduplication(existingData || [], allBatchMedia);
-
     await state.metadataManager.saveMetadata(updatedMedia);
-
-    // Clear cache to ensure fresh data on next getMediaData call
     state.mediaDataCache = null;
     state.mediaDataCacheTimestamp = null;
-
     if (state.onMediaUpdatedCallback) {
       state.onMediaUpdatedCallback(updatedMedia);
     }
-
-    // Confirm all batches and clean up
-    for (let i = 0; i < pendingBatches.length; i += 1) {
-      const batch = pendingBatches[i];
-      // eslint-disable-next-line no-await-in-loop
+    const batchPromises = pendingBatches.map(async (batch) => {
       await persistenceManager.confirmBatchUpload(batch.id, { count: batch.media.length });
-
-      // Remove processed media from the processing queue
       const processedIds = batch.media.map((m) => m.id);
-      // eslint-disable-next-line no-await-in-loop
       await persistenceManager.removeMediaFromProcessingQueue(processedIds, batch.sessionId);
-    }
+    });
+    await Promise.all(batchPromises);
   }
 
   async function processAndUploadQueuedMedia() {
-    await convertQueueToUploadBatches();
-    await uploadAllBatchesToMediaJson();
+    setTimeout(async () => {
+      await convertQueueToUploadBatches();
+      await uploadAllBatchesToMediaJson();
+    }, 0);
   }
 
   function createBatches(array, batchSize) {
@@ -319,7 +294,6 @@ export default function createMediaProcessor() {
             },
           };
         } catch (error) {
-          console.warn('[Media Processor] ⚠️ Error enhancing media:', error);
           return media;
         }
       }),
@@ -334,18 +308,19 @@ export default function createMediaProcessor() {
     const mediaMap = new Map();
     existingMedia.forEach((media) => {
       mediaMap.set(media.id, media);
+      state.deduplicationCache.set(media.src, media.id);
     });
     const processedMedia = await Promise.all(
       newMedia.map(async (media) => {
         const normalizedSrc = media.src;
         const mediaId = media.id || await generateHashFromSrc(normalizedSrc);
-
         return { media: { ...media, src: normalizedSrc }, mediaId };
       }),
     );
     processedMedia.forEach(({ media, mediaId }) => {
-      if (mediaMap.has(mediaId)) {
-        const existing = mediaMap.get(mediaId);
+      const existingId = state.deduplicationCache.get(media.src);
+      if (existingId && mediaMap.has(existingId)) {
+        const existing = mediaMap.get(existingId);
         const existingUsedIn = Array.isArray(existing.usedIn) ? existing.usedIn : [];
         const newUsedIn = Array.isArray(media.usedIn) ? media.usedIn : [];
         const mergedUsedIn = [...new Set([...existingUsedIn, ...newUsedIn])];
@@ -372,13 +347,14 @@ export default function createMediaProcessor() {
           usedIn: mergedUsedIn,
           occurrences: Array.from(occurrenceMap.values()),
         };
-        mediaMap.set(mediaId, merged);
+        mediaMap.set(existingId, merged);
       } else {
         const normalizedMedia = validateAndCleanMedia({
           ...media,
           id: mediaId,
         });
         mediaMap.set(mediaId, normalizedMedia);
+        state.deduplicationCache.set(media.src, mediaId);
       }
     });
     const result = Array.from(mediaMap.values());
@@ -663,15 +639,27 @@ export default function createMediaProcessor() {
     return { ...state.stats };
   }
 
-  /**
-   * Cleanup resources
-   */
+  async function initializeDeduplicationCache() {
+    try {
+      const existingData = await state.metadataManager.getMetadata();
+      if (existingData && Array.isArray(existingData)) {
+        existingData.forEach((media) => {
+          if (media.src && media.id) {
+            state.deduplicationCache.set(media.src, media.id);
+          }
+        });
+      }
+    } catch (error) {
+      state.deduplicationCache.clear();
+    }
+  }
   function cleanup() {
     state.isInitialized = false;
     state.listeners.clear();
     state.onMediaUpdatedCallback = null;
     state.mediaDataCache = null;
     state.mediaDataCacheTimestamp = null;
+    state.deduplicationCache.clear();
   }
 
   /**
@@ -711,8 +699,6 @@ export default function createMediaProcessor() {
 
       return mediaData;
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Media Processor] ❌ Error getting media data:', error);
       return [];
     }
   }
@@ -724,26 +710,15 @@ export default function createMediaProcessor() {
     if (!state.isInitialized) {
       throw new Error('Media processor not initialized');
     }
-
-    try {
-      const existingData = await state.metadataManager.getMetadata();
-      const mergedMedia = await mergeMediaWithDeduplication(existingData || [], mediaData);
-
-      await state.metadataManager.saveMetadata(mergedMedia);
-
-      state.mediaDataCache = mergedMedia;
-      state.mediaDataCacheTimestamp = Date.now();
-
-      if (state.onMediaUpdatedCallback) {
-        state.onMediaUpdatedCallback(mergedMedia);
-      }
-
-      return mergedMedia;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Media Processor] ❌ Error syncing media data:', error);
-      throw error;
+    const existingData = await state.metadataManager.getMetadata();
+    const mergedMedia = await mergeMediaWithDeduplication(existingData || [], mediaData);
+    await state.metadataManager.saveMetadata(mergedMedia);
+    state.mediaDataCache = mergedMedia;
+    state.mediaDataCacheTimestamp = Date.now();
+    if (state.onMediaUpdatedCallback) {
+      state.onMediaUpdatedCallback(mergedMedia);
     }
+    return mergedMedia;
   }
 
   return {
