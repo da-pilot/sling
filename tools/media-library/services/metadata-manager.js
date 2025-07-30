@@ -7,8 +7,7 @@
 import {
   buildSingleSheet,
   saveSheetFile,
-  parseSheet,
-  loadSheetFile,
+  loadData,
 } from '../modules/sheet-utils.js';
 import { CONTENT_DA_LIVE_BASE } from '../constants.js';
 
@@ -60,8 +59,7 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
         throw new Error('Invalid configuration: baseUrl is missing from DA API');
       }
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${state.fullMetadataPath}`;
-      const rawData = await loadSheetFile(contentUrl, daConfig.token);
-      const parsedData = parseSheet(rawData);
+      const parsedData = await loadData(contentUrl, daConfig.token);
 
       if (parsedData.data && Array.isArray(parsedData.data)) {
         console.log('[Metadata Manager] ✅ Successfully loaded', parsedData.data.length, 'media items');

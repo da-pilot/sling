@@ -101,8 +101,7 @@ async function discoverDocumentsInFolder(folderPath) {
   let excludePatterns = [];
   try {
     const configUrl = `${CONTENT_DA_LIVE_BASE}/${config.org}/${config.repo}/.media/config.json`;
-    const configData = await sheetUtils.loadSheetFile(configUrl, config.token);
-    const parsedConfig = sheetUtils.parseSheet(configData);
+    const parsedConfig = await sheetUtils.loadData(configUrl, config.token);
 
     if (parsedConfig && parsedConfig.data && Array.isArray(parsedConfig.data)) {
       parsedConfig.data.forEach((row) => {

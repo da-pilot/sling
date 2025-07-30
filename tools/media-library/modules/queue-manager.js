@@ -16,8 +16,7 @@ import { CONTENT_DA_LIVE_BASE } from '../constants.js';
 import {
   buildSingleSheet,
   saveSheetFile,
-  loadSheetFile,
-  parseSheet,
+  loadData,
 } from './sheet-utils.js';
 
 export default function createQueueManager() {
@@ -985,8 +984,7 @@ export default function createQueueManager() {
               const fileUrl = `${CONTENT_DA_LIVE_BASE}/${config.org}/${config.repo}/.media/.pages/${item.name}.json`;
               // eslint-disable-next-line no-console
               console.log('[Queue Manager] 📄 Fetching discovery file:', fileUrl);
-              const rawFileData = await loadSheetFile(fileUrl, config.token);
-              const parsedData = parseSheet(rawFileData);
+              const parsedData = await loadData(fileUrl, config.token);
               // Handle both single-sheet and multi-sheet formats
               let documents;
               if (parsedData.data && parsedData.data.data) {
@@ -1618,8 +1616,7 @@ export default function createQueueManager() {
       const url = `${state.daApi.getConfig().baseUrl}/source${filePath}.json`;
 
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${filePath}.json`;
-      const rawData = await loadSheetFile(contentUrl, state.daApi.getConfig().token);
-      const parsedData = parseSheet(rawData);
+      const parsedData = await loadData(contentUrl, state.daApi.getConfig().token);
 
       if (!parsedData.data || !Array.isArray(parsedData.data)) {
         console.error('[Queue Manager] ❌ No existing discovery file data found:', fileName);

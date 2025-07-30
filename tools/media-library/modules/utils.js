@@ -3,8 +3,6 @@
  * Common utility functions inspired by DA Live patterns
  */
 
-import { loadSheetFile, parseSheet } from './sheet-utils.js';
-
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -25,8 +23,6 @@ function createUtils() {
   return {
     debounce,
     delay,
-    loadSheetFile,
-    parseSheet,
   };
 }
 

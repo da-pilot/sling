@@ -10,11 +10,7 @@ import {
   DA_PATHS,
   CONTENT_DA_LIVE_BASE,
 } from '../constants.js';
-import {
-  buildSingleSheet,
-  saveSheetFile,
-} from '../modules/sheet-utils.js';
-import createUtils from '../modules/utils.js';
+import { loadData, buildSingleSheet, saveSheetFile } from '../modules/sheet-utils.js';
 import createCheckpointQueueManager from './checkpoint-queue-manager.js';
 
 const localStorageManager = {
@@ -76,7 +72,6 @@ const localStorageManager = {
 };
 
 export default function createProcessingStateManager(docAuthoringService) {
-  const utils = createUtils();
   const state = {
     config: null,
     daApi: docAuthoringService,
@@ -114,8 +109,7 @@ export default function createProcessingStateManager(docAuthoringService) {
         daConfig.repo,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const rawData = await utils.loadSheetFile(contentUrl, daConfig.token);
-      const parsedData = utils.parseSheet(rawData);
+      const parsedData = await loadData(contentUrl, daConfig.token);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -151,8 +145,7 @@ export default function createProcessingStateManager(docAuthoringService) {
         daConfig.repo,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const rawData = await utils.loadSheetFile(contentUrl, daConfig.token);
-      const parsedData = utils.parseSheet(rawData);
+      const parsedData = await loadData(contentUrl, daConfig.token);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -187,8 +180,7 @@ export default function createProcessingStateManager(docAuthoringService) {
       }
       const checkpointPath = DA_PATHS.getUploadCheckpointFile(daConfig.org, daConfig.repo);
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const rawData = await utils.loadSheetFile(contentUrl, daConfig.token);
-      const parsedData = utils.parseSheet(rawData);
+      const parsedData = await loadData(contentUrl, daConfig.token);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }

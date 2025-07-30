@@ -124,21 +124,24 @@ export function createWorkerSheetUtils() {
     return response;
   }
 
-  async function loadSheetFile(url, token, method = 'GET') {
-    const response = await fetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  async function loadSheetFile(url, token) {
+    const headers = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { headers });
 
     if (!response.ok) {
-      if (response.status !== 404) {
-        // eslint-disable-next-line no-console
-        console.warn(`[Worker Sheet Utils] Failed to load sheet: ${response.status} ${response.statusText} - ${url}`);
-      }
       throw new Error(`Failed to load sheet: ${response.status} ${response.statusText}`);
     }
 
     return response.json();
+  }
+
+  async function loadData(url, token) {
+    const rawData = await loadSheetFile(url, token);
+    return parseSheet(rawData);
   }
 
   async function fetchSheetJson(configData, filename) {
@@ -170,6 +173,7 @@ export function createWorkerSheetUtils() {
     parseSheet,
     saveSheetFile,
     loadSheetFile,
+    loadData,
     fetchSheetJson,
   };
 }

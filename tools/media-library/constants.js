@@ -179,6 +179,8 @@ export const LOCALSTORAGE_KEYS = {
   UPLOAD_CHECKPOINT: 'media-upload-checkpoint',
 };
 
+export const SESSION_PREFIX = 'session_';
+
 export const DISCOVERY_FILE_NAMING = {
   FOLDER_BASED: true,
   SESSION_BASED: false,

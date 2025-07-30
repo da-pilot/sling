@@ -7,14 +7,11 @@
 import {
   buildSingleSheet,
   saveSheetFile,
-  parseSheet,
-  loadSheetFile,
   CONTENT_DA_LIVE_BASE,
+  loadData,
 } from './sheet-utils.js';
-import createUtils from './utils.js';
 
 function createDiscoveryManager() {
-  const utils = createUtils();
   const state = {
     apiConfig: null,
     daApi: null,
@@ -107,8 +104,7 @@ function createDiscoveryManager() {
       const fileName = `${folderName}.json`;
       const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
       const fileUrl = `${CONTENT_DA_LIVE_BASE}${filePath}`;
-      const rawData = await utils.loadSheetFile(fileUrl, state.apiConfig.token);
-      const parsedData = utils.parseSheet(rawData);
+      const parsedData = await loadData(fileUrl, state.apiConfig.token);
       return parsedData.data || [];
     } catch (error) {
       return [];
@@ -536,8 +532,7 @@ function createDiscoveryManager() {
       const excludePatterns = [];
       try {
         const configUrl = `${CONTENT_DA_LIVE_BASE}/${state.apiConfig.org}/${state.apiConfig.repo}/.media/config.json`;
-        const configData = await loadSheetFile(configUrl, state.apiConfig.token);
-        const parsedConfig = parseSheet(configData);
+        const parsedConfig = await loadData(configUrl, state.apiConfig.token);
         if (parsedConfig && parsedConfig.data && Array.isArray(parsedConfig.data)) {
           parsedConfig.data.forEach((row) => {
             if (row.key === 'excludes' && typeof row.value === 'string') {
@@ -625,8 +620,7 @@ function createDiscoveryManager() {
         try {
           const fileUrl = `${CONTENT_DA_LIVE_BASE}/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${rootFile.name}`;
 
-          const rawFileData = await loadSheetFile(fileUrl, state.apiConfig.token);
-          const parsedData = parseSheet(rawFileData);
+          const parsedData = await loadData(fileUrl, state.apiConfig.token);
 
           // Handle both single-sheet and multi-sheet formats
           let documents;
@@ -1272,8 +1266,7 @@ function createDiscoveryManager() {
         try {
           const fileUrl = `${CONTENT_DA_LIVE_BASE}/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${file.name}.json`;
 
-          const rawFileData = await loadSheetFile(fileUrl, state.apiConfig.token);
-          const parsedData = parseSheet(rawFileData);
+          const parsedData = await loadData(fileUrl, state.apiConfig.token);
 
           if (parsedData.data && parsedData.data.data) {
             return parsedData.data.data.length;

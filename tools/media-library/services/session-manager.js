@@ -8,8 +8,7 @@ import { DA_PATHS, CONTENT_DA_LIVE_BASE } from '../constants.js';
 import {
   buildSingleSheet,
   saveSheetFile,
-  parseSheet,
-  loadSheetFile,
+  loadData,
 } from '../modules/sheet-utils.js';
 
 export default function createSessionManager() {
@@ -50,8 +49,7 @@ export default function createSessionManager() {
         normalizedSessionId,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${sessionPath}`;
-      const rawData = await loadSheetFile(contentUrl, state.config.token);
-      const parsedData = parseSheet(rawData);
+      const parsedData = await loadData(contentUrl, state.config.token);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -103,7 +101,7 @@ export default function createSessionManager() {
         ...sessionData,
         lastUpdated: Date.now(),
       };
-      const sheetData = buildSingleSheet(data);
+      const sheetData = buildSingleSheet(data); // Assuming parseSheet is still needed for saving
       const url = `${state.config.baseUrl}/source${sessionPath}`;
       await saveSheetFile(url, sheetData, state.config.token);
       return true;
@@ -149,7 +147,7 @@ export default function createSessionManager() {
    */
   async function createSession(userId, browserId) {
     try {
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const sessionId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       const sessionData = {
         sessionId,
@@ -314,8 +312,7 @@ export default function createSessionManager() {
             sessionId,
           );
           const contentUrl = `${CONTENT_DA_LIVE_BASE}${sessionPath}`;
-          loadSheetFile(contentUrl, state.config.token).then((rawData) => {
-            const parsedData = parseSheet(rawData);
+          loadData(contentUrl, state.config.token).then((parsedData) => {
             if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
               const sessionData = parsedData.data[0];
               const sessionAge = now - (sessionData.lastUpdated || sessionData.createdAt || now);
@@ -324,11 +321,20 @@ export default function createSessionManager() {
                 || sessionData.status === 'interrupted'
                 || sessionAge > 24 * 60 * 60 * 1000;
               if (shouldCleanup) {
-                cleanupPromises.push(state.daApi.deleteFile(sessionPath));
+                state.daApi.deleteFile(sessionPath).then(() => {
+                  console.log(`[Session Manager] Deleted old session file: ${sessionPath}`);
+                }).catch((deleteError) => {
+                  console.error(`[Session Manager] Failed to delete old session file ${sessionPath}:`, deleteError);
+                });
               }
             }
-          }).catch(() => {
-            cleanupPromises.push(state.daApi.deleteFile(sessionPath));
+          }).catch((loadError) => {
+            console.error(`[Session Manager] Failed to load old session file ${sessionPath}:`, loadError);
+            state.daApi.deleteFile(sessionPath).then(() => {
+              console.log(`[Session Manager] Deleted old session file (failed to load): ${sessionPath}`);
+            }).catch((deleteError) => {
+              console.error(`[Session Manager] Failed to delete old session file (failed to load) ${sessionPath}:`, deleteError);
+            });
           });
         }
       });

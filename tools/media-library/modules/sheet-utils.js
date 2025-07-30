@@ -56,6 +56,14 @@ export async function loadSheetFile(url, token) {
 }
 
 /**
+ * Load and parse sheet data in one operation
+ */
+export async function loadData(url, token) {
+  const rawData = await loadSheetFile(url, token);
+  return parseSheet(rawData);
+}
+
+/**
  * Get sheet URL for a specific file
  */
 export function getSheetUrl(config, fileName) {
