@@ -146,6 +146,16 @@ export default function createMediaBrowser(container, context = null) {
       const homePagePath = `/${state.context.org}/${state.context.repo}/index.html`;
       console.log('[Media Browser] On media library page, using home page path for filtering:', homePagePath);
       pagePathForFiltering = homePagePath;
+    } else if (pagePathForFiltering && !pagePathForFiltering.startsWith(`/${state.context.org}/${state.context.repo}`)) {
+      // If path doesn't start with full org/repo structure, construct full path
+      const fullPath = `/${state.context.org}/${state.context.repo}${pagePathForFiltering}.html`;
+      console.log('[Media Browser] Constructing full path for filtering:', pagePathForFiltering, '→', fullPath);
+      pagePathForFiltering = fullPath;
+    } else if (pagePathForFiltering && !pagePathForFiltering.includes('.html')) {
+      // If path doesn't end with .html, add it
+      const fullPath = `${pagePathForFiltering}.html`;
+      console.log('[Media Browser] Adding .html extension for filtering:', pagePathForFiltering, '→', fullPath);
+      pagePathForFiltering = fullPath;
     }
 
     if (state.currentFilter.types && state.currentFilter.types.length > 0) {
@@ -483,6 +493,16 @@ export default function createMediaBrowser(container, context = null) {
       const homePagePath = `/${state.context.org}/${state.context.repo}/index.html`;
       console.log('[Media Browser] On media library page, using home page path instead:', homePagePath);
       pagePathForMetrics = homePagePath;
+    } else if (pagePathForMetrics && !pagePathForMetrics.startsWith(`/${state.context.org}/${state.context.repo}`)) {
+      // If path doesn't start with full org/repo structure, construct full path
+      const fullPath = `/${state.context.org}/${state.context.repo}${pagePathForMetrics}.html`;
+      console.log('[Media Browser] Constructing full path:', pagePathForMetrics, '→', fullPath);
+      pagePathForMetrics = fullPath;
+    } else if (pagePathForMetrics && !pagePathForMetrics.includes('.html')) {
+      // If path doesn't end with .html, add it
+      const fullPath = `${pagePathForMetrics}.html`;
+      console.log('[Media Browser] Adding .html extension:', pagePathForMetrics, '→', fullPath);
+      pagePathForMetrics = fullPath;
     }
 
     if (pagePathForMetrics) {
