@@ -782,6 +782,25 @@ body {
   border-bottom: 1px solid var(--color-border-light);
 }
 
+.media-grid:not(.list-view) .media-item {
+  min-height: 400px;
+  max-height: 480px;
+  border-radius: 18px;
+  box-shadow: 0 4px 16px rgba(0 0 0 / 12%);
+}
+
+.media-grid.list-view .list-header,
+.media-grid.list-view .media-item {
+  display: grid;
+  grid-template-columns: 56px minmax(120px, 2fr) minmax(90px, 1fr) minmax(220px, 1fr); /* thumbnail, name, type, actions */
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+  height: 64px;
+  overflow: hidden;
+}
+
 .media-grid.list-view .media-item:hover {
   background: var(--color-hover);
 }
@@ -820,12 +839,7 @@ body {
   grid-auto-rows: minmax(0, 400px); /* Larger card height */
 }
 
-.media-grid:not(.list-view) .media-item {
-  min-height: 400px;
-  max-height: 480px;
-  border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(0 0 0 / 12%);
-}
+
 
 .media-preview {
   width: 100%;
@@ -854,6 +868,14 @@ body {
   box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
 }
 
+.list-cell-thumb img {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+
 .media-preview img {
   width: 100%;
   height: 100%;
@@ -862,7 +884,8 @@ body {
   display: block;
 }
 
-.media-grid:not(.list-view) .media-item:hover .media-preview img {
+.media-grid:not(.list-view) 
+.media-item:hover .media-preview img {
   transform: scale(1.06);
 }
 
@@ -890,13 +913,7 @@ body {
   border-radius: 6px;
 }
 
-.list-cell-thumb img {
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
-  object-fit: cover;
-  display: block;
-}
+
 
 .video-play-overlay {
   position: absolute;
@@ -2741,17 +2758,7 @@ body {
 
  
 
-.media-grid.list-view .list-header,
-.media-grid.list-view .media-item {
-  display: grid;
-  grid-template-columns: 56px minmax(120px, 2fr) minmax(90px, 1fr) minmax(220px, 1fr); /* thumbnail, name, type, actions */
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-  gap: 0;
-  height: 64px;
-  overflow: hidden;
-}
+
 
 .media-grid.list-view .list-header-cell,
 .media-grid.list-view .list-cell {
