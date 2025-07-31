@@ -70,6 +70,12 @@ function createDiscoveryManager() {
       if (!forceRescan && checkpoint.status === 'completed') {
         discoveryType = 'incremental';
       }
+      console.log('[Discovery Manager] 🔍 Checkpoint analysis:', {
+        forceRescan,
+        checkpointStatus: checkpoint.status,
+        discoveryType,
+        timestamp: new Date().toISOString(),
+      });
       return {
         discoveryType,
         checkpoint,
@@ -930,6 +936,10 @@ function createDiscoveryManager() {
                 discoveryFile: fileName,
                 timestamp: Date.now(),
               });
+              emit('documentsDiscovered', {
+                documents: documentsToSave,
+                folder: folder.path,
+              });
             }
             emit('folderComplete', {
               ...data,
@@ -939,10 +949,6 @@ function createDiscoveryManager() {
               changeSummary: changeSummary || null,
             });
             if (data.documents.length > 0) {
-              emit('documentsDiscovered', {
-                documents: data.documents,
-                folder: folder.path,
-              });
               if (changeSummary) {
                 const changedDocuments = data.documents.filter((doc) => {
                   const isCreated = changeSummary.created.includes(doc.path);
@@ -1059,6 +1065,11 @@ function createDiscoveryManager() {
     try {
       const { discoveryType } = await loadDiscoveryCheckpoint(forceRescan);
       state.discoveryType = discoveryType;
+      console.log('[Discovery Manager] 🔍 Discovery type determined:', {
+        forceRescan,
+        discoveryType,
+        timestamp: new Date().toISOString(),
+      });
       const { folders, files } = await getTopLevelItems();
       state.stats.totalFolders = 0;
       if (state.processingStateManager && sessionId) {

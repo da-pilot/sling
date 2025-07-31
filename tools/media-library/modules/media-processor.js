@@ -6,7 +6,7 @@
 
 import createMetadataManager from '../services/metadata-manager.js';
 import createPersistenceManager from '../services/persistence-manager.js';
-import isExternalMedia from './external-media.js';
+
 import {
   isValidAltText,
   isProbablyUrl,
@@ -207,7 +207,7 @@ export default function createMediaProcessor() {
   async function normalizeMediaArray(mediaArray, pageUrl) {
     const normalizedMediaPromises = mediaArray.map(async (media, index) => {
       const src = media.src || media.url;
-      const isExternal = isExternalMedia(src);
+      const isExternal = media.isExternal !== undefined ? media.isExternal : false;
       const name = media.alt && !isProbablyUrl(media.alt) && isValidAltText(media.alt)
         ? media.alt
         : extractFilenameFromUrl(src);
@@ -376,7 +376,7 @@ export default function createMediaProcessor() {
       pageUrl: media.pageUrl || '',
       discoveredAt: media.discoveredAt || new Date().toISOString(),
       usedIn: Array.isArray(media.usedIn) ? media.usedIn : [],
-      isExternal: media.isExternal !== undefined ? media.isExternal : isExternalMedia(media.src),
+      isExternal: media.isExternal !== undefined ? media.isExternal : false,
       occurrences: Array.isArray(media.occurrences) ? media.occurrences.map(cleanOccurrence) : [],
       metadata: {
         width: media.metadata?.width || media.dimensions?.width || null,

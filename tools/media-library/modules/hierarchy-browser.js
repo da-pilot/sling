@@ -173,27 +173,11 @@ async function filterMediaForPage(pagePath, displayPath) {
 }
 
 function toggleHierarchyView() {
-  console.log('[HierarchyBrowser] 🔄 toggleHierarchyView called');
-  console.log('[HierarchyBrowser] Current state:', {
-    isHierarchyView,
-    currentPath: currentPath.length,
-    hierarchyContainer: !!document.getElementById('hierarchyContainer'),
-    mediaGrid: !!document.getElementById('mediaGrid')
-  });
-
   const mediaGrid = document.getElementById('mediaGrid');
   const hierarchyContainer = document.getElementById('hierarchyContainer');
   const folderBtn = document.getElementById('hierarchyToggle');
   const gridBtn = document.getElementById('gridViewBtn');
   const listBtn = document.getElementById('listViewBtn');
-
-  console.log('[HierarchyBrowser] Elements found:', {
-    mediaGrid: !!mediaGrid,
-    hierarchyContainer: !!hierarchyContainer,
-    folderBtn: !!folderBtn,
-    gridBtn: !!gridBtn,
-    listBtn: !!listBtn
-  });
 
   isHierarchyView = true;
   if (mediaGrid) mediaGrid.style.display = 'none';
@@ -204,8 +188,6 @@ function toggleHierarchyView() {
   folderBtn?.classList.add('active');
   gridBtn?.classList.remove('active');
   listBtn?.classList.remove('active');
-
-  console.log('[HierarchyBrowser] After toggle - isHierarchyView:', isHierarchyView);
 
   setTimeout(() => {
     if (isHierarchyView && folderBtn) {
@@ -252,60 +234,44 @@ async function reloadAllMediaFromIndexedDB() {
 }
 
 function returnToAllMedia() {
-  console.log('[HierarchyBrowser] 🔄 returnToAllMedia called');
-  console.log('[HierarchyBrowser] Current state before return:', {
-    isHierarchyView,
-    currentPath: currentPath.length,
-    currentMediaPagePath
-  });
-
   const mediaGrid = document.getElementById('mediaGrid');
   const hierarchyContainer = document.getElementById('hierarchyContainer');
   const folderBtn = document.getElementById('hierarchyToggle');
-  
-  console.log('[HierarchyBrowser] Elements found:', {
-    mediaGrid: !!mediaGrid,
-    hierarchyContainer: !!hierarchyContainer,
-    folderBtn: !!folderBtn
-  });
 
   isHierarchyView = false;
   currentPath = [];
   currentMediaPagePath = null;
-  
+
   if (mediaGrid) {
-    console.log('[HierarchyBrowser] Showing mediaGrid');
     mediaGrid.style.display = 'grid';
     mediaGrid.removeAttribute('style');
   }
-  
+
   if (hierarchyContainer) {
-    console.log('[HierarchyBrowser] Hiding hierarchyContainer');
     hierarchyContainer.style.display = 'none';
   }
-  
+
   folderBtn?.classList.remove('active');
-  
+
   if (window.mediaBrowser && typeof window.mediaBrowser.setView === 'function') {
-    console.log('[HierarchyBrowser] Setting mediaBrowser view to grid');
     window.mediaBrowser.setView('grid');
   } else {
     console.log('[HierarchyBrowser] ⚠️ mediaBrowser.setView not available');
   }
-  
+
   reloadAllMediaFromIndexedDB();
-  
+
   document.querySelectorAll('.folder-item').forEach((item) => {
     item.classList.remove('active');
     item.setAttribute('aria-selected', 'false');
   });
-  
+
   const allMediaItem = document.querySelector('.folder-item[data-filter="all"]');
   if (allMediaItem) {
     allMediaItem.classList.add('active');
     allMediaItem.setAttribute('aria-selected', 'true');
   }
-  
+
   const breadcrumb = document.querySelector('.breadcrumb');
   if (breadcrumb) {
     breadcrumb.innerHTML = '<span class="breadcrumb-item">All Media</span>';
@@ -319,25 +285,11 @@ function returnToAllMedia() {
  */
 async function checkIndexedDBReady() {
   try {
-    // Try to get media data from media processor or media browser
-    let media = [];
-    if (window.mediaProcessor && typeof window.mediaProcessor.getMediaData === 'function') {
-      media = await window.mediaProcessor.getMediaData();
-    } else if (window.mediaBrowser && typeof window.mediaBrowser.getMedia === 'function') {
-      media = await window.mediaBrowser.getMedia();
-    }
-
     const toggle = document.getElementById('hierarchyToggle');
     if (toggle) {
-      if (media && media.length > 0) {
-        toggle.disabled = false;
-        toggle.title = 'Switch to folder view';
-        toggle.style.opacity = '1';
-      } else {
-        toggle.disabled = true;
-        toggle.title = 'Folder view not ready yet - waiting for media to load';
-        toggle.style.opacity = '0.5';
-      }
+      toggle.disabled = false;
+      toggle.title = 'Switch to folder view';
+      toggle.style.opacity = '1';
     }
   } catch (error) {
     // Handle error silently

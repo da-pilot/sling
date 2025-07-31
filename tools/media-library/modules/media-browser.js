@@ -152,17 +152,14 @@ export default function createMediaBrowser(container, context = null) {
     let pagePathForFiltering = state.context.currentPagePath;
     if (pagePathForFiltering && pagePathForFiltering.includes('tools/media-library/media-library')) {
       const homePagePath = `/${state.context.org}/${state.context.repo}/index.html`;
-
       pagePathForFiltering = homePagePath;
     } else if (pagePathForFiltering && !pagePathForFiltering.startsWith(`/${state.context.org}/${state.context.repo}`)) {
       // If path doesn't start with full org/repo structure, construct full path
       const fullPath = `/${state.context.org}/${state.context.repo}${pagePathForFiltering}.html`;
-
       pagePathForFiltering = fullPath;
     } else if (pagePathForFiltering && !pagePathForFiltering.includes('.html')) {
       // If path doesn't end with .html, add it
       const fullPath = `${pagePathForFiltering}.html`;
-
       pagePathForFiltering = fullPath;
     }
 
@@ -488,17 +485,14 @@ export default function createMediaBrowser(container, context = null) {
     let pagePathForMetrics = state.context.currentPagePath;
     if (pagePathForMetrics && pagePathForMetrics.includes('tools/media-library/media-library')) {
       const homePagePath = `/${state.context.org}/${state.context.repo}/index.html`;
-
       pagePathForMetrics = homePagePath;
     } else if (pagePathForMetrics && !pagePathForMetrics.startsWith(`/${state.context.org}/${state.context.repo}`)) {
       // If path doesn't start with full org/repo structure, construct full path
       const fullPath = `/${state.context.org}/${state.context.repo}${pagePathForMetrics}.html`;
-
       pagePathForMetrics = fullPath;
     } else if (pagePathForMetrics && !pagePathForMetrics.includes('.html')) {
       // If path doesn't end with .html, add it
       const fullPath = `${pagePathForMetrics}.html`;
-
       pagePathForMetrics = fullPath;
     }
 

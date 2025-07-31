@@ -192,12 +192,10 @@ export default function createQueueManager() {
         const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
         const scanningCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
         const uploadCheckpoint = await state.processingStateManager.loadUploadCheckpoint();
-        const isIncremental = (!forceRescan && discoveryCheckpoint.status === 'completed');
         console.log('[Queue Manager] 🔍 Discovery checkpoint analysis:', {
           forceRescan,
           discoveryStatus: discoveryCheckpoint.status,
-          isIncremental,
-          needsDiscovery: forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle' || (isIncremental && discoveryCheckpoint.status === 'completed'),
+          needsDiscovery: forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle',
         });
         if (forceRescan) {
           await state.processingStateManager.clearCheckpoints();
@@ -206,18 +204,12 @@ export default function createQueueManager() {
             await state.discoveryManager.clearStructureBaseline();
           }
         }
-        const needsDiscovery = forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle' || (isIncremental && discoveryCheckpoint.status === 'completed');
+        const needsDiscovery = forceRescan || !discoveryCheckpoint.status || discoveryCheckpoint.status === 'idle';
         const needsScanning = scanningCheckpoint.status !== 'completed';
         const needsUpload = uploadCheckpoint.status !== 'completed';
         if (needsDiscovery && state.discoveryManager) {
           setupDiscoveryManagerHandlers();
-          if (isIncremental) {
-            const changeResult = await checkForStructuralChanges();
-            const incrementalSuccess = await performIncrementalDiscovery(changeResult.changes);
-            if (!incrementalSuccess) {
-              await state.discoveryManager.startDiscoveryWithSession(sessionId, forceRescan);
-            }
-          } else if (discoveryCheckpoint.status === 'running') {
+          if (discoveryCheckpoint.status === 'running') {
             await resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
           } else {
             await state.discoveryManager.startDiscoveryWithSession(sessionId, forceRescan);
@@ -243,8 +235,6 @@ export default function createQueueManager() {
         // eslint-disable-next-line no-console
         console.log('[Queue Manager] 🚀 Queue scanning started:', {
           forceRescan,
-          isIncremental,
-          discoveryType: isIncremental ? 'incremental' : 'full',
           sessionId,
           userId,
           browserId,
@@ -417,7 +407,7 @@ export default function createQueueManager() {
   async function startScanningPhase(discoveryFile = null, forceRescan = false) {
     let { discoveryFilesCache: discoveryFiles, documentsToScan } = state;
     let { totalPages } = state.stats;
-    if (!discoveryFiles || discoveryFiles.length === 0) {
+    if (!state.discoveryComplete && (!discoveryFiles || discoveryFiles.length === 0)) {
       discoveryFiles = await loadDiscoveryFiles();
       documentsToScan = getDocumentsToScan(discoveryFiles, forceRescan);
       totalPages = discoveryFiles.reduce((sum, file) => sum + file.documents.length, 0);
@@ -457,7 +447,7 @@ export default function createQueueManager() {
   /**
    * Add a folder's discovery file to the scanning queue
    */
-  async function addFolderToScanningQueue(discoveryFile, documents) {
+  async function addDocumentsForScanning(discoveryFile, documents) {
     try {
       // If scanning is not yet active, start it
       if (!state.isActive) {
@@ -744,6 +734,12 @@ export default function createQueueManager() {
             status: 'running',
           });
         }
+        if (data.documents && data.documents.length > 0) {
+          const folderPath = data.folderPath || 'root';
+          const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
+          const discoveryFile = `/${config.org}/${config.repo}/.media/.pages/${folderName}.json`;
+          await addDocumentsForScanning(discoveryFile, data.documents);
+        }
       } catch (error) {
         console.error('[Queue Manager] ❌ Failed to update discovery progress:', error);
       }
@@ -763,13 +759,26 @@ export default function createQueueManager() {
           const folderPath = data.folderPath || (data.workerId ? data.workerId.split('_')[1] : 'root');
           const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
           const discoveryFile = `/${config.org}/${config.repo}/.media/.pages/${folderName}.json`;
-          await addFolderToScanningQueue(discoveryFile, data.documents);
+          await addDocumentsForScanning(discoveryFile, data.documents);
         }
         if (data.completedFolders >= data.totalFolders) {
           state.discoveryComplete = true;
-          await startScanningPhase(null, false);
         }
       } catch (error) {
+        state.stats.errors += 1;
+      }
+    });
+
+    state.discoveryManager.on('documentsChanged', async (data) => {
+      try {
+        if (data.documents && data.documents.length > 0) {
+          const folderPath = data.folder || 'root';
+          const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
+          const discoveryFile = `/${config.org}/${config.repo}/.media/.pages/${folderName}.json`;
+          await addDocumentsForScanning(discoveryFile, data.documents);
+        }
+      } catch (error) {
+        console.error('[Queue Manager] ❌ Failed to handle documentsChanged:', error);
         state.stats.errors += 1;
       }
     });
@@ -1014,20 +1023,14 @@ export default function createQueueManager() {
     discoveryFiles.forEach((file) => {
       file.documents.forEach((doc) => {
         totalDocuments += 1;
-
-        // Discovery file logic
         const hasScanStatus = Object.prototype.hasOwnProperty.call(doc, 'scanStatus');
         const hasScanComplete = Object.prototype.hasOwnProperty.call(doc, 'scanComplete');
-
-        // Check if page needs scanning based on core or legacy logic
         let needsScan = false;
         let scanReason = 'unknown';
-
         if (forceRescan) {
           needsScan = true;
           scanReason = 'force';
         } else if (hasScanStatus) {
-          // Discovery file logic
           needsScan = doc.scanStatus === 'pending' || doc.scanStatus === 'failed';
           if (needsScan) {
             scanReason = doc.scanStatus === 'failed' ? 'retry' : 'new';
@@ -1038,7 +1041,6 @@ export default function createQueueManager() {
             }
           }
         } else {
-          // Legacy discovery file logic (backward compatibility)
           needsScan = !doc.scanComplete || doc.needsRescan;
           if (needsScan) {
             if (!hasScanComplete) {
@@ -1052,12 +1054,13 @@ export default function createQueueManager() {
             }
           }
         }
-
         if (!hasScanComplete && !hasScanStatus) {
           missingScanComplete += 1;
         }
-
         if (needsScan) {
+          if (!doc.path) {
+            return;
+          }
           documentsToScan.push({
             ...doc,
             sourceFile: file.fileName,
@@ -1066,13 +1069,11 @@ export default function createQueueManager() {
         } else {
           alreadyScanned += 1;
         }
-
         if (doc.needsRescan) {
           needsRescan += 1;
         }
       });
     });
-
     console.log('[Queue Manager] 📋 Document scanning analysis:', {
       totalDocuments,
       documentsToScan: documentsToScan.length,
@@ -1086,7 +1087,6 @@ export default function createQueueManager() {
         return acc;
       }, {}),
     });
-
     return documentsToScan;
   }
 
