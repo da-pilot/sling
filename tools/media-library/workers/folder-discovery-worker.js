@@ -1,3 +1,4 @@
+/* eslint-disable no-loop-func */
 /* eslint-disable no-use-before-define, no-console, no-await-in-loop */
 
 /**
@@ -45,13 +46,14 @@ async function discoverFolder(folderPath, workerId, discoveryType = 'full') {
   try {
     const existingDocuments = discoveryType === 'incremental' ? await loadExistingDiscovery(folderPathState) : [];
     const discoveryResult = await discoverDocumentsInFolder(folderPathState);
-    const { documents: currentDocuments, folderStructure } = discoveryResult;
+    const { documents: currentDocuments, folderStructure, excludedFolders } = discoveryResult;
     const mergedDocuments = discoveryType === 'incremental'
       ? mergeDiscoveryData(existingDocuments, currentDocuments)
       : currentDocuments;
     if (mergedDocuments.length > 0) {
       await saveWorkerQueue(mergedDocuments);
     }
+    const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
     postMessage({
       type: 'folderDiscoveryComplete',
       data: {
@@ -59,6 +61,8 @@ async function discoverFolder(folderPath, workerId, discoveryType = 'full') {
         documents: mergedDocuments,
         documentCount: mergedDocuments.length,
         folderStructure,
+        excludedFolders,
+        folderName,
         workerId: workerIdState,
         existingCount: existingDocuments.length,
         currentCount: currentDocuments.length,
@@ -101,6 +105,7 @@ async function discoverDocumentsInFolder(folderPath) {
   const documents = [];
   const foldersToScan = [folderPath];
   const folderStructure = {};
+  const excludedFolders = [];
   let excludePatterns = [];
   try {
     const configUrl = `${CONTENT_DA_LIVE_BASE}/${config.org}/${config.repo}/.media/config.json`;
@@ -122,20 +127,40 @@ async function discoverDocumentsInFolder(folderPath) {
       const items = await listFolderContents(currentFolder);
       const relativePath = currentFolder.replace(orgRepoPrefix, '');
       if (!folderStructure[relativePath]) {
+        const folderItem = items.find((item) => !item.ext && item.path === currentFolder);
         folderStructure[relativePath] = {
           path: relativePath,
-          lastModified: null,
+          type: 'folder',
+          excluded: false,
+          lastModified: folderItem?.lastModified || null,
           files: [],
           subfolders: {},
         };
       }
       items.forEach((item) => {
         if (!item.ext) {
-          if (matchesExcludePatterns(item.path, excludePatterns)) return;
+          if (matchesExcludePatterns(item.path, excludePatterns)) {
+            const relativeSubPath = item.path.replace(orgRepoPrefix, '');
+            excludedFolders.push({
+              path: relativeSubPath,
+              lastModified: item.lastModified,
+              excludedBy: excludePatterns.find((pattern) => {
+                const patternOrgRepoPrefix = `/${config.org}/${config.repo}`;
+                const fullPattern = `${patternOrgRepoPrefix}${pattern}`;
+                return item.path.startsWith(fullPattern.slice(0, -1))
+                  || item.path === fullPattern.slice(0, -1);
+              }),
+              fileCount: 0,
+              subfolderCount: 0,
+            });
+            return;
+          }
           foldersToScan.push(item.path);
           const relativeSubPath = item.path.replace(orgRepoPrefix, '');
           folderStructure[relativePath].subfolders[relativeSubPath] = {
             path: relativeSubPath,
+            type: 'folder',
+            excluded: false,
             lastModified: item.lastModified,
             files: [],
             subfolders: {},
@@ -149,9 +174,27 @@ async function discoverDocumentsInFolder(folderPath) {
             name: item.name,
             ext: item.ext,
             lastModified: item.lastModified,
+            path: item.path,
+            mediaCount: 0,
           };
           documents.push(fileEntry);
-          folderStructure[relativePath].files.push(fileEntry);
+          const fileRelativePath = item.path.replace(orgRepoPrefix, '');
+          const fileFolderPath = fileRelativePath.split('/').slice(0, -1).join('/');
+          if (fileFolderPath && fileFolderPath !== relativePath) {
+            if (!folderStructure[fileFolderPath]) {
+              folderStructure[fileFolderPath] = {
+                path: fileFolderPath,
+                type: 'folder',
+                excluded: false,
+                lastModified: null,
+                files: [],
+                subfolders: {},
+              };
+            }
+            folderStructure[fileFolderPath].files.push(fileEntry);
+          } else {
+            folderStructure[relativePath].files.push(fileEntry);
+          }
         }
       });
       if (documents.length > 0 && documents.length % 50 === 0) {
@@ -169,14 +212,15 @@ async function discoverDocumentsInFolder(folderPath) {
       console.log('[FolderDiscoveryWorker] Error in folder scan', error);
     }
   }
-  return { documents, folderStructure };
+  return { documents, folderStructure, excludedFolders };
 }
 
 /**
  * List contents of a specific folder
  */
 async function listFolderContents(folderPath) {
-  return daApi.listPath(folderPath);
+  const response = await daApi.listPath(folderPath);
+  return response;
 }
 
 /**

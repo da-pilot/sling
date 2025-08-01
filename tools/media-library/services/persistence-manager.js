@@ -8,14 +8,15 @@ export default function createPersistenceManager() {
   const state = {
     db: null,
     dbName: 'MediaLibraryDB',
-    dbVersion: 2,
+    dbVersion: 3,
     stores: {
       media: 'media',
       scanProgress: 'scanProgress',
       sessions: 'sessions',
-      media_processing_queue: 'media_processing_queue',
-      media_upload_batches: 'media_upload_batches',
-      media_upload_history: 'media_upload_history',
+      mediaProcessingQueue: 'mediaProcessingQueue',
+      mediaUploadBatches: 'mediaUploadBatches',
+      mediaUploadHistory: 'mediaUploadHistory',
+      pageScanStatus: 'pageScanStatus',
     },
   };
 
@@ -25,8 +26,7 @@ export default function createPersistenceManager() {
   async function init() {
     try {
       state.db = await openDatabase();
-      // eslint-disable-next-line no-console
-      console.log('[IndexedDB] ✅ Database initialized successfully');
+
       return true;
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -71,24 +71,30 @@ export default function createPersistenceManager() {
           sessionsStore.createIndex('lastHeartbeat', 'lastHeartbeat', { unique: false });
         }
 
-        if (!db.objectStoreNames.contains(state.stores.media_processing_queue)) {
-          const processingQueueStore = db.createObjectStore(state.stores.media_processing_queue, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(state.stores.mediaProcessingQueue)) {
+          const processingQueueStore = db.createObjectStore(state.stores.mediaProcessingQueue, { keyPath: 'id' });
           processingQueueStore.createIndex('status', 'status', { unique: false });
           processingQueueStore.createIndex('createdAt', 'createdAt', { unique: false });
         }
 
-        if (!db.objectStoreNames.contains(state.stores.media_upload_batches)) {
-          const uploadBatchesStore = db.createObjectStore(state.stores.media_upload_batches, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(state.stores.mediaUploadBatches)) {
+          const uploadBatchesStore = db.createObjectStore(state.stores.mediaUploadBatches, { keyPath: 'id' });
           uploadBatchesStore.createIndex('batchNumber', 'batchNumber', { unique: false });
           uploadBatchesStore.createIndex('status', 'status', { unique: false });
           uploadBatchesStore.createIndex('sessionId', 'sessionId', { unique: false });
         }
 
-        if (!db.objectStoreNames.contains(state.stores.media_upload_history)) {
-          const uploadHistoryStore = db.createObjectStore(state.stores.media_upload_history, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(state.stores.mediaUploadHistory)) {
+          const uploadHistoryStore = db.createObjectStore(state.stores.mediaUploadHistory, { keyPath: 'id' });
           uploadHistoryStore.createIndex('batchId', 'batchId', { unique: false });
           uploadHistoryStore.createIndex('sessionId', 'sessionId', { unique: false });
           uploadHistoryStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+
+        if (!db.objectStoreNames.contains(state.stores.pageScanStatus)) {
+          const pageScanStatusStore = db.createObjectStore(state.stores.pageScanStatus, { keyPath: 'pageUrl' });
+          pageScanStatusStore.createIndex('status', 'status', { unique: false });
+          pageScanStatusStore.createIndex('lastUpdated', 'lastUpdated', { unique: false });
         }
       };
     });
@@ -196,6 +202,82 @@ export default function createPersistenceManager() {
 
     await Promise.all(promises);
     return mediaIds.length;
+  }
+
+  async function savePageScanStatus(pageData) {
+    if (!state.db) {
+      throw new Error('Database not initialized');
+    }
+    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readwrite');
+    const store = transaction.objectStore(state.stores.pageScanStatus);
+    const pageStatusData = {
+      pageUrl: pageData.pagePath,
+      sourceFile: pageData.sourceFile,
+      scanStatus: pageData.status,
+      mediaCount: pageData.mediaCount || 0,
+      lastScannedAt: pageData.lastScannedAt || Date.now(),
+      sessionId: pageData.sessionId,
+      scanAttempts: pageData.scanAttempts || 1,
+      scanErrors: pageData.scanErrors || [],
+      lastUpdated: Date.now(),
+    };
+    return new Promise((resolve, reject) => {
+      const request = store.put(pageStatusData);
+      request.onsuccess = () => resolve(pageStatusData);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  async function getPageScanStatus(pageUrl) {
+    if (!state.db) {
+      throw new Error('Database not initialized');
+    }
+    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readonly');
+    const store = transaction.objectStore(state.stores.pageScanStatus);
+    return new Promise((resolve, reject) => {
+      const request = store.get(pageUrl);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  async function getCompletedPagesByFile(sourceFile) {
+    if (!state.db) {
+      throw new Error('Database not initialized');
+    }
+    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readonly');
+    const store = transaction.objectStore(state.stores.pageScanStatus);
+    return new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const allPages = request.result;
+        const completedPages = allPages.filter((page) => page.sourceFile === sourceFile && page.scanStatus === 'completed');
+        resolve(completedPages);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+  async function getAllPageScanStatus() {
+    if (!state.db) {
+      throw new Error('Database not initialized');
+    }
+    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readonly');
+    const store = transaction.objectStore(state.stores.pageScanStatus);
+    return new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  async function clearPageScanStatus() {
+    if (!state.db) {
+      throw new Error('Database not initialized');
+    }
+    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readwrite');
+    const store = transaction.objectStore(state.stores.pageScanStatus);
+    return new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   /**
@@ -372,8 +454,8 @@ export default function createPersistenceManager() {
       throw new Error('Database not initialized');
     }
 
-    const transaction = state.db.transaction([state.stores.media_processing_queue], 'readwrite');
-    const store = transaction.objectStore(state.stores.media_processing_queue);
+    const transaction = state.db.transaction([state.stores.mediaProcessingQueue], 'readwrite');
+    const store = transaction.objectStore(state.stores.mediaProcessingQueue);
 
     const queueItem = {
       id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -396,8 +478,8 @@ export default function createPersistenceManager() {
       throw new Error('Database not initialized');
     }
 
-    const transaction = state.db.transaction([state.stores.media_processing_queue], 'readonly');
-    const store = transaction.objectStore(state.stores.media_processing_queue);
+    const transaction = state.db.transaction([state.stores.mediaProcessingQueue], 'readonly');
+    const store = transaction.objectStore(state.stores.mediaProcessingQueue);
 
     return new Promise((resolve, reject) => {
       const request = store.getAll();
@@ -417,8 +499,8 @@ export default function createPersistenceManager() {
       throw new Error('Database not initialized');
     }
 
-    const transaction = state.db.transaction([state.stores.media_upload_batches], 'readwrite');
-    const store = transaction.objectStore(state.stores.media_upload_batches);
+    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readwrite');
+    const store = transaction.objectStore(state.stores.mediaUploadBatches);
 
     const batchItem = {
       id: `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -445,8 +527,8 @@ export default function createPersistenceManager() {
       throw new Error('Database not initialized');
     }
 
-    const transaction = state.db.transaction([state.stores.media_upload_batches], 'readwrite');
-    const store = transaction.objectStore(state.stores.media_upload_batches);
+    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readwrite');
+    const store = transaction.objectStore(state.stores.mediaUploadBatches);
 
     return new Promise((resolve, reject) => {
       const getRequest = store.get(batchId);
@@ -479,8 +561,8 @@ export default function createPersistenceManager() {
       throw new Error('Database not initialized');
     }
 
-    const transaction = state.db.transaction([state.stores.media_upload_batches], 'readonly');
-    const store = transaction.objectStore(state.stores.media_upload_batches);
+    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readonly');
+    const store = transaction.objectStore(state.stores.mediaUploadBatches);
     const index = store.index('status');
 
     return new Promise((resolve, reject) => {
@@ -505,11 +587,11 @@ export default function createPersistenceManager() {
     }
 
     const transaction = state.db.transaction(
-      [state.stores.media_upload_batches, state.stores.media_upload_history],
+      [state.stores.mediaUploadBatches, state.stores.mediaUploadHistory],
       'readwrite',
     );
-    const batchStore = transaction.objectStore(state.stores.media_upload_batches);
-    const historyStore = transaction.objectStore(state.stores.media_upload_history);
+    const batchStore = transaction.objectStore(state.stores.mediaUploadBatches);
+    const historyStore = transaction.objectStore(state.stores.mediaUploadHistory);
 
     return new Promise((resolve, reject) => {
       const getRequest = batchStore.get(batchId);
@@ -555,8 +637,8 @@ export default function createPersistenceManager() {
       throw new Error('Database not initialized');
     }
 
-    const transaction = state.db.transaction([state.stores.media_upload_batches], 'readonly');
-    const store = transaction.objectStore(state.stores.media_upload_batches);
+    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readonly');
+    const store = transaction.objectStore(state.stores.mediaUploadBatches);
 
     return new Promise((resolve, reject) => {
       const request = store.getAll();
@@ -604,15 +686,15 @@ export default function createPersistenceManager() {
 
     const transaction = state.db.transaction(
       [
-        state.stores.media_processing_queue,
-        state.stores.media_upload_batches,
-        state.stores.media_upload_history,
+        state.stores.mediaProcessingQueue,
+        state.stores.mediaUploadBatches,
+        state.stores.mediaUploadHistory,
       ],
       'readwrite',
     );
-    const queueStore = transaction.objectStore(state.stores.media_processing_queue);
-    const batchStore = transaction.objectStore(state.stores.media_upload_batches);
-    const historyStore = transaction.objectStore(state.stores.media_upload_history);
+    const queueStore = transaction.objectStore(state.stores.mediaProcessingQueue);
+    const batchStore = transaction.objectStore(state.stores.mediaUploadBatches);
+    const historyStore = transaction.objectStore(state.stores.mediaUploadHistory);
 
     const clearQueue = new Promise((resolve, reject) => {
       const request = queueStore.clear();
@@ -642,8 +724,8 @@ export default function createPersistenceManager() {
     const allItems = await getProcessingQueue(sessionId);
 
     // Then process them in a new transaction
-    const transaction = state.db.transaction([state.stores.media_processing_queue], 'readwrite');
-    const store = transaction.objectStore(state.stores.media_processing_queue);
+    const transaction = state.db.transaction([state.stores.mediaProcessingQueue], 'readwrite');
+    const store = transaction.objectStore(state.stores.mediaProcessingQueue);
 
     const promises = allItems.map((item) => new Promise((resolve, reject) => {
       const remainingMedia = (item.media || []).filter((m) => !mediaIds.includes(m.id));
@@ -684,5 +766,10 @@ export default function createPersistenceManager() {
     getUploadProgress,
     clearProcessingQueue,
     removeMediaFromProcessingQueue,
+    savePageScanStatus,
+    getPageScanStatus,
+    getCompletedPagesByFile,
+    getAllPageScanStatus,
+    clearPageScanStatus,
   };
 }

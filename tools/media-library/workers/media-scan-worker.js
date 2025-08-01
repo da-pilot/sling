@@ -247,7 +247,8 @@ async function getPageContent(path) {
   if (!daApi) {
     throw new Error('DA API service not initialized');
   }
-  return daApi.fetchPageContent(path);
+  const response = await daApi.fetchPageContent(path);
+  return response;
 }
 
 async function extractMediaFromHTML(html, sourcePath) {

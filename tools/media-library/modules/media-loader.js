@@ -183,7 +183,6 @@ export async function checkIndexedDBStatus() {
  */
 export function setMediaBrowser(browser) {
   mediaBrowserRef = browser;
-  console.log('[Media Loader] Media browser reference set');
 }
 
 /**
@@ -191,7 +190,6 @@ export function setMediaBrowser(browser) {
  */
 export function setContext(context) {
   contextRef = context;
-  console.log('[Media Loader] Context reference set');
 }
 
 /**
@@ -199,5 +197,4 @@ export function setContext(context) {
  */
 export function setDocAuthoringService(docAuthoringService) {
   docAuthoringServiceRef = docAuthoringService;
-  console.log('[Media Loader] Document Authoring Service reference set');
 }

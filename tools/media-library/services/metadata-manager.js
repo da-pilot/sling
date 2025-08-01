@@ -25,7 +25,6 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
     state.config = config;
     const daConfig = state.daApi.getConfig();
     state.fullMetadataPath = `/${daConfig.org}/${daConfig.repo}${state.metadataPath}`;
-    console.log('[Metadata Manager] ✅ Initialized successfully');
   }
 
   function validateMetadata(metadata) {
@@ -36,16 +35,6 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
       return false;
     }
     return true;
-  }
-
-  async function ensureMetadataFolder() {
-    try {
-      const folderPath = state.fullMetadataPath.split('/').slice(0, -1).join('/');
-      await state.daApi.ensureFolder(folderPath);
-    } catch (error) {
-      console.error('[Metadata Manager] ❌ Failed to ensure metadata folder:', error);
-      throw error;
-    }
   }
 
   async function getMetadata() {
@@ -62,19 +51,15 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
       const parsedData = await loadData(contentUrl, daConfig.token);
 
       if (parsedData.data && Array.isArray(parsedData.data)) {
-        console.log('[Metadata Manager] ✅ Successfully loaded', parsedData.data.length, 'media items');
         return parsedData.data;
       }
 
       if (parsedData.data && typeof parsedData.data === 'object' && parsedData.data.data && Array.isArray(parsedData.data.data)) {
-        console.log('[Metadata Manager] ✅ Successfully loaded', parsedData.data.data.length, 'media items from nested structure');
         return parsedData.data.data;
       }
 
-      console.warn('[Metadata Manager] ⚠️ Unexpected data structure:', parsedData);
       return [];
     } catch (error) {
-      console.warn('[Metadata Manager] ℹ️ No existing metadata found or error reading file:', error.message);
       return [];
     }
   }
@@ -90,8 +75,6 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
         throw new Error('Invalid configuration: baseUrl is missing from DA API');
       }
 
-      await ensureMetadataFolder();
-
       const mediaArray = metadata || [];
       const normalizedMediaArray = mediaArray.map((media) => {
         const normalized = { ...media };
@@ -104,8 +87,6 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
       const sheetData = buildSingleSheet(normalizedMediaArray);
       const url = `${daConfig.baseUrl}/source${state.fullMetadataPath}`;
       await saveSheetFile(url, sheetData, daConfig.token);
-
-      console.log('[Metadata Manager] ✅ Metadata saved successfully:', state.fullMetadataPath);
 
       // Add small delay to ensure file is fully written before reading
       await new Promise((resolve) => {

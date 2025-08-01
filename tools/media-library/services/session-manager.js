@@ -25,7 +25,6 @@ export default function createSessionManager() {
       state.daApi = docAuthoringService;
       state.config = docAuthoringService.getConfig();
       await cleanupOldSessionFiles();
-      console.log('[Session Manager] ✅ Initialized successfully');
     } catch (error) {
       console.error('[Session Manager] ❌ Initialization failed:', error);
       throw error;
@@ -41,7 +40,6 @@ export default function createSessionManager() {
 
   async function loadSessionState(sessionId) {
     try {
-      await ensureSessionsFolder();
       const normalizedSessionId = normalizeSessionId(sessionId);
       const sessionPath = DA_PATHS.getSessionFile(
         state.config.org,
@@ -78,19 +76,8 @@ export default function createSessionManager() {
     }
   }
 
-  async function ensureSessionsFolder() {
-    try {
-      const sessionsDir = DA_PATHS.getSessionsDir(state.config.org, state.config.repo);
-      await state.daApi.ensureFolder(sessionsDir);
-    } catch (error) {
-      console.error('[Session Manager] ❌ Failed to ensure sessions folder:', error);
-      throw error;
-    }
-  }
-
   async function saveSessionState(sessionId, sessionData) {
     try {
-      await ensureSessionsFolder();
       const normalizedSessionId = normalizeSessionId(sessionId);
       const sessionPath = DA_PATHS.getSessionFile(
         state.config.org,
@@ -296,7 +283,6 @@ export default function createSessionManager() {
   }
   async function cleanupOldSessionFiles() {
     try {
-      await ensureSessionsFolder();
       const sessionsDir = DA_PATHS.getSessionsDir(state.config.org, state.config.repo);
       const items = await state.daApi.listPath(
         sessionsDir.replace(`/${state.config.org}/${state.config.repo}/`, ''),

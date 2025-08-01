@@ -22,11 +22,11 @@ export const DA_STORAGE = {
     ACTIVE_SESSIONS: 'active-sessions.json',
     DISCOVERY_CHECKPOINT: 'discovery-checkpoint.json',
     SCANNING_CHECKPOINT: 'scanning-checkpoint.json',
-    UPLOAD_CHECKPOINT: 'upload-checkpoint.json',
     SESSION_CHECKPOINT: 'session-checkpoint.json',
     SESSION_STATUS: 'session-status.json',
     SESSION_HISTORY: 'session-history.json',
     STRUCTURE_BASELINE: 'structure-baseline.json',
+    SITE_STRUCTURE: 'site-structure.json',
   },
 };
 
@@ -44,12 +44,12 @@ export const DA_PATHS = {
   getActiveSessionsFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/${DA_STORAGE.FILES.ACTIVE_SESSIONS}`,
   getDiscoveryCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.DISCOVERY_CHECKPOINT}`,
   getScanningCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.SCANNING_CHECKPOINT}`,
-  getUploadCheckpointFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.UPLOAD_CHECKPOINT}`,
   getSessionFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-${sessionId}.json`,
   getSessionCheckpointFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-checkpoint-${sessionId}.json`,
   getSessionStatusFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-status-${sessionId}.json`,
   getSessionHistoryFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-history-${sessionId}.json`,
   getStructureBaselineFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.STRUCTURE_BASELINE}`,
+  getSiteStructureFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.SITE_STRUCTURE}`,
 };
 
 export const SCAN_CONFIG = {
@@ -178,7 +178,6 @@ export const LOCALSTORAGE_KEYS = {
   DISCOVERY_PROGRESS: 'media-discovery-progress',
   DISCOVERY_CHECKPOINT: 'media-discovery-checkpoint',
   SCANNING_CHECKPOINT: 'media-scanning-checkpoint',
-  UPLOAD_CHECKPOINT: 'media-upload-checkpoint',
 };
 
 export const SESSION_PREFIX = 'session_';

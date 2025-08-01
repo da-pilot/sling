@@ -14,6 +14,7 @@ import createDocAuthoringService from './services/doc-authoring-service.js';
 import createMetadataManager from './services/metadata-manager.js';
 import createSessionManager from './services/session-manager.js';
 import createProcessingStateManager from './services/processing-state-manager.js';
+import createPersistenceManager from './services/persistence-manager.js';
 import createMediaProcessor from './modules/media-processor.js';
 
 // Internal modules
@@ -61,8 +62,10 @@ let mediaInsertion = null;
 let queueManager = null;
 let sessionManager = null;
 let processingStateManager = null;
+let persistenceManager = null;
 let mediaProcessor = null;
 let currentUserId = null;
+// eslint-disable-next-line no-unused-vars
 let currentSessionId = null;
 let currentBrowserId = null;
 let media = [];
@@ -100,22 +103,12 @@ async function init() {
     daActions = actions;
     window.daContext = daContext;
 
-    // eslint-disable-next-line no-console
-    console.log('🔧 [INIT] DA SDK loaded, initializing core services...');
     await initializeCoreServices();
 
-    // eslint-disable-next-line no-console
-    console.log('🔧 [INIT] Core services initialized, loading and rendering media...');
     await loadAndRenderMedia();
 
-    // eslint-disable-next-line no-console
-    console.log(
-      '🔧 [INIT] Media loaded, initializing scanning...',
-    );
     await initializeScanning();
 
-    // eslint-disable-next-line no-console
-    console.log('🔧 [INIT] Scanning initialized, setting up UI...');
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
     setInterval(checkScanAndStartPolling, POLLING_INTERVAL);
@@ -123,7 +116,6 @@ async function init() {
     // eslint-disable-next-line no-console
     console.log('🔧 [INIT] Media Library initialization complete!');
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('Failed to initialize:', error);
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
@@ -177,10 +169,12 @@ async function initializeCoreServices() {
 
   sessionManager = createSessionManager();
   processingStateManager = createProcessingStateManager(docAuthoringService);
+  persistenceManager = createPersistenceManager();
   mediaProcessor = createMediaProcessor();
 
   await sessionManager.init(docAuthoringService);
   await processingStateManager.init({ daApi: docAuthoringService });
+  await persistenceManager.init();
   await mediaProcessor.init(
     docAuthoringService,
     sessionManager,
@@ -193,17 +187,7 @@ async function initializeCoreServices() {
   const userAgent = navigator.userAgent.replace(/[^a-zA-Z0-9]/g, '').substr(0, 20);
   currentBrowserId = `browser_${userAgent}_${Date.now()}`;
 
-  // Set up media update handler
   setupMediaUpdateHandler();
-
-  // eslint-disable-next-line no-console
-  console.log('[Media Library] ✅ Core services initialized:', {
-    hasSessionManager: !!sessionManager,
-    hasProcessingStateManager: !!processingStateManager,
-    hasMediaProcessor: !!mediaProcessor,
-    hasMediaBrowser: !!mediaBrowser,
-    timestamp: new Date().toISOString(),
-  });
 
   initUIEvents({
     mediaBrowser,
@@ -221,8 +205,6 @@ async function initializeCoreServices() {
 function setupMediaUpdateHandler() {
   if (mediaProcessor && mediaBrowser) {
     mediaProcessor.setOnMediaUpdated((updatedMedia) => {
-      // eslint-disable-next-line no-console
-      console.log('[Media Library] 📱 Updating UI with', updatedMedia.length, 'media');
       // Update global media array to keep it in sync
       media = updatedMedia || [];
       mediaBrowser.setMedia(updatedMedia);
@@ -239,35 +221,19 @@ function setupMediaUpdateHandler() {
  */
 async function loadAndRenderMedia() {
   try {
-    // eslint-disable-next-line no-console
-    console.log('📱 [LOAD] Loading media from media.json...');
     const { mediaJsonExists, media: loadedMedia } = await loadMediaFromMediaJson();
 
-    // eslint-disable-next-line no-console
-    console.log('📱 [LOAD] Media data loaded:', {
-      mediaJsonExists,
-      mediaCount: loadedMedia?.length || 0,
-    });
-
     if (mediaJsonExists) {
-      // eslint-disable-next-line no-console
-      console.log('📱 [LOAD] Media.json exists, showing placeholder cards...');
       showPlaceholderCards();
     }
 
     // Update global media array
     media = loadedMedia || [];
-    // eslint-disable-next-line no-console
-    console.log('📱 [LOAD] Rendering media with count:', media.length);
     renderMedia(media);
 
     // Initialize hierarchy browser after media is loaded
     try {
-      // eslint-disable-next-line no-console
-      console.log('📱 [LOAD] Initializing hierarchy browser...');
       await initHierarchyBrowser();
-      // eslint-disable-next-line no-console
-      console.log('📱 [LOAD] Hierarchy browser initialized successfully');
     } catch (hierarchyError) {
       // eslint-disable-next-line no-console
       console.warn('Failed to initialize hierarchy browser:', hierarchyError);
@@ -416,20 +382,12 @@ function setupUIEventHandlers() {
  * Render media in the UI
  */
 function renderMedia(mediaToRender = media) {
-  console.log('🎨 [RENDER] Rendering media:', {
-    count: mediaToRender?.length || 0,
-    hasMediaBrowser: !!mediaBrowser,
-  });
-
   if (mediaBrowser) mediaBrowser.setMedia(mediaToRender);
 
   const grid = document.getElementById('mediaGrid');
   const loadingMsg = document.getElementById('mediaLoadingMessage');
 
-  console.log('🎨 [RENDER] DOM elements found:', { hasGrid: !!grid, hasLoadingMsg: !!loadingMsg });
-
   if (mediaToRender?.length > 0) {
-    console.log('🎨 [RENDER] Rendering media items...');
     if (grid) grid.style.display = '';
     if (loadingMsg) loadingMsg.style.display = 'none';
 
@@ -442,7 +400,6 @@ function renderMedia(mediaToRender = media) {
     return;
   }
 
-  console.log('🎨 [RENDER] No media found, showing empty state...');
   if (grid) {
     grid.style.display = '';
     grid.innerHTML = `
@@ -460,8 +417,6 @@ function renderMedia(mediaToRender = media) {
         </div>
       </div>
     `;
-    console.log('🎨 [RENDER] Empty state HTML set');
-
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
   }
@@ -516,23 +471,20 @@ async function initializeScanning() {
  */
 async function initializeQueueManager() {
   try {
-    // eslint-disable-next-line no-console
-    console.log('[Media Library] 🔧 Initializing queue manager...');
     queueManager = createQueueManager();
     await queueManager.init(
       docAuthoringService,
       sessionManager,
       processingStateManager,
-      mediaProcessor, // Pass media processor reference
+      mediaProcessor,
+      persistenceManager,
     );
 
-    // Set up event listeners for queue manager
     queueManager.on('scanningStopped', (data) => {
       console.log('[Media Library] 📡 Received scanningStopped event:', data);
       hideScanProgress();
     });
 
-    // Set up batch processing event handlers
     queueManager.on('batchProcessingStarted', () => {
       updateLoadingText('Uploading media to media.json...');
     });
@@ -551,11 +503,7 @@ async function initializeQueueManager() {
       updateLoadingText('Media upload failed');
       hideScanProgress();
     });
-
-    // eslint-disable-next-line no-console
-    console.log('[Media Library] ✅ Queue manager initialized');
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('[Media Library] ❌ Failed to initialize queue manager:', error);
     throw error;
   }
@@ -617,38 +565,17 @@ async function startFullScan(forceRescan = false) {
       try {
         sessionId = await sessionManager.createSession(currentUserId, currentBrowserId, forceRescan ? 'force' : 'incremental');
         currentSessionId = sessionId;
-        console.log('[DEBUG] currentSessionId assigned:', currentSessionId);
-        // Set session for core services
         if (mediaProcessor) {
           mediaProcessor.setCurrentSession(sessionId, currentUserId, currentBrowserId);
         }
-
-        // eslint-disable-next-line no-console
-        console.log('[Media Library] 🎯 Session created for scanning:', {
-          sessionId,
-          userId: currentUserId,
-          browserId: currentBrowserId,
-          scanType: forceRescan ? 'force' : 'incremental',
-          timestamp: new Date().toISOString(),
-        });
       } catch (sessionError) {
-        // eslint-disable-next-line no-console
         console.warn('[Media Library] ⚠️ Failed to create session, falling back to legacy scanning:', sessionError);
       }
     }
 
-    // eslint-disable-next-line no-console
-    console.log('🚀 [FULL SCAN] Starting V2 full content scan...', {
-      forceRescan,
-      sessionId,
-      hasV2Services: !!(processingStateManager),
-      timestamp: new Date().toISOString(),
-    });
-
     showScanProgress();
     updateLoadingText('Starting V2 full content scan...');
 
-    // Start scanning with session management
     if (sessionId) {
       await queueManager.startQueueScanning(
         forceRescan,
@@ -660,7 +587,6 @@ async function startFullScan(forceRescan = false) {
       await queueManager.startQueueScanning(forceRescan);
     }
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('V2 full scan failed:', error);
     showError('V2 full scan failed', error);
     isScanning = false;
@@ -673,17 +599,15 @@ async function startFullScan(forceRescan = false) {
  */
 async function checkScanAndStartPolling() {
   try {
+    isScanning = await checkScanStatus();
     if (isScanning) {
       return;
     }
 
     const mediaData = await loadMediaFromMediaJson();
     if (mediaData.mediaJsonExists && mediaData.media.length > 0) {
-      console.log('[Media Library] Media loaded successfully:', mediaData.media.length, 'items');
-      return;
+      renderMedia(mediaData.media);
     }
-
-    console.log('[Media Library] No media found in media.json');
   } catch (error) {
     console.error('[Media Library] Error in scan polling:', error);
   }

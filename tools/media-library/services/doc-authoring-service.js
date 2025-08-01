@@ -125,7 +125,12 @@ function createDocAuthoringService() {
       throw new Error(`Cannot list path: missing org (${state.org}) or repo (${state.repo})`);
     }
 
-    const cleanPath = path.replace(/^\/+|\/+$/g, '') || '';
+    let cleanPath = path.replace(/^\/+|\/+$/g, '') || '';
+
+    const orgRepoPattern = new RegExp(`^${state.org}/${state.repo}/`);
+    if (orgRepoPattern.test(cleanPath)) {
+      cleanPath = cleanPath.replace(orgRepoPattern, '');
+    }
 
     if (state.org === undefined || state.repo === undefined) {
       throw new Error(`URL construction failed: org=${state.org}, repo=${state.repo}`);
@@ -265,10 +270,8 @@ function createDocAuthoringService() {
     } catch (error) {
       try {
         const url = `${state.baseUrl}/source${folderPath}/.folder`;
-
         const formData = new FormData();
         formData.append('data', '');
-
         const response = await makeRequest(url, {
           method: 'POST',
           headers: { Authorization: `Bearer ${state.token}` },

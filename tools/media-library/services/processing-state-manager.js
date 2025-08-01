@@ -5,7 +5,6 @@
  */
 
 import {
-  DA_STORAGE,
   LOCALSTORAGE_KEYS,
   DA_PATHS,
   CONTENT_DA_LIVE_BASE,
@@ -89,14 +88,8 @@ export default function createProcessingStateManager(docAuthoringService) {
 
   async function init(config) {
     try {
-      console.log('[Processing State Manager] 🔍 Initializing with config:', {
-        hasConfig: !!config,
-        configType: typeof config,
-      });
       state.config = config;
       state.daApi = config.daApi;
-      await ensureProcessingFolder();
-      console.log('[Processing State Manager] ✅ Initialized successfully');
       state.queueManager = createCheckpointQueueManager();
     } catch (error) {
       console.error('[Processing State Manager] ❌ Initialization failed:', error);
@@ -111,8 +104,6 @@ export default function createProcessingStateManager(docAuthoringService) {
         return DA_PATHS.getDiscoveryCheckpointFile(daConfig.org, daConfig.repo);
       case CHECKPOINTS.SCANNING:
         return DA_PATHS.getScanningCheckpointFile(daConfig.org, daConfig.repo);
-      case CHECKPOINTS.UPLOAD:
-        return DA_PATHS.getUploadCheckpointFile(daConfig.org, daConfig.repo);
       default:
         throw new Error(`Unknown checkpoint type: ${checkpointType}`);
     }
@@ -122,11 +113,15 @@ export default function createProcessingStateManager(docAuthoringService) {
     switch (checkpointType) {
       case CHECKPOINTS.DISCOVERY:
         return {
+          org: null,
+          repo: null,
+          status: 'idle',
           totalFolders: 0,
           completedFolders: 0,
           totalDocuments: 0,
-          status: 'idle',
           folderStatus: {},
+          excludedPatterns: [],
+          rootFiles: [],
           lastUpdated: null,
         };
       case CHECKPOINTS.SCANNING:
@@ -137,19 +132,6 @@ export default function createProcessingStateManager(docAuthoringService) {
           failedPages: 0,
           totalMedia: 0,
           status: 'idle',
-          lastUpdated: null,
-        };
-      case CHECKPOINTS.UPLOAD:
-        return {
-          totalItems: 0,
-          uploadedItems: 0,
-          totalBatches: 0,
-          completedBatches: 0,
-          failedBatches: 0,
-          status: 'idle',
-          progress: 0,
-          batchStatus: {},
-          retryAttempts: {},
           lastUpdated: null,
         };
       default:
@@ -177,7 +159,6 @@ export default function createProcessingStateManager(docAuthoringService) {
 
   async function saveCheckpointFile(checkpointType, checkpoint) {
     try {
-      await ensureProcessingFolder();
       const daConfig = state.daApi.getConfig();
       const checkpointPath = getCheckpointPath(checkpointType);
       const data = {
@@ -214,33 +195,20 @@ export default function createProcessingStateManager(docAuthoringService) {
     return loadCheckpoint(CHECKPOINTS.SCANNING);
   }
 
-  async function loadUploadCheckpoint() {
-    return loadCheckpoint(CHECKPOINTS.UPLOAD);
-  }
-
-  async function ensureProcessingFolder() {
-    try {
-      const daConfig = state.daApi.getConfig();
-      const processingDir = `/${daConfig.org}/${daConfig.repo}/${DA_STORAGE.PROCESSING_DIR}`;
-      await state.daApi.ensureFolder(processingDir);
-    } catch (error) {
-      console.error('[Processing State Manager] ❌ Failed to ensure processing folder:', error);
-      const daConfig = state.daApi.getConfig();
-      console.error('[Processing State Manager] ❌ Processing folder path:', `/${daConfig.org}/${daConfig.repo}/${DA_STORAGE.PROCESSING_DIR}`);
-      throw error;
-    }
-  }
-
   async function saveDiscoveryCheckpointFile(checkpoint) {
     return saveCheckpointFile(CHECKPOINTS.DISCOVERY, checkpoint);
   }
 
   async function saveScanningCheckpointFile(checkpoint) {
+    if (checkpoint.totalPages && checkpoint.scannedPages) {
+      if (checkpoint.scannedPages > checkpoint.totalPages) {
+        checkpoint.scannedPages = checkpoint.totalPages;
+      }
+      if (checkpoint.pendingPages && checkpoint.pendingPages < 0) {
+        checkpoint.pendingPages = 0;
+      }
+    }
     return saveCheckpointFile(CHECKPOINTS.SCANNING, checkpoint);
-  }
-
-  async function saveUploadCheckpointFile(checkpoint) {
-    return saveCheckpointFile(CHECKPOINTS.UPLOAD, checkpoint);
   }
 
   /**
@@ -265,6 +233,14 @@ export default function createProcessingStateManager(docAuthoringService) {
       ...updates,
       lastUpdated: Date.now(),
     };
+    if (updatedProgress.totalPages && updatedProgress.scannedPages) {
+      if (updatedProgress.scannedPages > updatedProgress.totalPages) {
+        updatedProgress.scannedPages = updatedProgress.totalPages;
+      }
+      if (updatedProgress.pendingPages && updatedProgress.pendingPages < 0) {
+        updatedProgress.pendingPages = 0;
+      }
+    }
     await saveScanningCheckpointFile(updatedProgress);
     return updatedProgress;
   }
@@ -290,10 +266,59 @@ export default function createProcessingStateManager(docAuthoringService) {
     return clearCheckpoint(CHECKPOINTS.DISCOVERY);
   }
   async function clearScanningCheckpoint() {
-    return clearCheckpoint(CHECKPOINTS.SCANNING);
+    try {
+      await clearCheckpoint(CHECKPOINTS.SCANNING);
+      return true;
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Failed to clear scanning checkpoint:', error);
+      return false;
+    }
   }
-  async function clearUploadCheckpoint() {
-    return clearCheckpoint(CHECKPOINTS.UPLOAD);
+  async function saveSiteStructureFile(siteStructure) {
+    try {
+      const daConfig = state.daApi.getConfig();
+      const filePath = DA_PATHS.getSiteStructureFile(daConfig.org, daConfig.repo);
+      const data = {
+        ...siteStructure,
+        lastUpdated: Date.now(),
+      };
+      const sheetData = buildSingleSheet(data);
+      const url = `${daConfig.baseUrl}/source${filePath}`;
+      await saveSheetFile(url, sheetData, daConfig.token);
+      return true;
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Failed to save site structure:', error);
+      return false;
+    }
+  }
+  async function loadSiteStructureFile() {
+    try {
+      const daConfig = state.daApi.getConfig();
+      if (!daConfig || !daConfig.token) {
+        throw new Error('Invalid configuration: token is missing from DA API');
+      }
+      const filePath = DA_PATHS.getSiteStructureFile(daConfig.org, daConfig.repo);
+      const contentUrl = `${CONTENT_DA_LIVE_BASE}${filePath}`;
+      const parsedData = await loadData(contentUrl, daConfig.token);
+      if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
+        return parsedData.data[0];
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+  async function clearSiteStructureFile() {
+    try {
+      const daConfig = state.daApi.getConfig();
+      const filePath = DA_PATHS.getSiteStructureFile(daConfig.org, daConfig.repo);
+      const url = `${daConfig.baseUrl}/source${filePath}`;
+      await state.daApi.deleteFile(url);
+      return true;
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Failed to clear site structure:', error);
+      return false;
+    }
   }
 
   /**
@@ -303,7 +328,6 @@ export default function createProcessingStateManager(docAuthoringService) {
     try {
       const discoveryProgress = await loadDiscoveryCheckpoint();
       const scanningProgress = await loadScanningCheckpoint();
-      const uploadProgress = await loadUploadCheckpoint();
       return {
         discovery: {
           totalFolders: discoveryProgress.totalFolders || 0,
@@ -329,14 +353,14 @@ export default function createProcessingStateManager(docAuthoringService) {
           ),
         },
         upload: {
-          totalItems: uploadProgress?.totalItems || 0,
-          uploadedItems: uploadProgress?.uploadedItems || 0,
-          totalBatches: uploadProgress?.totalBatches || 0,
-          completedBatches: uploadProgress?.completedBatches || 0,
-          failedBatches: uploadProgress?.failedBatches || 0,
-          status: uploadProgress?.status || 'idle',
-          progress: uploadProgress?.progress || 0,
-          lastUpdated: uploadProgress?.lastUpdated,
+          totalItems: 0,
+          uploadedItems: 0,
+          totalBatches: 0,
+          completedBatches: 0,
+          failedBatches: 0,
+          status: 'idle',
+          progress: 0,
+          lastUpdated: null,
         },
       };
     } catch (error) {
@@ -415,68 +439,6 @@ export default function createProcessingStateManager(docAuthoringService) {
         console.error('[Processing State Manager] Error in event listener:', error);
       }
     });
-  }
-
-  async function saveUploadCheckpoint(sessionId, checkpoint) {
-    return saveUploadCheckpointFile(checkpoint);
-  }
-
-  async function getUploadCheckpoint() {
-    return loadUploadCheckpoint();
-  }
-
-  async function updateUploadProgress(sessionId, updates) {
-    const existingProgress = await loadUploadCheckpoint();
-    const updatedProgress = {
-      ...existingProgress,
-      ...updates,
-      lastUpdated: Date.now(),
-    };
-    return saveUploadCheckpointFile(updatedProgress);
-  }
-
-  async function isUploadComplete() {
-    const progress = await getUploadCheckpoint();
-    return progress?.status === 'completed';
-  }
-
-  async function saveBatchStatus(sessionId, batchId, status) {
-    const checkpoint = await loadUploadCheckpoint();
-    if (!checkpoint.batchStatus) {
-      checkpoint.batchStatus = {};
-    }
-    checkpoint.batchStatus[batchId] = {
-      status,
-      lastUpdated: Date.now(),
-    };
-    return saveUploadCheckpointFile(checkpoint);
-  }
-
-  async function getFailedBatches() {
-    const checkpoint = await loadUploadCheckpoint();
-    if (!checkpoint?.batchStatus) {
-      return [];
-    }
-    return Object.entries(checkpoint.batchStatus)
-      .filter(([, batch]) => batch.status === 'failed')
-      .map(([batchId]) => batchId);
-  }
-
-  async function updateRetryAttempts(sessionId, batchId, attempts) {
-    const checkpoint = await loadUploadCheckpoint();
-    if (!checkpoint.retryAttempts) {
-      checkpoint.retryAttempts = {};
-    }
-    checkpoint.retryAttempts[batchId] = attempts;
-    return saveUploadCheckpointFile(checkpoint);
-  }
-
-  function isBatchProcessingComplete() {
-    return state.batchProcessingPhase && state.batchProcessingPhase.status === 'completed';
-  }
-
-  function getBatchProcessingStats() {
-    return state.batchProcessingPhase || null;
   }
 
   async function markFolderComplete(folderName, documentCount, discoveryFile) {
@@ -622,31 +584,22 @@ export default function createProcessingStateManager(docAuthoringService) {
     init,
     loadDiscoveryCheckpoint,
     loadScanningCheckpoint,
-    loadUploadCheckpoint,
     saveDiscoveryCheckpointFile,
     saveScanningCheckpointFile,
-    saveUploadCheckpointFile,
     updateDiscoveryProgress,
     updateScanningProgress,
     isDiscoveryComplete,
     clearCheckpoints,
     clearDiscoveryCheckpoint,
     clearScanningCheckpoint,
-    clearUploadCheckpoint,
+    saveSiteStructureFile,
+    loadSiteStructureFile,
+    clearSiteStructureFile,
     getProcessingStats,
     clearCache,
     on,
     off,
     emit,
-    saveUploadCheckpoint,
-    getUploadCheckpoint,
-    updateUploadProgress,
-    isUploadComplete,
-    saveBatchStatus,
-    getFailedBatches,
-    updateRetryAttempts,
-    isBatchProcessingComplete,
-    getBatchProcessingStats,
     markFolderComplete,
     queueFolderDiscoveryUpdate,
     getPendingUpdates,

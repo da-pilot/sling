@@ -151,7 +151,7 @@ export function createWorkerSheetUtils() {
     } else if (filename === 'session-state.json'
       || filename === 'discovery-progress.json' || filename === 'scanning-progress.json'
       || filename === 'active-sessions.json' || filename === 'discovery-checkpoint.json'
-      || filename === 'scanning-checkpoint.json' || filename === 'upload-checkpoint.json') {
+      || filename === 'scanning-checkpoint.json') {
       basePath = '.media/.processing';
     } else if (filename.endsWith('-scan.json')) {
       basePath = '.media/.scan-status';
