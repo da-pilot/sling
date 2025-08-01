@@ -717,6 +717,24 @@ export default function createPersistenceManager() {
     await Promise.all([clearQueue, clearBatches, clearHistory]);
   }
 
+  async function clearMediaStore() {
+    if (!state.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const transaction = state.db.transaction([state.stores.media], 'readwrite');
+    const store = transaction.objectStore(state.stores.media);
+
+    return new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => {
+        console.log('[IndexedDB] 🗑️ Media store cleared');
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async function removeMediaFromProcessingQueue(mediaIds, sessionId) {
     if (!state.db) throw new Error('Database not initialized');
 
@@ -765,6 +783,7 @@ export default function createPersistenceManager() {
     confirmBatchUpload,
     getUploadProgress,
     clearProcessingQueue,
+    clearMediaStore,
     removeMediaFromProcessingQueue,
     savePageScanStatus,
     getPageScanStatus,

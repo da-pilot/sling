@@ -208,6 +208,18 @@ export default function createProcessingStateManager(docAuthoringService) {
         checkpoint.pendingPages = 0;
       }
     }
+
+    // Debug: Log checkpoint data size and structure
+    const checkpointStr = JSON.stringify(checkpoint);
+    console.log(`[Processing State Manager] 📊 Saving scanning checkpoint: ${checkpointStr.length} bytes`);
+    console.log('[Processing State Manager] 📋 Checkpoint structure:', {
+      totalPages: checkpoint.totalPages,
+      scannedPages: checkpoint.scannedPages,
+      totalMedia: checkpoint.totalMedia,
+      filesCount: checkpoint.files?.length || 0,
+      status: checkpoint.status,
+    });
+
     return saveCheckpointFile(CHECKPOINTS.SCANNING, checkpoint);
   }
 

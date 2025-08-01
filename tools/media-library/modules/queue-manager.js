@@ -2048,7 +2048,6 @@ export default function createQueueManager() {
           folder.files.slice(0, 3).map((f) => f.path));
         folder.debugLogged = true;
       }
-      
       const fileIndex = folder.files.findIndex((file) => file.path === normalizedPagePath);
       if (fileIndex !== -1) {
         folder.files[fileIndex].mediaCount = mediaCount;
@@ -2146,8 +2145,8 @@ export default function createQueueManager() {
             page.mediaCount,
           );
           if (updatedStructure) {
-            // Use the returned updated structure directly
-            Object.assign(newStructure, updatedStructure);
+            // Replace the structure with the updated one
+            newStructure.root = updatedStructure.root;
             updatedCount += 1;
             console.log(`[Queue Manager] ✅ Updated mediaCount for: ${page.pageUrl}`);
           } else {
@@ -2170,6 +2169,14 @@ export default function createQueueManager() {
         console.log(`[Queue Manager] ✅ Recreated and saved site structure with ${updatedCount} media count updates`);
       } else {
         console.log('[Queue Manager] ℹ️ No pages with media found, skipping site structure save');
+      }
+
+      // Clear media store to prevent stale data in next scan
+      try {
+        await state.persistenceManager.clearMediaStore();
+        console.log('[Queue Manager] 🗑️ Cleared media store to prevent stale data');
+      } catch (error) {
+        console.warn('[Queue Manager] ⚠️ Failed to clear media store:', error.message);
       }
     } catch (error) {
       console.error('[Queue Manager] ❌ Failed to update site structure:', error);
