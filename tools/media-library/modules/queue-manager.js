@@ -2115,61 +2115,14 @@ export default function createQueueManager() {
   }
   async function updateSiteStructureWithMediaCounts() {
     try {
-      const allPageStatus = await state.persistenceManager.getAllPageScanStatus();
-      const completedPages = allPageStatus.filter((page) => page.scanStatus === 'completed');
-      console.log(`[Queue Manager] 📊 Site structure update: Found ${completedPages.length} completed pages`);
+      console.log('[Queue Manager] 🔄 Reconstructing site structure from updated discovery files...');
 
-      const siteStructure = await state.processingStateManager.loadSiteStructureFile();
-      if (!siteStructure) {
-        console.log('[Queue Manager] ⚠️ No site structure file found, skipping media count updates');
-        return;
-      }
+      // Use the existing discovery manager function to rebuild site structure
+      const newSiteStructure = await state.discoveryManager.buildSiteStructureFromDiscoveryFiles();
 
-      console.log('[Queue Manager] 📁 Site structure loaded, recreating with media count updates...');
-
-      let updatedCount = 0;
-      let pagesWithMedia = 0;
-      let pagesWithoutMedia = 0;
-
-      // Create a fresh copy of the structure to avoid modifying the original
-      const newStructure = JSON.parse(JSON.stringify(siteStructure.structure));
-
-      // Process all pages and update the new structure
-      completedPages.forEach((page) => {
-        if (page.mediaCount > 0) {
-          pagesWithMedia += 1;
-          console.log(`[Queue Manager] 🔍 Looking for path: ${page.pageUrl} (mediaCount: ${page.mediaCount})`);
-          const updatedStructure = updateFileMediaCountInStructure(
-            newStructure,
-            page.pageUrl,
-            page.mediaCount,
-          );
-          if (updatedStructure) {
-            // Replace the structure with the updated one
-            newStructure.root = updatedStructure.root;
-            updatedCount += 1;
-            console.log(`[Queue Manager] ✅ Updated mediaCount for: ${page.pageUrl}`);
-          } else {
-            console.log(`[Queue Manager] ❌ Could not find path in site structure: ${page.pageUrl}`);
-          }
-        } else {
-          pagesWithoutMedia += 1;
-        }
-      });
-
-      console.log(`[Queue Manager] 📈 Media count summary: ${pagesWithMedia} pages with media, ${pagesWithoutMedia} pages without media`);
-
-      // Create new site structure object with updated structure
-      if (pagesWithMedia > 0) {
-        const updatedSiteStructure = {
-          ...siteStructure,
-          structure: newStructure,
-        };
-        await state.processingStateManager.saveSiteStructureFile(updatedSiteStructure);
-        console.log(`[Queue Manager] ✅ Recreated and saved site structure with ${updatedCount} media count updates`);
-      } else {
-        console.log('[Queue Manager] ℹ️ No pages with media found, skipping site structure save');
-      }
+      // Save the reconstructed site structure
+      await state.processingStateManager.saveSiteStructureFile(newSiteStructure);
+      console.log('[Queue Manager] ✅ Site structure reconstructed and saved from discovery files');
 
       // Clear media store to prevent stale data in next scan
       try {
@@ -2179,7 +2132,7 @@ export default function createQueueManager() {
         console.warn('[Queue Manager] ⚠️ Failed to clear media store:', error.message);
       }
     } catch (error) {
-      console.error('[Queue Manager] ❌ Failed to update site structure:', error);
+      console.error('[Queue Manager] ❌ Failed to reconstruct site structure:', error);
     }
   }
 
