@@ -64,6 +64,15 @@ export async function loadData(url, token) {
 }
 
 /**
+ * Save data to Google Sheets in one operation
+ * Combines buildSingleSheet and saveSheetFile for convenience
+ */
+export async function saveData(url, data, token) {
+  const sheetData = buildSingleSheet(data);
+  return await saveSheetFile(url, sheetData, token);
+}
+
+/**
  * Get sheet URL for a specific file
  */
 export function getSheetUrl(config, fileName) {

@@ -2044,8 +2044,6 @@ export default function createQueueManager() {
     if (folder.files && Array.isArray(folder.files)) {
       // Debug: log first few file paths to see what's in the structure
       if (folder.files.length > 0 && !folder.debugLogged) {
-        console.log('[Queue Manager] 🔍 Debug: Sample file paths in folder:',
-          folder.files.slice(0, 3).map((f) => f.path));
         folder.debugLogged = true;
       }
       const fileIndex = folder.files.findIndex((file) => file.path === normalizedPagePath);
