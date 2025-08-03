@@ -17,11 +17,12 @@ import {
   saveSheetFile,
   loadData,
 } from './sheet-utils.js';
-import createQueueEventEmitter from './queue/index.js';
+import createQueueEventEmitter, { createDiscoveryFileManager } from './queue/index.js';
 
 export default function createQueueManager() {
   console.log('[Queue Manager] 🚀 Creating queue manager instance');
   const eventEmitter = createQueueEventEmitter();
+  const discoveryFileManager = createDiscoveryFileManager();
   const state = {
     scanWorker: null,
     discoveryManager: null,
@@ -925,110 +926,16 @@ export default function createQueueManager() {
    * Load all discovery files from .pages folder
    */
   async function loadDiscoveryFiles() {
-    try {
-      if (!state.config) {
-        // eslint-disable-next-line no-console
-        console.error('[Queue Manager] Config not available for loadDiscoveryFiles');
-        return [];
-      }
-
-      if (!state.daApi) {
-        // eslint-disable-next-line no-console
-        console.error('[Queue Manager] DA API service not initialized');
-        return [];
-      }
-      const items = await state.daApi.listPath('.media/.pages');
-      const discoveryFiles = [];
-      const filePromises = [];
-      items.forEach((item) => {
-        const isJsonFile = item.name && item.ext === 'json';
-        if (isJsonFile) {
-          filePromises.push((async () => {
-            try {
-              const fileUrl = `${CONTENT_DA_LIVE_BASE}/${state.config.org}/${state.config.repo}/.media/.pages/${item.name}.json`;
-              console.log('[Queue Manager] 📄 Fetching discovery file:', fileUrl);
-              const parsedData = await loadData(fileUrl, state.config.token);
-              let documents;
-              if (parsedData.data && parsedData.data.data) {
-                documents = parsedData.data.data;
-              } else if (parsedData.data) {
-                documents = parsedData.data;
-              } else {
-                const sheetNames = Object.keys(parsedData);
-                const firstSheet = sheetNames.find(
-                  (name) => parsedData[name] && parsedData[name].data,
-                );
-                if (firstSheet) {
-                  documents = parsedData[firstSheet].data;
-                } else {
-                  documents = [];
-                }
-              }
-              if (Array.isArray(documents) && documents.length > 0) {
-                discoveryFiles.push({
-                  fileName: item.name,
-                  documents,
-                });
-              }
-            } catch (fileError) {
-              console.log('[Queue Manager] ❌ Error loading discovery file:', {
-                fileName: item.name,
-                error: fileError.message,
-                timestamp: new Date().toISOString(),
-              });
-            }
-          })());
-        }
-      });
-      await Promise.all(filePromises);
-      return discoveryFiles;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Queue Manager] Error loading discovery files:', error);
-      return [];
-    }
+    return discoveryFileManager.loadDiscoveryFiles(state.config, state.daApi);
   }
 
   /**
    * Clear discovery files from .pages folder
    */
   async function clearDiscoveryFiles() {
-    try {
-      if (!state.config) {
-        console.error('[Queue Manager] Config not available for clearDiscoveryFiles');
-        return;
-      }
-      if (!state.daApi) {
-        console.error('[Queue Manager] DA API service not initialized');
-        return;
-      }
-      const items = await state.daApi.listPath('.media/.pages');
-      const filePromises = [];
-      items.forEach((item) => {
-        const isJsonFile = item.name && item.ext === 'json';
-        if (isJsonFile) {
-          filePromises.push((async () => {
-            try {
-              const filePath = `/${state.config.org}/${state.config.repo}/.media/.pages/${item.name}`;
-              const url = `${state.daApi.getConfig().baseUrl}/source${filePath}.json`;
-              await state.daApi.deleteFile(url);
-              console.log('[Queue Manager] 🗑️ Deleted discovery file:', filePath);
-            } catch (error) {
-              console.log('[Queue Manager] ⚠️ Error deleting discovery file:', {
-                fileName: item.name,
-                error: error.message,
-              });
-            }
-          })());
-        }
-      });
-      await Promise.all(filePromises);
-      if (state.discoveryManager && typeof state.discoveryManager.clearStructureBaseline === 'function') {
-        await state.discoveryManager.clearStructureBaseline();
-      }
-      console.log('[Queue Manager] ✅ Cleared all discovery files and structural baseline');
-    } catch (error) {
-      console.error('[Queue Manager] Error clearing discovery files:', error);
+    await discoveryFileManager.clearDiscoveryFiles(state.config, state.daApi);
+    if (state.discoveryManager && typeof state.discoveryManager.clearStructureBaseline === 'function') {
+      await state.discoveryManager.clearStructureBaseline();
     }
   }
 
@@ -1146,11 +1053,11 @@ export default function createQueueManager() {
    * Load discovery files with change detection
    */
   async function loadDiscoveryFilesWithChangeDetection() {
-    const discoveryFiles = await loadDiscoveryFiles();
-
-    await detectChangedDocuments(discoveryFiles);
-
-    return discoveryFiles;
+    return discoveryFileManager.loadDiscoveryFilesWithChangeDetection(
+      state.config,
+      state.daApi,
+      detectChangedDocuments,
+    );
   }
 
   async function requestBatch() {
