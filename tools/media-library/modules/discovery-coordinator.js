@@ -16,16 +16,18 @@ export default function createDiscoveryCoordinator() {
     documentsToScan: null,
   };
 
-  async function init(config, daApi) {
+  async function init(config, daApi, sessionManager = null, processingStateManager = null) {
     state.config = config;
     state.daApi = daApi;
     state.discoveryManager = createDiscoveryManager();
     state.discoveryFileManager = createDiscoveryFileManager();
-    await state.discoveryManager.init(daApi, null, null);
+
+    await state.discoveryManager.init(daApi, sessionManager, processingStateManager);
   }
 
   async function loadDiscoveryFiles() {
-    return state.discoveryFileManager.loadDiscoveryFiles(state.config, state.daApi);
+    const files = await state.discoveryFileManager.loadDiscoveryFiles(state.config, state.daApi);
+    return files;
   }
 
   async function clearDiscoveryFiles() {
@@ -36,7 +38,7 @@ export default function createDiscoveryCoordinator() {
   }
 
   async function loadDiscoveryFilesWithChangeDetection() {
-    return state.discoveryFileManager.loadDiscoveryFilesWithChangeDetection(
+    const files = await state.discoveryFileManager.loadDiscoveryFilesWithChangeDetection(
       state.config,
       state.daApi,
       async (discoveryFiles) => {
@@ -54,19 +56,14 @@ export default function createDiscoveryCoordinator() {
         return changedDocuments;
       },
     );
+    return files;
   }
 
   function getDocumentsToScan(discoveryFiles, forceRescan = false) {
     const documentsToScan = [];
-    let totalDocuments = 0;
-    let alreadyScanned = 0;
-    let needsRescan = 0;
-    let missingScanComplete = 0;
-    let changedDocuments = 0;
-    let newDocuments = 0;
+
     discoveryFiles.forEach((file) => {
       file.documents.forEach((doc) => {
-        totalDocuments += 1;
         const hasScanStatus = Object.prototype.hasOwnProperty.call(doc, 'scanStatus');
         const hasScanComplete = Object.prototype.hasOwnProperty.call(doc, 'scanComplete');
         let needsScan = false;
@@ -78,28 +75,18 @@ export default function createDiscoveryCoordinator() {
           needsScan = doc.scanStatus === 'pending' || doc.scanStatus === 'failed';
           if (needsScan) {
             scanReason = doc.scanStatus === 'failed' ? 'retry' : 'new';
-            if (doc.scanStatus === 'failed') {
-              changedDocuments += 1;
-            } else {
-              newDocuments += 1;
-            }
           }
         } else {
           needsScan = !doc.scanComplete || doc.needsRescan;
           if (needsScan) {
             if (!hasScanComplete) {
               scanReason = 'new';
-              newDocuments += 1;
             } else if (doc.needsRescan) {
               scanReason = 'changed';
-              changedDocuments += 1;
             } else {
               scanReason = 'incomplete';
             }
           }
-        }
-        if (!hasScanComplete && !hasScanStatus) {
-          missingScanComplete += 1;
         }
         if (needsScan) {
           if (!doc.path) {
@@ -110,57 +97,50 @@ export default function createDiscoveryCoordinator() {
             sourceFile: file.fileName,
             scanReason,
           });
-        } else {
-          alreadyScanned += 1;
-        }
-        if (doc.needsRescan) {
-          needsRescan += 1;
         }
       });
-    });
-    console.log('[Discovery Coordinator] Document scanning analysis:', {
-      totalDocuments,
-      documentsToScan: documentsToScan.length,
-      alreadyScanned,
-      newDocuments,
-      changedDocuments,
-      needsRescan,
-      missingScanComplete,
-      scanReasons: documentsToScan.reduce((acc, doc) => {
-        acc[doc.scanReason] = (acc[doc.scanReason] || 0) + 1;
-        return acc;
-      }, {}),
     });
     return documentsToScan;
   }
 
   async function detectChangedDocuments(discoveryFiles) {
-    const changedDocuments = [];
+    let changedCount = 0;
+    let unchangedCount = 0;
     discoveryFiles.forEach((file) => {
       file.documents.forEach((doc) => {
-        if (doc.needsRescan || doc.scanStatus === 'failed') {
-          changedDocuments.push({
-            ...doc,
-            sourceFile: file.fileName,
-          });
+        if (doc.lastScanned && doc.lastModified) {
+          const lastScannedTime = new Date(doc.lastScanned).getTime();
+          const lastModifiedTime = new Date(doc.lastModified).getTime();
+          if (lastModifiedTime > lastScannedTime) {
+            doc.needsRescan = true;
+            changedCount += 1;
+          } else {
+            doc.needsRescan = false;
+            unchangedCount += 1;
+          }
+        } else {
+          doc.needsRescan = true;
+          changedCount += 1;
         }
       });
     });
-    return changedDocuments;
+
+    return { changedCount, unchangedCount };
   }
 
   async function checkDiscoveryFilesExist() {
     try {
-      const discoveryFiles = await loadDiscoveryFiles();
+      const files = await state.discoveryFileManager.loadDiscoveryFiles(state.config, state.daApi);
       return {
-        filesExist: discoveryFiles.length > 0,
-        shouldRunDiscovery: discoveryFiles.length === 0,
+        filesExist: files.length > 0,
+        shouldRunDiscovery: files.length === 0,
+        fileCount: files.length,
       };
     } catch (error) {
-      console.error('[Discovery Coordinator] Error checking discovery files:', error);
       return {
         filesExist: false,
         shouldRunDiscovery: true,
+        fileCount: 0,
       };
     }
   }
@@ -170,47 +150,17 @@ export default function createDiscoveryCoordinator() {
   }
 
   async function stopDiscovery() {
-    if (state.discoveryManager) {
-      await state.discoveryManager.stopDiscovery();
-    }
+    return state.discoveryManager.stopDiscovery();
   }
 
   async function resumeDiscoveryFromCheckpoint(discoveryCheckpoint) {
-    const { folders } = await state.discoveryManager.getTopLevelItems();
-    const pendingFolders = [];
-    const completedFolders = [];
-    folders.forEach((folder) => {
-      const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop() || 'root';
-      const isCompleted = discoveryCheckpoint.folderStatus?.[folderName]?.status === 'completed';
-      if (isCompleted) {
-        completedFolders.push(folder);
-      } else {
-        pendingFolders.push(folder);
-      }
-    });
-    if (pendingFolders.length === 0) {
-      console.log('[Discovery Coordinator] All folders already discovered, marking discovery complete');
-      state.discoveryComplete = true;
-      state.discoveryFilesCache = await loadDiscoveryFilesWithChangeDetection();
-      state.documentsToScan = getDocumentsToScan(state.discoveryFilesCache, false);
-      return { discoveryComplete: true };
-    }
-    console.log('[Discovery Coordinator] Resuming discovery with pending folders only');
-    return { discoveryComplete: false, pendingFolders, completedFolders };
+    return state.discoveryManager.resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
   }
 
   function setupDiscoveryHandlers(eventHandlers) {
-    if (state.discoveryHandlersSetup) {
-      return;
+    if (state.discoveryManager && typeof state.discoveryManager.setupDiscoveryHandlers === 'function') {
+      state.discoveryManager.setupDiscoveryHandlers(eventHandlers);
     }
-    if (!state.discoveryManager) {
-      return;
-    }
-    state.discoveryHandlersSetup = true;
-    state.discoveryManager.on('documentsDiscovered', eventHandlers.onDocumentsDiscovered);
-    state.discoveryManager.on('folderComplete', eventHandlers.onFolderComplete);
-    state.discoveryManager.on('documentsChanged', eventHandlers.onDocumentsChanged);
-    state.discoveryManager.on('discoveryComplete', eventHandlers.onDiscoveryComplete);
   }
 
   function getDiscoveryManager() {
@@ -225,12 +175,135 @@ export default function createDiscoveryCoordinator() {
     state.discoveryFilesCache = cache;
   }
 
+  /**
+   * Update discovery file in cache with scan results
+   * @param {string} fileName - Discovery file name
+   * @param {string} pagePath - Page path
+   * @param {string} status - Scan status
+   * @param {number} mediaCount - Media count
+   * @param {string} error - Error message if any
+   */
+  function updateDiscoveryFileInCache(fileName, pagePath, status, mediaCount = 0, error = null) {
+    if (!state.discoveryFilesCache || !Array.isArray(state.discoveryFilesCache)) {
+      return false;
+    }
+
+    const fileIndex = state.discoveryFilesCache.findIndex((file) => file.fileName === fileName);
+    if (fileIndex === -1) {
+      return false;
+    }
+
+    const file = state.discoveryFilesCache[fileIndex];
+    if (!file.documents || !Array.isArray(file.documents)) {
+      return false;
+    }
+
+    const documentIndex = file.documents.findIndex((doc) => doc.path === pagePath);
+    if (documentIndex === -1) {
+      return false;
+    }
+
+    const currentDoc = file.documents[documentIndex];
+    const now = new Date().toISOString();
+    const isCompleted = status === 'completed';
+    const scanAttempts = (currentDoc.scanAttempts || 0) + 1;
+
+    file.documents[documentIndex] = {
+      ...currentDoc,
+      scanStatus: status,
+      mediaCount,
+      lastScannedAt: now,
+      lastScanned: now,
+      scanComplete: isCompleted,
+      scanErrors: error ? [error] : [],
+      scanAttempts,
+      needsRescan: !isCompleted,
+      entryStatus: isCompleted ? 'completed' : status === 'failed' ? 'failed' : 'pending',
+    };
+
+    return true;
+  }
+
+  /**
+   * Update multiple discovery files in cache with scan results
+   * @param {Array} updates - Array of update objects
+   */
+  function updateDiscoveryFilesInCache(updates) {
+    if (!Array.isArray(updates)) {
+      return false;
+    }
+
+    let successCount = 0;
+    updates.forEach((update) => {
+      const success = updateDiscoveryFileInCache(
+        update.fileName,
+        update.pagePath,
+        update.status,
+        update.mediaCount,
+        update.error,
+      );
+      if (success) {
+        successCount += 1;
+      }
+    });
+
+    return successCount;
+  }
+
+  /**
+   * Get updated discovery files from cache for persistence
+   * @returns {Array} Updated discovery files
+   */
+  function getUpdatedDiscoveryFilesFromCache() {
+    return state.discoveryFilesCache || [];
+  }
+
   function getDocumentsToScanFromCache() {
     return state.documentsToScan;
   }
 
   function setDocumentsToScanInCache(documents) {
     state.documentsToScan = documents;
+  }
+
+  function getConfig() {
+    return state.config;
+  }
+
+  function getDaApi() {
+    return state.daApi;
+  }
+
+  function getProcessingStateManager() {
+    return state.discoveryManager?.getProcessingStateManager();
+  }
+
+  async function performIncrementalDiscovery(changes) {
+    if (state.discoveryManager && typeof state.discoveryManager.performIncrementalDiscovery === 'function') {
+      return state.discoveryManager.performIncrementalDiscovery(changes);
+    }
+    return [];
+  }
+
+  async function loadSiteStructureForComparison() {
+    if (state.discoveryManager && typeof state.discoveryManager.loadSiteStructureForComparison === 'function') {
+      return state.discoveryManager.loadSiteStructureForComparison();
+    }
+    return null;
+  }
+
+  async function generateDiscoveryFileForFolder(folderPath, folderData) {
+    if (state.discoveryManager && typeof state.discoveryManager.generateDiscoveryFileForFolder === 'function') {
+      return state.discoveryManager.generateDiscoveryFileForFolder(folderPath, folderData);
+    }
+    return null;
+  }
+
+  async function updateDiscoveryFileForFileChanges(folderPath, fileChanges) {
+    if (state.discoveryManager && typeof state.discoveryManager.updateDiscoveryFileForFileChanges === 'function') {
+      return state.discoveryManager.updateDiscoveryFileForFileChanges(folderPath, fileChanges);
+    }
+    return false;
   }
 
   return {
@@ -248,7 +321,17 @@ export default function createDiscoveryCoordinator() {
     getDiscoveryManager,
     getDiscoveryFilesCache,
     setDiscoveryFilesCache,
+    updateDiscoveryFileInCache,
+    updateDiscoveryFilesInCache,
+    getUpdatedDiscoveryFilesFromCache,
     getDocumentsToScanFromCache,
     setDocumentsToScanInCache,
+    getConfig,
+    getDaApi,
+    getProcessingStateManager,
+    performIncrementalDiscovery,
+    loadSiteStructureForComparison,
+    generateDiscoveryFileForFolder,
+    updateDiscoveryFileForFileChanges,
   };
 }

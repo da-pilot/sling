@@ -78,28 +78,14 @@ let daApi = null;
  * Initialize worker with configuration
  */
 async function init(workerConfig) {
-  try {
-    config = workerConfig;
-    daApi = createWorkerDaApi();
-    await daApi.init(config);
+  config = workerConfig;
+  daApi = createWorkerDaApi();
+  await daApi.init(config);
 
-    // Update state from config
-    state.batchSize = config.batchSize || 10;
-    state.processingInterval = config.processingInterval || 1000;
+  state.batchSize = config.batchSize || 10;
+  state.processingInterval = config.processingInterval || 1000;
 
-    // eslint-disable-next-line no-console
-    console.log('[Media Scan Worker] 🔧 Initialized with scanning config:', {
-      batchSize: state.batchSize,
-      processingInterval: state.processingInterval,
-      timestamp: new Date().toISOString(),
-    });
-
-    return true;
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[Media Scan Worker] Failed to initialize:', error);
-    throw error;
-  }
+  return true;
 }
 
 /**
@@ -109,8 +95,14 @@ async function init(workerConfig) {
 /**
  * Start processing pages from queue
  */
-async function startQueueProcessing() {
+async function startQueueProcessing(sessionData = null) {
   state.isRunning = true;
+
+  if (sessionData) {
+    state.sessionId = sessionData.sessionId;
+    state.userId = sessionData.userId;
+    state.browserId = sessionData.browserId;
+  }
 
   const intervalId = setInterval(async () => {
     if (state.isRunning) {
@@ -122,7 +114,10 @@ async function startQueueProcessing() {
 
   postMessage({
     type: 'queueProcessingStarted',
-    data: { interval: state.processingInterval },
+    data: {
+      interval: state.processingInterval,
+      sessionId: state.sessionId,
+    },
   });
 }
 
@@ -136,12 +131,7 @@ async function processNextBatch() {
       data: { batchSize: state.batchSize },
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[Media Scan Worker] Error requesting batch:', {
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
-
+    console.error('[Media Scan Worker] ❌ Error requesting batch:', error);
     postMessage({
       type: 'batchError',
       data: { error: error.message },
@@ -157,15 +147,37 @@ async function processBatch(pages) {
     return;
   }
 
+  const batchStartTime = Date.now();
+  const batchNumber = Math.floor(batchStartTime / 100) % 10000; // More unique batch number
+
   state.isProcessing = true;
 
   try {
     const scanPromises = pages.map((page) => scanPageForMedia(page));
     await Promise.all(scanPromises);
 
+    const batchDuration = Date.now() - batchStartTime;
+    const durationMs = batchDuration;
+
+    // Count total media items from all pages in this batch
+    const totalMedia = pages.reduce((sum, page) => {
+      if (page.media && Array.isArray(page.media)) {
+        return sum + page.media.length;
+      }
+      return sum;
+    }, 0);
+
+    console.log(`===== Batch ${batchNumber} completed: ${pages.length} pages, ${totalMedia} media items, took ${durationMs} ms ======`);
+
     postMessage({
       type: 'batchComplete',
-      data: { processedCount: pages?.length || 0 },
+      data: {
+        processedCount: pages?.length || 0,
+        sessionId: state.sessionId,
+        batchNumber,
+        batchDuration,
+        totalMedia,
+      },
     });
   } finally {
     state.isProcessing = false;
@@ -183,11 +195,15 @@ async function scanPageForMedia(page) {
     const media = await extractMediaFromHTML(html, page.path);
     const scanTime = Date.now() - startTime;
 
+    // Attach media to page object for batch counting
+    page.media = media;
+
     if (media.length > 0) {
       postMessage({
         type: 'mediaDiscovered',
         data: {
           media,
+          sessionId: state.sessionId,
           timestamp: new Date().toISOString(),
         },
       });
@@ -202,6 +218,7 @@ async function scanPageForMedia(page) {
         mediaCount: media.length,
         lastModified: page?.lastModified || null,
         sourceFile: page?.sourceFile || null,
+        sessionId: state.sessionId,
         file: {
           org: config?.org || 'unknown',
           repo: config?.repo || 'unknown',
@@ -215,12 +232,10 @@ async function scanPageForMedia(page) {
       data: { path: page?.path || '' },
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[Media Scan Worker] Page scan error:', {
-      path: page?.path || 'unknown',
+    console.error('[Media Scan Worker] ❌ Page scan error:', {
+      page: page?.path || '',
       error: error?.message || 'unknown error',
       retryCount: page?.retryCount || 0,
-      timestamp: new Date().toISOString(),
     });
 
     postMessage({
@@ -230,6 +245,7 @@ async function scanPageForMedia(page) {
         error: error?.message || 'unknown error',
         retryCount: page?.retryCount || 0,
         sourceFile: page?.sourceFile || null,
+        sessionId: state.sessionId,
         file: {
           org: config?.org || 'unknown',
           repo: config?.repo || 'unknown',
@@ -259,7 +275,10 @@ async function extractMediaFromHTML(html, sourcePath) {
   extractVideoSources(html, mediaMap, sourcePath);
   await extractMediaLinks(html, mediaMap, sourcePath);
   extractCSSBackgrounds(html, mediaMap, sourcePath);
-  return Array.from(mediaMap.values());
+
+  const mediaArray = Array.from(mediaMap.values());
+
+  return mediaArray;
 }
 
 async function extractImgTags(html, mediaMap, sourcePath) {
@@ -643,6 +662,45 @@ function getContextualTextForLink(html, linkStartIndex, linkEndIndex, maxLength 
   return contextualText || 'No contextual text found';
 }
 
+/**
+ * Discover documents in a folder
+ * @param {string} folderPath - Path to the folder to discover
+ * @param {string} discoveryType - Type of discovery to perform
+ * @returns {Promise<void>}
+ */
+async function discoverFolder(folderPath, discoveryType) {
+  // discoveryType parameter is intentionally unused in this implementation
+  try {
+    const items = await daApi.listPath(folderPath);
+    const documents = items
+      .filter((item) => item.ext && item.ext !== 'json' && item.ext !== 'md')
+      .map((item) => ({
+        path: item.path,
+        name: item.name,
+        ext: item.ext,
+        size: item.size,
+        lastModified: item.lastModified,
+        discoveredAt: Date.now(),
+      }));
+    postMessage({
+      type: 'folderDiscoveryComplete',
+      data: {
+        documents,
+        documentCount: documents.length,
+        folderPath,
+      },
+    });
+  } catch (error) {
+    postMessage({
+      type: 'folderDiscoveryError',
+      data: {
+        error: error.message,
+        folderPath,
+      },
+    });
+  }
+}
+
 function stopQueueProcessing() {
   if (!state.isRunning) {
     return;
@@ -667,7 +725,31 @@ self.addEventListener('message', async (event) => {
       }
 
       case 'startQueueProcessing': {
-        await startQueueProcessing();
+        if (data?.documentsToScan && data.documentsToScan.length > 0) {
+          console.log(`===== Scanning Started: ${data.documentsToScan.length} documents ======`);
+
+          const batchSize = data.batchSize || 10;
+          let totalProcessed = 0;
+
+          for (let i = 0; i < data.documentsToScan.length; i += batchSize) {
+            const batch = data.documentsToScan.slice(i, i + batchSize);
+            await processBatch(batch);
+            totalProcessed += batch.length;
+          }
+
+          console.log(`===== Scanning Completed: ${data.documentsToScan.length} documents processed ======`);
+
+          postMessage({
+            type: 'queueProcessingStopped',
+            data: { reason: 'completed', processedCount: data.documentsToScan.length },
+          });
+        } else {
+          await startQueueProcessing({
+            sessionId: data?.sessionId,
+            userId: data?.userId,
+            browserId: data?.browserId,
+          });
+        }
         break;
       }
 
@@ -683,14 +765,26 @@ self.addEventListener('message', async (event) => {
         break;
       }
 
+      case 'discoverFolder': {
+        await discoverFolder(data.folderPath, data.discoveryType);
+        break;
+      }
+
+      case 'stopDiscovery': {
+        stopQueueProcessing();
+        break;
+      }
+
       default: {
-        // eslint-disable-next-line no-console
-        console.warn('[DA] media-scan-worker: Unknown message type', type);
+        console.warn('[Media Scan Worker] ⚠️ Unknown message type:', type);
       }
     }
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[DA] media-scan-worker: Error handling message', type, error);
+    console.error('[Media Scan Worker] ❌ Error handling message:', {
+      type,
+      error: error.message,
+      stack: error.stack,
+    });
     postMessage({
       type: 'error',
       data: { error: error.message, originalType: type },

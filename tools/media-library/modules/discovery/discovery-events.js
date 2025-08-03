@@ -39,6 +39,7 @@ export default function createDiscoveryEvents() {
    * @param {Object} data - Event data
    */
   function emitDiscoveryError(data) {
+    console.error('[Discovery Events] 📡 Emitting discoveryError event:', data);
     eventEmitter.emit(DISCOVERY_EVENTS.DISCOVERY_ERROR, data);
   }
 

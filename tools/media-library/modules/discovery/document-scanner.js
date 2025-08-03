@@ -50,6 +50,7 @@ export default function createDocumentScanner() {
   async function loadExclusionPatterns() {
     try {
       const configUrl = `${CONTENT_DA_LIVE_BASE}${DA_PATHS.getConfigFile(state.apiConfig.org, state.apiConfig.repo)}`;
+
       const parsedConfig = await loadData(configUrl, state.apiConfig.token);
       const excludePatterns = [];
 
@@ -64,7 +65,6 @@ export default function createDocumentScanner() {
 
       return excludePatterns;
     } catch (error) {
-      console.error('[Document Scanner] ❌ Failed to load exclusion patterns:', error);
       return [];
     }
   }
@@ -77,8 +77,6 @@ export default function createDocumentScanner() {
   async function init(apiConfig, daApi = null) {
     state.apiConfig = apiConfig;
     state.daApi = daApi;
-
-    // Load exclusion patterns from config.json
     state.excludedPatterns = await loadExclusionPatterns();
   }
 
@@ -108,21 +106,23 @@ export default function createDocumentScanner() {
           scanErrors: [],
           entryStatus: 'new',
         }));
+
         const fileName = 'root.json';
         const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
         const url = `${state.apiConfig.baseUrl}/source${filePath}`;
+
         await saveData(url, documentsToSave, state.apiConfig.token);
+
         eventEmitter.emitDocumentsDiscovered({
           documents: documentsToSave,
           folder: '/',
         });
 
-        // Increment completed folders count for root files processing
         progressTracker.incrementCompletedFolders();
         progressTracker.incrementTotalDocuments(documentsToSave.length);
       }
     } catch (error) {
-      console.error('[Document Scanner] ❌ Failed to process root files:', error);
+      throw new Error(`Failed to process root files: ${error.message}`);
     }
   }
 
@@ -208,21 +208,12 @@ export default function createDocumentScanner() {
         };
 
         worker.onerror = (error) => {
-          console.error('[Document Scanner] ❌ Worker error:', {
-            folderPath: folder.path,
-            workerId,
-            error: error.message,
-          });
           workerManager.cleanup(workerId);
           reject(error);
         };
 
         worker.postMessage({ type: 'init', data: { apiConfig: state.apiConfig } });
       }).catch((error) => {
-        console.error('[Document Scanner] ❌ Failed to create worker:', {
-          folderPath: folder.path,
-          error: error.message,
-        });
         reject(error);
       });
     });
@@ -240,10 +231,12 @@ export default function createDocumentScanner() {
 
       const items = await state.daApi.listPath('/');
 
-      // Apply exclusion patterns (excluded folders are filtered out)
-
       const folders = items
-        .filter((item) => !item.ext && !matchesExcludePatterns(item.path, state.excludedPatterns))
+        .filter((item) => {
+          const isFolder = !item.ext || item.ext === '';
+          const isExcluded = matchesExcludePatterns(item.path, state.excludedPatterns);
+          return isFolder && !isExcluded;
+        })
         .map((item) => ({ path: item.path }));
 
       const files = items
@@ -257,7 +250,6 @@ export default function createDocumentScanner() {
 
       return { folders, files };
     } catch (error) {
-      console.error('[Document Scanner] ❌ Failed to get top-level items:', error);
       if (error.message.includes('DA API not available') || error.message.includes('DA API service not initialized')) {
         return { folders: [], files: [] };
       }

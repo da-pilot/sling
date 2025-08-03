@@ -48,6 +48,16 @@ const { POLLING_INTERVAL } = SCAN_CONFIG;
 const HOURS_IN_DAY = 24;
 const useQueueBasedScanning = true;
 
+// Polling control variables
+let pollingIntervalId = null;
+let lastMediaCount = 0;
+let lastMediaUpdateTime = null;
+let consecutiveUnchangedCount = 0;
+let spinnerTimeoutId = null;
+const MAX_UNCHANGED_COUNT = 3; // Stop polling after 3 consecutive unchanged counts
+const STABLE_PERIOD_MS = 30000; // 30 seconds of no changes before stopping
+const SPINNER_TIMEOUT_MS = 60000; // 60 seconds of inactivity before hiding spinner
+
 // =============================================================================
 // GLOBAL STATE VARIABLES
 // =============================================================================
@@ -111,7 +121,7 @@ async function init() {
 
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
-    setInterval(checkScanAndStartPolling, POLLING_INTERVAL);
+    startPolling();
 
     // eslint-disable-next-line no-console
     console.log('🔧 [INIT] Media Library initialization complete!');
@@ -485,6 +495,11 @@ async function initializeQueueManager() {
       hideScanProgress();
     });
 
+    queueManager.on('scanningStarted', () => {
+      resetPollingState();
+      console.log('[Media Library] 📡 Received scanningStarted event');
+    });
+
     queueManager.on('batchProcessingStarted', () => {
       updateLoadingText('Uploading media to media.json...');
     });
@@ -575,6 +590,7 @@ async function startFullScan(forceRescan = false) {
 
     showScanProgress();
     updateLoadingText('Starting V2 full content scan...');
+    resetPollingState();
 
     if (sessionId) {
       await queueManager.startQueueScanning(
@@ -601,16 +617,118 @@ async function checkScanAndStartPolling() {
   try {
     isScanning = await checkScanStatus();
     if (isScanning) {
+      consecutiveUnchangedCount = 0;
+      // Restart polling if scanning is active but polling was stopped
+      if (!pollingIntervalId) {
+        startPolling();
+      }
       return;
     }
 
+    // If not scanning and no polling, hide scan progress
+    if (!isScanning && !pollingIntervalId) {
+      hideScanProgress();
+    }
+
     const mediaData = await loadMediaFromMediaJson();
-    if (mediaData.mediaJsonExists && mediaData.media.length > 0) {
-      renderMedia(mediaData.media);
+    const currentMediaCount = mediaData.media?.length || 0;
+    const currentTime = Date.now();
+
+    // Check if media count has changed
+    if (currentMediaCount !== lastMediaCount) {
+      lastMediaCount = currentMediaCount;
+      lastMediaUpdateTime = currentTime;
+      consecutiveUnchangedCount = 0;
+      console.log('[Media Library] Media count updated:', currentMediaCount);
+
+      // Reset spinner timeout on activity
+      if (spinnerTimeoutId) {
+        clearTimeout(spinnerTimeoutId);
+        spinnerTimeoutId = setTimeout(() => {
+          hideScanProgress();
+          console.log('[Media Library] Hiding spinner due to inactivity timeout');
+        }, SPINNER_TIMEOUT_MS);
+      }
+
+      // Only refresh UI when count actually changes
+      if (mediaData.mediaJsonExists && mediaData.media.length > 0) {
+        renderMedia(mediaData.media);
+      }
+    } else {
+      consecutiveUnchangedCount += 1;
+      console.log('[Media Library] No media count change detected, skipping UI refresh');
+
+      // Stop polling if count hasn't changed for multiple consecutive checks
+      if (consecutiveUnchangedCount >= MAX_UNCHANGED_COUNT) {
+        stopPolling();
+        hideScanProgress();
+        console.log('[Media Library] Stopping polling - no media updates detected');
+      }
+
+      // Stop polling if no changes for stable period
+      if (lastMediaUpdateTime && (currentTime - lastMediaUpdateTime) > STABLE_PERIOD_MS) {
+        stopPolling();
+        hideScanProgress();
+        console.log('[Media Library] Stopping polling - stable period reached');
+      }
     }
   } catch (error) {
     console.error('[Media Library] Error in scan polling:', error);
   }
+}
+
+/**
+ * Start polling for media updates
+ */
+function startPolling() {
+  if (pollingIntervalId) {
+    clearInterval(pollingIntervalId);
+  }
+  pollingIntervalId = setInterval(checkScanAndStartPolling, POLLING_INTERVAL);
+  console.log('[Media Library] Started polling for media updates');
+
+  // Set timeout to hide spinner if no activity
+  if (spinnerTimeoutId) {
+    clearTimeout(spinnerTimeoutId);
+  }
+  spinnerTimeoutId = setTimeout(() => {
+    hideScanProgress();
+    console.log('[Media Library] Hiding spinner due to inactivity timeout');
+  }, SPINNER_TIMEOUT_MS);
+}
+
+/**
+ * Stop polling for media updates
+ */
+function stopPolling() {
+  if (pollingIntervalId) {
+    clearInterval(pollingIntervalId);
+    pollingIntervalId = null;
+    console.log('[Media Library] Stopped polling for media updates');
+  }
+
+  // Clear spinner timeout
+  if (spinnerTimeoutId) {
+    clearTimeout(spinnerTimeoutId);
+    spinnerTimeoutId = null;
+  }
+}
+
+/**
+ * Reset polling state when new scan starts
+ */
+function resetPollingState() {
+  lastMediaCount = 0;
+  lastMediaUpdateTime = null;
+  consecutiveUnchangedCount = 0;
+
+  // Clear spinner timeout when resetting
+  if (spinnerTimeoutId) {
+    clearTimeout(spinnerTimeoutId);
+    spinnerTimeoutId = null;
+  }
+
+  console.log('[Media Library] Reset polling state');
 }
 
 // =============================================================================

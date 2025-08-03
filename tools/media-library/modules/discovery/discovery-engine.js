@@ -47,7 +47,11 @@ export default function createDiscoveryEngine() {
       if (siteStructure) {
         await siteAggregator.saveSiteStructure(siteStructure);
       }
-      const discoveryDuration = Date.now() - state.discoveryStartTime;
+      const discoveryDuration = Date.now() - (state.discoveryStartTime || Date.now());
+      const durationMs = discoveryDuration;
+
+      console.log(`===== Discovery Completed: ${progress.completedFolders} folders, ${progress.totalDocuments} files, took ${durationMs} ms ======`);
+
       eventEmitter.emitDiscoveryComplete({
         totalFolders: progress.totalFolders,
         completedFolders: progress.completedFolders,
@@ -71,7 +75,6 @@ export default function createDiscoveryEngine() {
       localStorage.removeItem('media-discovery-checkpoint');
       localStorage.removeItem('media-discovery-progress');
       localStorage.removeItem('media-scanning-checkpoint');
-      console.log('[Discovery Engine] 🧹 Cleared all localStorage discovery data');
       try {
         await persistenceManager.ensureRequiredFolders();
         const defaultCheckpoint = {
@@ -82,7 +85,6 @@ export default function createDiscoveryEngine() {
           lastUpdated: Date.now(),
         };
         await persistenceManager.saveDiscoveryCheckpointFile(defaultCheckpoint);
-        console.log('[Discovery Engine] 🗄️ Cleared all persistence data');
       } catch (error) {
         console.warn('[Discovery Engine] ⚠️ Failed to clear persistence data:', error.message);
       }
@@ -104,13 +106,15 @@ export default function createDiscoveryEngine() {
   async function startDiscoveryWithSession() {
     try {
       state.discoveryStartTime = Date.now();
-      console.log('[Discovery Engine] 🚀 Discovery started at:', new Date().toISOString());
-      state.isRunning = true;
       const checkpoint = await persistenceManager.loadDiscoveryCheckpoint();
       state.discoveryType = checkpoint.discoveryType || 'full';
       await resetDiscoveryState();
       const { folders, files } = await documentScanner.getTopLevelItems();
       const totalWork = folders.length + (files.length > 0 ? 1 : 0);
+
+      console.log(`===== Discovery Started: ${totalWork} folders, ${files.length} files ======`);
+
+      state.isRunning = true;
       statsTracker.setTotalFolders(totalWork);
       if (files.length > 0) {
         await documentScanner.processRootFiles(files, statsTracker, eventEmitter);

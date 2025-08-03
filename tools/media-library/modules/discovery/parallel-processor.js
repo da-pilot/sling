@@ -3,8 +3,8 @@
  * Handles worker management and parallel processing communication
  */
 
-// Worker script path
-const WORKER_SCRIPT_PATH = '../../workers/folder-discovery-worker.js';
+// Worker script path - using media-scan-worker as fallback
+const WORKER_SCRIPT_PATH = '../../workers/media-scan-worker.js';
 
 export default function createParallelProcessor() {
   const state = {

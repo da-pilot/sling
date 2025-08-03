@@ -188,8 +188,113 @@ export default function createSiteAggregator() {
   }
 
   /**
-   * Create comprehensive site structure with folder hierarchy
-   * @returns {Object|false} Site structure or false if validation fails
+   * Create site structure from cached discovery files data
+   * @param {Array} discoveryFilesData - Pre-loaded discovery files data
+   * @returns {Object|false} Site structure or false if failed
+   */
+  async function createSiteStructureFromCache(discoveryFilesData) {
+    try {
+      if (!Array.isArray(discoveryFilesData) || discoveryFilesData.length === 0) {
+        return false;
+      }
+
+      const siteStructure = {
+        org: state.apiConfig.org,
+        repo: state.apiConfig.repo,
+        lastUpdated: Date.now(),
+        version: '1.0',
+        structure: {
+          root: {
+            path: '/',
+            type: 'folder',
+            files: [],
+            subfolders: {},
+          },
+        },
+        excluded: {
+          folders: [],
+          patterns: [],
+        },
+        stats: {
+          totalFolders: 0,
+          totalFiles: 0,
+          totalExcludedFolders: 0,
+          totalMediaItems: 0,
+          deepestNesting: 0,
+        },
+      };
+
+      let totalFiles = 0;
+      let totalMediaItems = 0;
+      const excludedFolders = [];
+
+      discoveryFilesData.forEach((fileData) => {
+        if (fileData && fileData.documents && Array.isArray(fileData.documents)) {
+          fileData.documents.forEach((file) => {
+            const fullPath = file.path;
+            const pathWithoutOrgRepo = fullPath.replace(`/${state.apiConfig.org}/${state.apiConfig.repo}`, '');
+            const pathParts = pathWithoutOrgRepo.split('/').filter((part) => part.length > 0);
+            const fileName = pathParts[pathParts.length - 1];
+            const isHtmlFile = fileName.endsWith('.html');
+
+            if (isHtmlFile) {
+              const fileInfo = {
+                name: fileName.replace('.html', ''),
+                ext: 'html',
+                path: pathWithoutOrgRepo,
+                lastModified: file.lastModified || Date.now(),
+                mediaCount: file.mediaCount || 0,
+                scanStatus: file.scanStatus || 'pending',
+                scanComplete: file.scanComplete || false,
+              };
+
+              if (pathParts.length === 1) {
+                siteStructure.structure.root.files.push(fileInfo);
+              } else {
+                const folderPath = pathParts.slice(0, -1);
+                let currentFolder = siteStructure.structure.root;
+
+                folderPath.forEach((folderName) => {
+                  if (!currentFolder.subfolders[folderName]) {
+                    currentFolder.subfolders[folderName] = {
+                      path: `/${folderPath.slice(0, folderPath.indexOf(folderName) + 1).join('/')}`,
+                      type: 'folder',
+                      excluded: false,
+                      files: [],
+                      subfolders: {},
+                    };
+                  }
+                  currentFolder = currentFolder.subfolders[folderName];
+                });
+
+                currentFolder.files.push(fileInfo);
+              }
+
+              totalFiles += 1;
+              totalMediaItems += fileInfo.mediaCount || 0;
+            }
+          });
+        }
+      });
+
+      siteStructure.stats = {
+        totalFolders: Object.keys(siteStructure.structure.root.subfolders).length,
+        totalFiles,
+        totalExcludedFolders: excludedFolders.length,
+        totalMediaItems,
+        deepestNesting: 3,
+      };
+
+      return siteStructure;
+    } catch (error) {
+      console.error('[Site Aggregator] ❌ Error creating site structure from cache:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Create site structure (existing method - kept for backward compatibility)
+   * @returns {Object|false} Site structure or false if failed
    */
   async function createSiteStructure() {
     try {
@@ -383,6 +488,7 @@ export default function createSiteAggregator() {
     getExistingRootFiles,
     buildSiteStructureFromDiscoveryFiles,
     createSiteStructure,
+    createSiteStructureFromCache,
     saveSiteStructure,
     validateSiteStructure,
     getSiteStatistics,

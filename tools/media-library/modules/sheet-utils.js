@@ -69,7 +69,7 @@ export async function loadData(url, token) {
  */
 export async function saveData(url, data, token) {
   const sheetData = buildSingleSheet(data);
-  return await saveSheetFile(url, sheetData, token);
+  return saveSheetFile(url, sheetData, token);
 }
 
 /**

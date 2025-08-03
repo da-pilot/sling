@@ -10,7 +10,5 @@ export { default as createDiscoveryPersistenceManager } from './persistence-mana
 export { default as createParallelProcessor } from './parallel-processor.js';
 export { default as createDocumentScanner } from './document-scanner.js';
 export { default as createSiteAggregator } from './site-aggregator.js';
-export { default as createDocumentMapper } from './document-mapper.js';
-
 // Main discovery API
 export { default as createDiscoveryManager } from './discovery-engine.js';

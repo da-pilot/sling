@@ -153,7 +153,13 @@ export default function createProcessingStateManager(docAuthoringService) {
       }
       return getDefaultCheckpoint(checkpointType);
     } catch (error) {
-      return getDefaultCheckpoint(checkpointType);
+      const defaultCheckpoint = getDefaultCheckpoint(checkpointType);
+      try {
+        await saveCheckpointFile(checkpointType, defaultCheckpoint);
+      } catch (saveError) {
+        console.error(`[Processing State Manager] ❌ Failed to create empty ${checkpointType} checkpoint:`, saveError);
+      }
+      return defaultCheckpoint;
     }
   }
 
@@ -391,10 +397,53 @@ export default function createProcessingStateManager(docAuthoringService) {
   }
 
   /**
+   * Get persistent statistics for session management
+   */
+  async function getPersistentStats() {
+    try {
+      const discoveryProgress = await loadDiscoveryCheckpoint();
+      const scanningProgress = await loadScanningCheckpoint();
+
+      return {
+        currentSession: discoveryProgress.sessionId || scanningProgress.sessionId || null,
+        lastScanTime: Math.max(
+          discoveryProgress.lastUpdated || 0,
+          scanningProgress.lastUpdated || 0,
+        ),
+        discoveryStatus: discoveryProgress.status || 'idle',
+        scanningStatus: scanningProgress.status || 'idle',
+        isActive: discoveryProgress.status === 'running' || scanningProgress.status === 'running',
+      };
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Failed to get persistent stats:', error);
+      return {
+        currentSession: null,
+        lastScanTime: null,
+        discoveryStatus: 'error',
+        scanningStatus: 'error',
+        isActive: false,
+      };
+    }
+  }
+
+  /**
    * Clear cache
    */
   function clearCache() {
     state.cache.clear();
+  }
+
+  /**
+   * Reset statistics
+   * @returns {Promise<void>}
+   */
+  async function resetStats() {
+    try {
+      clearCache();
+      console.log('[Processing State Manager] ✅ Statistics reset successfully');
+    } catch (error) {
+      console.error('[Processing State Manager] ❌ Error resetting statistics:', error);
+    }
   }
 
   /**
@@ -597,6 +646,8 @@ export default function createProcessingStateManager(docAuthoringService) {
     loadSiteStructureFile,
     clearSiteStructureFile,
     getProcessingStats,
+    getPersistentStats,
+    resetStats,
     clearCache,
     on,
     off,

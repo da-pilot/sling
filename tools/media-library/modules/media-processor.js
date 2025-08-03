@@ -65,10 +65,11 @@ export default function createMediaProcessor() {
     try {
       const startTime = Date.now();
       const extractedMedia = extractMediaFromHTML(htmlContent);
+
       const normalizedMedia = await normalizeMediaArray(extractedMedia, pageUrl);
+
       const processedMedia = await enhanceMediaWithMetadata(normalizedMedia);
 
-      // Update stats
       state.stats.totalProcessed += 1;
       state.stats.totalMedia += processedMedia.length;
       state.stats.processingTime += Date.now() - startTime;
@@ -91,8 +92,10 @@ export default function createMediaProcessor() {
       return processedMedia;
     } catch (error) {
       state.stats.totalErrors += 1;
-      // eslint-disable-next-line no-console
-      console.error('[Media Processor] ❌ Error processing media:', error);
+      console.error('[Media Processor] ❌ Error processing media:', {
+        pageUrl,
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -120,44 +123,78 @@ export default function createMediaProcessor() {
   async function convertQueueToUploadBatches() {
     const queueItems = await state.persistenceManager.getProcessingQueue();
     const allRawMedia = queueItems.flatMap((item) => item.media || []);
+
+    console.log('[Media Processor] 🔄 Converting queue to upload batches:', {
+      queueItems: queueItems.length,
+      totalRawMedia: allRawMedia.length,
+      timestamp: new Date().toISOString(),
+    });
+
     const batches = createBatches(allRawMedia, 20);
+
     await Promise.all(
       batches.map(async (batch, i) => {
         const batchData = { batchNumber: i + 1, media: batch };
         await state.persistenceManager.createUploadBatch(batchData);
       }),
     );
+
+    console.log('[Media Processor] ✅ Upload batches created successfully:', {
+      batchCount: batches.length,
+      totalMedia: allRawMedia.length,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   async function uploadAllBatchesToMediaJson() {
     const persistenceManager = createPersistenceManager();
     await persistenceManager.init();
     const pendingBatches = await persistenceManager.getPendingBatches();
+
+    console.log(`===== Media Upload Started: ${pendingBatches.length} batches, ${pendingBatches.flatMap((batch) => batch.media).length} media items ======`);
+
     if (pendingBatches.length === 0) {
+      console.log('[Media Processor] ℹ️ No pending batches to upload');
       return;
     }
+
     const allBatchMedia = pendingBatches.flatMap((batch) => batch.media);
+
     await state.metadataManager.init(state.config);
     const existingData = await state.metadataManager.getMetadata();
+
     const updatedMedia = await mergeMediaWithDeduplication(existingData || [], allBatchMedia);
+
     await state.metadataManager.saveMetadata(updatedMedia);
     state.mediaDataCache = null;
     state.mediaDataCacheTimestamp = null;
+
+    console.log(`===== Media Upload Completed: ${updatedMedia.length} total media items (${allBatchMedia.length} new, ${existingData ? existingData.length : 0} existing) ======`);
+
     if (state.onMediaUpdatedCallback) {
       state.onMediaUpdatedCallback(updatedMedia);
     }
-    const batchPromises = pendingBatches.map(async (batch) => {
+
+    const batchPromises = pendingBatches.map(async (batch, index) => {
       await persistenceManager.confirmBatchUpload(batch.id, { count: batch.media.length });
       const processedIds = batch.media.map((m) => m.id);
       await persistenceManager.removeMediaFromProcessingQueue(processedIds, batch.sessionId);
+
+      console.log(`===== Batch ${index + 1} uploaded to media.json: ${batch.media.length} media items ======`);
     });
     await Promise.all(batchPromises);
+
+    console.log(`===== All ${pendingBatches.length} batches confirmed and cleaned up ======`);
   }
 
   async function processAndUploadQueuedMedia() {
     setTimeout(async () => {
-      await convertQueueToUploadBatches();
-      await uploadAllBatchesToMediaJson();
+      try {
+        await convertQueueToUploadBatches();
+        await uploadAllBatchesToMediaJson();
+      } catch (error) {
+        console.error('[Media Processor] ❌ Error processing and uploading queued media:', error);
+      }
     }, 0);
   }
 
@@ -574,13 +611,11 @@ export default function createMediaProcessor() {
   function getElementContext(element) {
     const context = [];
 
-    // Get parent heading
     const heading = element.closest('h1, h2, h3, h4, h5, h6');
     if (heading) {
       context.push(heading.textContent.trim().substring(0, 30));
     }
 
-    // Get parent section or article
     const section = element.closest('section, article, div[class*="content"]');
     if (section) {
       const sectionText = section.textContent.trim().substring(0, 50);
@@ -625,7 +660,6 @@ export default function createMediaProcessor() {
         try {
           callback(data);
         } catch (error) {
-          // eslint-disable-next-line no-console
           console.error('Error in event listener:', error);
         }
       });
@@ -721,6 +755,41 @@ export default function createMediaProcessor() {
     return mergedMedia;
   }
 
+  /**
+   * Process media immediately
+   * @param {Array} media - Media items to process
+   * @param {string} sessionId - Session ID
+   * @returns {Promise<void>}
+   */
+  async function processMediaImmediately(media, sessionId) {
+    if (!state.isInitialized) {
+      throw new Error('Media processor not initialized');
+    }
+    if (!media || !Array.isArray(media)) {
+      return;
+    }
+    if (sessionId) {
+      setCurrentSession(sessionId, state.currentUserId, state.currentBrowserId);
+    }
+    await syncMediaData(media);
+  }
+
+  /**
+   * Check if media is available
+   * @returns {Promise<boolean>}
+   */
+  async function checkMediaAvailable() {
+    if (!state.isInitialized) {
+      return false;
+    }
+    try {
+      const mediaData = await getMediaData();
+      return Array.isArray(mediaData) && mediaData.length > 0;
+    } catch (error) {
+      return false;
+    }
+  }
+
   return {
     init,
     processMediaFromHTML,
@@ -730,6 +799,8 @@ export default function createMediaProcessor() {
     processAndUploadQueuedMedia,
     getMediaData,
     syncMediaData,
+    processMediaImmediately,
+    checkMediaAvailable,
     setOnMediaUpdated,
     setCurrentSession,
     getStats,
