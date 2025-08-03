@@ -644,6 +644,9 @@ function getContextualTextForLink(html, linkStartIndex, linkEndIndex, maxLength 
 }
 
 function stopQueueProcessing() {
+  if (!state.isRunning) {
+    return;
+  }
   state.isRunning = false;
   postMessage({
     type: 'queueProcessingStopped',
@@ -669,7 +672,9 @@ self.addEventListener('message', async (event) => {
       }
 
       case 'stopQueueProcessing': {
-        stopQueueProcessing();
+        if (state.isRunning) {
+          stopQueueProcessing();
+        }
         break;
       }
 

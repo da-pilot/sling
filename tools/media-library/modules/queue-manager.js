@@ -17,12 +17,14 @@ import {
   saveSheetFile,
   loadData,
 } from './sheet-utils.js';
-import createQueueEventEmitter, { createDiscoveryFileManager } from './queue/index.js';
+import createQueueEventEmitter, { createDiscoveryFileManager, createScanStatusUpdater } from './queue/index.js';
+import createSiteAggregator from './discovery/site-aggregator.js';
 
 export default function createQueueManager() {
   console.log('[Queue Manager] 🚀 Creating queue manager instance');
   const eventEmitter = createQueueEventEmitter();
   const discoveryFileManager = createDiscoveryFileManager();
+  const scanStatusUpdater = createScanStatusUpdater();
   const state = {
     scanWorker: null,
     discoveryManager: null,
@@ -34,6 +36,7 @@ export default function createQueueManager() {
     config: null,
     isActive: false,
     isStopping: false,
+    completionProcessed: false,
     discoveryHandlersSetup: false,
     discoveryComplete: false,
     discoveryFilesCache: null,
@@ -183,6 +186,7 @@ export default function createQueueManager() {
 
       state.isActive = true;
       state.isStopping = false;
+      state.completionProcessed = false;
       state.discoveryComplete = false;
 
       // Update session heartbeat
@@ -237,6 +241,14 @@ export default function createQueueManager() {
           if (uploadStatus.mediaAvailable) {
             await triggerUploadPhase();
           }
+        } else if (discoveryCheckpoint.status === 'completed') {
+          // Discovery already complete, populate cache
+          console.log('[Queue Manager] ✅ Discovery already complete, populating cache...');
+          state.discoveryFilesCache = await loadDiscoveryFilesWithChangeDetection();
+          console.log('[Queue Manager] 📋 Populated discovery files cache from checkpoint:', {
+            fileCount: state.discoveryFilesCache.length,
+            fileNames: state.discoveryFilesCache.map((f) => f.fileName),
+          });
         }
 
         // eslint-disable-next-line no-console
@@ -296,7 +308,7 @@ export default function createQueueManager() {
       }
     }
 
-    if (state.scanWorker) {
+    if (state.scanWorker && !state.isStopping) {
       state.scanWorker.postMessage({ type: 'stopQueueProcessing' });
     }
 
@@ -697,17 +709,27 @@ export default function createQueueManager() {
           break;
 
         case 'queueProcessingStopped':
+          if (state.completionProcessed) {
+            console.log('[Queue Manager] ⚠️ Already processed completion, skipping duplicate queueProcessingStopped');
+            return;
+          }
+
           console.log('[Queue Manager] 🎯 Worker stopped, completing scanning process...');
+          state.completionProcessed = true;
 
           // Save final checkpoint
           if (state.processingStateManager && state.currentSessionId) {
+            let discoveryFiles = state.discoveryFilesCache;
+            if (!discoveryFiles || discoveryFiles.length === 0) {
+              discoveryFiles = await loadDiscoveryFilesWithChangeDetection();
+            }
             await state.processingStateManager.saveScanningCheckpointFile({
               status: 'completed',
               totalPages: state.stats.totalPages,
               scannedPages: state.stats.scannedPages,
               totalMedia: state.stats.totalMedia,
               files: await Promise.all(
-                state.discoveryFilesCache.map(async (file) => {
+                discoveryFiles.map(async (file) => {
                   const completedPages = await state.persistenceManager.getCompletedPagesByFile(
                     file.fileName,
                   );
@@ -806,6 +828,14 @@ export default function createQueueManager() {
         }
         if (data.completedFolders >= data.totalFolders) {
           state.discoveryComplete = true;
+          // Populate discovery files cache when discovery completes
+          if (!state.discoveryFilesCache || state.discoveryFilesCache.length === 0) {
+            state.discoveryFilesCache = await loadDiscoveryFilesWithChangeDetection();
+            console.log('[Queue Manager] 📋 Populated discovery files cache after completion:', {
+              fileCount: state.discoveryFilesCache.length,
+              fileNames: state.discoveryFilesCache.map((f) => f.fileName),
+            });
+          }
         }
       } catch (error) {
         console.error('[Queue Manager] ❌ Error in folderComplete handler:', error);
@@ -824,6 +854,20 @@ export default function createQueueManager() {
       } catch (error) {
         console.error('[Queue Manager] ❌ Failed to handle documentsChanged:', error);
         state.stats.errors += 1;
+      }
+    });
+
+    state.discoveryManager.on('discoveryComplete', async (data) => {
+      try {
+        console.log('[Queue Manager] ✅ Discovery completed, populating discovery files cache...');
+        // Populate discovery files cache when discovery completes
+        state.discoveryFilesCache = await loadDiscoveryFilesWithChangeDetection();
+        console.log('[Queue Manager] 📋 Populated discovery files cache after completion:', {
+          fileCount: state.discoveryFilesCache.length,
+          fileNames: state.discoveryFilesCache.map((f) => f.fileName),
+        });
+      } catch (error) {
+        console.error('[Queue Manager] ❌ Failed to populate discovery files cache:', error);
       }
     });
   }
@@ -863,6 +907,7 @@ export default function createQueueManager() {
     };
     state.discoveryFilesCache = null;
     state.documentsToScan = [];
+    state.completionProcessed = false;
   }
 
   /**
@@ -1084,7 +1129,7 @@ export default function createQueueManager() {
       });
 
       // If empty, tell worker to stop
-      if (batch.length === 0) {
+      if (batch.length === 0 && !state.isStopping) {
         state.scanWorker.postMessage({
           type: 'stopQueueProcessing',
         });
@@ -1104,7 +1149,7 @@ export default function createQueueManager() {
           lastBatchSize: batch.length,
           lastBatchTime: Date.now(),
           remainingDocuments: state.stats.totalPages - state.stats.scannedPages,
-          files: await Promise.all(state.discoveryFilesCache.map(async (file) => {
+          files: await Promise.all((state.discoveryFilesCache || []).map(async (file) => {
             const filePath = `/${state.config.org}/${state.config.repo}/.media/.pages/${file.fileName}`;
             const contentUrl = `${CONTENT_DA_LIVE_BASE}${filePath}.json`;
             try {
@@ -1528,45 +1573,16 @@ export default function createQueueManager() {
     mediaCount = 0,
     error = null,
   ) {
-    try {
-      const filePath = `/${state.config.org}/${state.config.repo}/.media/.pages/${fileName}`;
-      const url = `${state.daApi.getConfig().baseUrl}/source${filePath}.json`;
-      const contentUrl = `${CONTENT_DA_LIVE_BASE}${filePath}.json`;
-      const parsedData = await loadData(contentUrl, state.config.token);
-      if (!parsedData.data || !Array.isArray(parsedData.data)) {
-        console.error('[Queue Manager] ❌ No existing discovery file data found:', fileName);
-        return;
-      }
-      const documents = parsedData.data;
-      const pageIndex = documents.findIndex((doc) => doc.path === pagePath);
-      if (pageIndex === -1) {
-        console.error('[Queue Manager] ❌ Page not found in discovery file:', pagePath);
-        return;
-      }
-      documents[pageIndex] = {
-        ...documents[pageIndex],
-        scanStatus: status,
-        scanComplete: status === 'completed',
-        needsRescan: status === 'failed',
-        lastScannedAt: status === 'completed' || status === 'failed' ? Date.now() : null,
-        mediaCount: status === 'completed' ? mediaCount : documents[pageIndex].mediaCount || 0,
-        scanErrors: status === 'failed' ? [error] : documents[pageIndex].scanErrors || [],
-        scanAttempts: (documents[pageIndex].scanAttempts || 0) + 1,
-      };
-      const jsonToWrite = buildSingleSheet(documents);
-      await saveSheetFile(url, jsonToWrite, state.config.token);
-      if (status === 'completed' && mediaCount > 0) {
-        await updateSiteStructureMediaCount(pagePath, mediaCount);
-      }
-      console.log('[Queue Manager] ✅ Updated discovery file scan status:', {
-        fileName,
-        pagePath,
-        status,
-        mediaCount,
-      });
-    } catch (err) {
-      console.error('[Queue Manager] ❌ Failed to update discovery file scan status:', err);
-    }
+    return scanStatusUpdater.updateDiscoveryFileScanStatus(
+      state.config,
+      state.daApi,
+      state.processingStateManager,
+      fileName,
+      pagePath,
+      status,
+      mediaCount,
+      error,
+    );
   }
 
   function configureBatchProcessing(batchConfig) {
@@ -1885,130 +1901,52 @@ export default function createQueueManager() {
   }
 
   async function updateSiteStructureMediaCount(pagePath, mediaCount) {
-    try {
-      if (!state.processingStateManager) {
-        console.log('[Queue Manager] ℹ️ Processing state manager not available for site structure update');
-        return;
-      }
-      const siteStructure = await state.processingStateManager.loadSiteStructureFile();
-      if (!siteStructure) {
-        console.log('[Queue Manager] ℹ️ No existing site structure found for media count update');
-        return;
-      }
-      const updatedStructure = updateFileMediaCountInStructure(
-        siteStructure.structure,
-        pagePath,
-        mediaCount,
-      );
-      if (updatedStructure) {
-        siteStructure.structure = updatedStructure;
-        siteStructure.lastUpdated = Date.now();
-        await state.processingStateManager.saveSiteStructureFile(siteStructure);
-        console.log('[Queue Manager] ✅ Updated site structure media count:', {
-          pagePath,
-          mediaCount,
-        });
-      }
-    } catch (error) {
-      console.error('[Queue Manager] ❌ Error updating site structure media count:', error);
-    }
-  }
-
-  function updateFileMediaCountInStructure(structure, pagePath, mediaCount) {
-    if (!structure || !structure.root) {
-      return null;
-    }
-    const updatedStructure = JSON.parse(JSON.stringify(structure));
-    const updated = updateFolderMediaCount(updatedStructure.root, pagePath, mediaCount);
-    return updated ? updatedStructure : null;
+    return scanStatusUpdater.updateSiteStructureMediaCount(
+      state.processingStateManager,
+      pagePath,
+      mediaCount,
+    );
   }
 
   function updateFolderMediaCount(folder, pagePath, mediaCount) {
-    let updated = false;
-
-    // Strip org/repo prefix from pagePath for matching
-    const normalizedPagePath = pagePath.replace(/^\/[^/]+\/[^/]+\//, '/');
-
-    if (folder.files && Array.isArray(folder.files)) {
-      // Debug: log first few file paths to see what's in the structure
-      if (folder.files.length > 0 && !folder.debugLogged) {
-        folder.debugLogged = true;
-      }
-      const fileIndex = folder.files.findIndex((file) => file.path === normalizedPagePath);
-      if (fileIndex !== -1) {
-        folder.files[fileIndex].mediaCount = mediaCount;
-        updated = true;
-        console.log(`[Queue Manager] 🎯 Found match: ${pagePath} -> ${normalizedPagePath} (mediaCount: ${mediaCount})`);
-      }
-    }
-    if (folder.subfolders && typeof folder.subfolders === 'object') {
-      const subfolderNames = Object.keys(folder.subfolders);
-      subfolderNames.forEach((subfolderName) => {
-        const subfolder = folder.subfolders[subfolderName];
-        if (updateFolderMediaCount(subfolder, pagePath, mediaCount)) {
-          updated = true;
-        }
-      });
-    }
-    return updated;
+    return scanStatusUpdater.updateFolderMediaCount(folder, pagePath, mediaCount);
   }
 
   async function updateAllDiscoveryFiles() {
-    try {
-      const allPageStatus = await state.persistenceManager.getAllPageScanStatus();
-      const discoveryFiles = state.discoveryFilesCache || [];
-      const updatePromises = discoveryFiles.map(async (file) => {
-        const filePages = allPageStatus.filter((page) => page.sourceFile === file.fileName);
-        const completedPages = filePages.filter((page) => page.scanStatus === 'completed');
-        const filePath = `/${state.config.org}/${state.config.repo}/.media/.pages/${file.fileName}`;
-        const contentUrl = `${CONTENT_DA_LIVE_BASE}${filePath}.json`;
-        try {
-          const parsedData = await loadData(contentUrl, state.config.token);
-          const documents = parsedData.data || [];
-          documents.forEach((doc) => {
-            const pageStatus = filePages.find((page) => page.pageUrl === doc.path);
-            if (pageStatus) {
-              doc.scanStatus = pageStatus.scanStatus;
-              doc.scanComplete = pageStatus.scanStatus === 'completed';
-              doc.mediaCount = pageStatus.mediaCount;
-              doc.lastScannedAt = pageStatus.lastScannedAt;
-              doc.scanAttempts = pageStatus.scanAttempts;
-              doc.scanErrors = pageStatus.scanErrors;
-            }
-          });
-          const jsonToWrite = buildSingleSheet(documents);
-          const url = `${state.daApi.getConfig().baseUrl}/source${filePath}.json`;
-          await saveSheetFile(url, jsonToWrite, state.config.token);
-          const message = `[Queue Manager] ✅ Updated ${file.fileName}: ${completedPages.length}/${documents.length} pages completed`;
-          console.log(message);
-          return {
-            fileName: file.fileName,
-            completedPages: completedPages.length,
-            totalPages: documents.length,
-          };
-        } catch (error) {
-          console.error(`[Queue Manager] ❌ Failed to update discovery file: ${file.fileName}`, error);
-          return { fileName: file.fileName, error: error.message };
-        }
-      });
-      const results = await Promise.all(updatePromises);
-      console.log('[Queue Manager] ✅ Batch update completed:', results);
-      return results;
-    } catch (error) {
-      console.error('[Queue Manager] ❌ Failed to update discovery files:', error);
-      throw error;
+    let discoveryFiles = state.discoveryFilesCache;
+    if (!discoveryFiles || discoveryFiles.length === 0) {
+      discoveryFiles = await loadDiscoveryFilesWithChangeDetection();
     }
+
+    return scanStatusUpdater.updateAllDiscoveryFiles(
+      state.config,
+      state.daApi,
+      state.persistenceManager,
+      discoveryFiles,
+    );
   }
   async function updateSiteStructureWithMediaCounts() {
     try {
       console.log('[Queue Manager] 🔄 Reconstructing site structure from updated discovery files...');
 
-      // Use the existing discovery manager function to rebuild site structure
-      const newSiteStructure = await state.discoveryManager.buildSiteStructureFromDiscoveryFiles();
+      // Use the site aggregator to create proper site structure format
+      const siteAggregator = createSiteAggregator();
+      siteAggregator.init(state.config);
+      siteAggregator.setDaApi(state.daApi);
 
-      // Save the reconstructed site structure
-      await state.processingStateManager.saveSiteStructureFile(newSiteStructure);
-      console.log('[Queue Manager] ✅ Site structure reconstructed and saved from discovery files');
+      const newSiteStructure = await siteAggregator.createSiteStructure();
+
+      if (newSiteStructure) {
+        // Save the reconstructed site structure
+        await state.processingStateManager.saveSiteStructureFile(newSiteStructure);
+        console.log('[Queue Manager] ✅ Site structure reconstructed and saved from discovery files:', {
+          totalFolders: newSiteStructure?.stats?.totalFolders || 0,
+          totalFiles: newSiteStructure?.stats?.totalFiles || 0,
+          totalMediaItems: newSiteStructure?.stats?.totalMediaItems || 0,
+        });
+      } else {
+        console.error('[Queue Manager] ❌ Failed to create site structure');
+      }
 
       // Clear media store to prevent stale data in next scan
       try {
