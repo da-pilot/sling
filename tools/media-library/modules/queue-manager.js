@@ -7,7 +7,6 @@
  */
 
 import createDiscoveryManager from './discovery-manager.js';
-
 import createSessionManager from '../services/session-manager.js';
 import createProcessingStateManager from '../services/processing-state-manager.js';
 import createPersistenceManager from '../services/persistence-manager.js';
@@ -18,9 +17,11 @@ import {
   saveSheetFile,
   loadData,
 } from './sheet-utils.js';
+import createQueueEventEmitter from './queue/index.js';
 
 export default function createQueueManager() {
   console.log('[Queue Manager] 🚀 Creating queue manager instance');
+  const eventEmitter = createQueueEventEmitter();
   const state = {
     scanWorker: null,
     discoveryManager: null,
@@ -61,7 +62,6 @@ export default function createQueueManager() {
       minInterval: 2000,
     },
     lastBatchProcessingTime: 0,
-    listeners: new Map(),
     batchSize: 10,
   };
 
@@ -868,40 +868,21 @@ export default function createQueueManager() {
    * Add event listener
    */
   function on(event, callback) {
-    if (!state.listeners.has(event)) {
-      state.listeners.set(event, []);
-    }
-    state.listeners.get(event).push(callback);
+    eventEmitter.on(event, callback);
   }
 
   /**
    * Remove event listener
    */
   function off(event, callback) {
-    const callbacks = state.listeners.get(event);
-    if (callbacks) {
-      const index = callbacks.indexOf(callback);
-      if (index > -1) {
-        callbacks.splice(index, 1);
-      }
-    }
+    eventEmitter.off(event, callback);
   }
 
   /**
    * Emit event to listeners
    */
   function emit(event, data) {
-    const callbacks = state.listeners.get(event);
-    if (callbacks) {
-      callbacks.forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error('Error in event listener:', error);
-        }
-      });
-    }
+    eventEmitter.emit(event, data);
   }
 
   /**
@@ -937,7 +918,7 @@ export default function createQueueManager() {
     }
 
     state.isActive = false;
-    state.listeners.clear();
+    eventEmitter.clearListeners();
   }
 
   /**
