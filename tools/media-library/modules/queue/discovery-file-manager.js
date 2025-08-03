@@ -1,3 +1,7 @@
+/**
+ * Discovery File Manager - Handles file I/O operations for discovery data stored in .media/.pages
+ */
+
 import { CONTENT_DA_LIVE_BASE } from '../../constants.js';
 import { loadData } from '../sheet-utils.js';
 
