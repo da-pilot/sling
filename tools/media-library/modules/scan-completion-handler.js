@@ -249,7 +249,7 @@ export default function createScanCompletionHandler() {
   }
 
   async function saveScanningCheckpoint(checkpointData) {
-    if (state.processingStateManager && checkpointData.sessionId) {
+    if (state.processingStateManager) {
       await state.processingStateManager.saveScanningCheckpointFile(checkpointData);
     }
   }

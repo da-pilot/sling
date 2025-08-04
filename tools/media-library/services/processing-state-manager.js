@@ -210,7 +210,13 @@ export default function createProcessingStateManager(docAuthoringService) {
       if (checkpoint.scannedPages > checkpoint.totalPages) {
         checkpoint.scannedPages = checkpoint.totalPages;
       }
-      if (checkpoint.pendingPages && checkpoint.pendingPages < 0) {
+      // Auto-calculate pendingPages if not provided or inconsistent
+      const expectedPendingPages = checkpoint.totalPages - checkpoint.scannedPages;
+      if (!checkpoint.pendingPages
+          || checkpoint.pendingPages !== expectedPendingPages) {
+        checkpoint.pendingPages = Math.max(0, expectedPendingPages);
+      }
+      if (checkpoint.pendingPages < 0) {
         checkpoint.pendingPages = 0;
       }
     }
@@ -244,7 +250,13 @@ export default function createProcessingStateManager(docAuthoringService) {
       if (updatedProgress.scannedPages > updatedProgress.totalPages) {
         updatedProgress.scannedPages = updatedProgress.totalPages;
       }
-      if (updatedProgress.pendingPages && updatedProgress.pendingPages < 0) {
+      // Auto-calculate pendingPages if not provided or inconsistent
+      const expectedPendingPages = updatedProgress.totalPages - updatedProgress.scannedPages;
+      if (!updatedProgress.pendingPages
+          || updatedProgress.pendingPages !== expectedPendingPages) {
+        updatedProgress.pendingPages = Math.max(0, expectedPendingPages);
+      }
+      if (updatedProgress.pendingPages < 0) {
         updatedProgress.pendingPages = 0;
       }
     }
@@ -280,6 +292,35 @@ export default function createProcessingStateManager(docAuthoringService) {
       console.error('[Processing State Manager] ❌ Failed to clear scanning checkpoint:', error);
       return false;
     }
+  }
+
+  /**
+   * Resume scanning from checkpoint
+   * @param {Object} scanCheckpoint - Scan checkpoint data
+   * @returns {Promise<Object>}
+   */
+  async function resumeScanningFromCheckpoint(scanCheckpoint) {
+    const {
+      documentsToScan,
+      completedPages,
+      scannedPages,
+      totalPages,
+    } = scanCheckpoint;
+    if (!documentsToScan || documentsToScan.length === 0) {
+      return { scanningComplete: true };
+    }
+    const remainingDocuments = documentsToScan.filter((doc) => {
+      const isCompleted = completedPages.includes(doc.path);
+      const isScanned = scannedPages.includes(doc.path);
+      return !isCompleted && !isScanned;
+    });
+    return {
+      scanningComplete: false,
+      documentsToScan: remainingDocuments,
+      completedPages,
+      scannedPages,
+      totalPages,
+    };
   }
   async function saveSiteStructureFile(siteStructure) {
     try {
@@ -642,6 +683,7 @@ export default function createProcessingStateManager(docAuthoringService) {
     clearCheckpoints,
     clearDiscoveryCheckpoint,
     clearScanningCheckpoint,
+    resumeScanningFromCheckpoint,
     saveSiteStructureFile,
     loadSiteStructureFile,
     clearSiteStructureFile,

@@ -83,36 +83,38 @@ export default function createWorkerHandler() {
   async function handleScanningCompletion(processedCount) {
     try {
       const session = state.sessionManager.getCurrentSession();
-
-      await state.scanCompletionHandler.saveScanningCheckpoint({
-        status: 'completed',
-        totalPages: processedCount,
-        scannedPages: processedCount,
-        totalMedia: 0,
-        sessionId: session?.sessionId,
-      });
-
+      const currentCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
+      const totalPages = currentCheckpoint?.totalPages || processedCount;
       let updatedDiscoveryFiles = null;
       if (state.discoveryCoordinator) {
         updatedDiscoveryFiles = await state.scanCompletionHandler
           .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
       }
-
       if (!updatedDiscoveryFiles || updatedDiscoveryFiles.length === 0) {
         const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
         updatedDiscoveryFiles = discoveryFiles;
       }
-
+      const totalMediaCount = updatedDiscoveryFiles?.reduce((sum, file) => {
+        const fileSum = file.documents?.reduce(
+          (docSum, doc) => docSum + (doc.mediaCount || 0),
+          0,
+        ) || 0;
+        return sum + fileSum;
+      }, 0) || 0;
+      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
+        totalPages,
+        totalMediaCount,
+      );
       await state.scanCompletionHandler.updateAllDiscoveryFiles(
         updatedDiscoveryFiles,
       );
-
       await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
         updatedDiscoveryFiles,
       );
-
       eventEmitter.emit('scanningCompletionHandled', {
         processedCount,
+        totalPages,
+        totalMedia: totalMediaCount,
         sessionId: session?.sessionId,
         timestamp: new Date().toISOString(),
       });
@@ -130,7 +132,6 @@ export default function createWorkerHandler() {
     if (!worker) {
       return;
     }
-
     const handlers = {
       onQueueProcessingStarted: (data) => {
         eventEmitter.emit('queueProcessingStarted', data);
@@ -153,7 +154,6 @@ export default function createWorkerHandler() {
       },
       onPageScanned: async (data) => {
         eventEmitter.emit('pageScanned', data);
-
         if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
           const updateData = {
             fileName: data.sourceFile,
@@ -162,7 +162,6 @@ export default function createWorkerHandler() {
             mediaCount: data?.mediaCount || 0,
             error: null,
           };
-
           state.discoveryCoordinator.updateDiscoveryFileInCache(
             updateData.fileName,
             updateData.pagePath,
@@ -174,14 +173,17 @@ export default function createWorkerHandler() {
       },
       onBatchComplete: async (data) => {
         eventEmitter.emit('batchComplete', data);
-
         if (state.processingStateManager && data?.processedCount) {
           const currentProgress = await state.processingStateManager.loadScanningCheckpoint();
+          const newScannedPages = (currentProgress.scannedPages || 0) + data.processedCount;
+          const totalPages = currentProgress.totalPages || 0;
+          const isScanningComplete = newScannedPages >= totalPages;
           const updatedProgress = {
             ...currentProgress,
-            scannedPages: (currentProgress.scannedPages || 0) + data.processedCount,
+            scannedPages: newScannedPages,
+            pendingPages: Math.max(0, totalPages - newScannedPages),
             totalMedia: (currentProgress.totalMedia || 0) + (data?.totalMedia || 0),
-            status: 'running',
+            status: isScanningComplete ? 'completed' : 'running',
             lastUpdated: Date.now(),
           };
           await state.processingStateManager.saveScanningCheckpointFile(updatedProgress);
@@ -189,7 +191,6 @@ export default function createWorkerHandler() {
       },
       onPageScanError: async (data) => {
         eventEmitter.emit('pageScanError', data);
-
         if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
           const updateData = {
             fileName: data.sourceFile,
@@ -198,7 +199,6 @@ export default function createWorkerHandler() {
             mediaCount: 0,
             error: data?.error || 'Unknown error',
           };
-
           state.discoveryCoordinator.updateDiscoveryFileInCache(
             updateData.fileName,
             updateData.pagePath,
@@ -221,7 +221,6 @@ export default function createWorkerHandler() {
         await processMediaImmediately(data.media, data.sessionId);
       },
     };
-
     worker.addEventListener('message', (event) => {
       const { type, data } = event.data;
       const handler = handlers[`on${type.charAt(0).toUpperCase() + type.slice(1)}`];
@@ -229,7 +228,6 @@ export default function createWorkerHandler() {
         handler(data);
       }
     });
-
     state.workerManager.setupWorkerHandlers(handlers);
   }
 

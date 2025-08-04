@@ -1,6 +1,8 @@
 /* eslint-disable no-console */
 /* eslint-disable no-use-before-define */
 
+import { MEDIA_TYPES } from '../constants.js';
+
 /**
  * Create Media Browser Module
  * Handles displaying and managing media in grid and list views
@@ -13,7 +15,7 @@ export default function createMediaBrowser(container, context = null) {
     currentView: 'grid',
     currentSort: 'discovery',
     currentFilter: {
-      types: ['image', 'video', 'document'],
+      types: [MEDIA_TYPES.IMAGE, MEDIA_TYPES.VIDEO, MEDIA_TYPES.DOCUMENT],
       isExternal: undefined,
       usedOnPage: false,
       missingAlt: undefined,
@@ -315,7 +317,7 @@ export default function createMediaBrowser(container, context = null) {
 
     let missingAltCount = 0;
     if (hasOccurrences) {
-      missingAltCount = media.occurrences.filter((o) => !o.hasAltText).length;
+      missingAltCount = media.type !== 'video' ? media.occurrences.filter((o) => !o.hasAltText).length : 0;
     } else if (media.type === 'image' && (!media.alt || media.alt.trim() === '' || media.alt === 'Untitled')) {
       missingAltCount = 1;
     }
@@ -470,9 +472,9 @@ export default function createMediaBrowser(container, context = null) {
     const missingAltCount = state.media.filter((a) => {
       const hasOccurrences = a.occurrences && a.occurrences.length > 0;
       if (hasOccurrences) {
-        return a.occurrences.some((o) => !o.hasAltText);
+        return a.type !== 'video' && a.occurrences.some((o) => !o.hasAltText);
       }
-      return !a.alt || a.alt.trim() === '' || a.alt === 'Untitled Media';
+      return a.type !== 'video' && (!a.alt || a.alt.trim() === '' || a.alt === 'Untitled Media');
     }).length;
 
     // Used on Page counts
@@ -512,9 +514,9 @@ export default function createMediaBrowser(container, context = null) {
           const pageOccurrences = a.occurrences.filter(
             (o) => o.pagePath === pagePathForMetrics,
           );
-          return pageOccurrences.some((o) => !o.hasAltText);
+          return a.type !== 'video' && pageOccurrences.some((o) => !o.hasAltText);
         }
-        return !a.alt || a.alt.trim() === '' || a.alt === 'Untitled Media';
+        return a.type !== 'video' && (!a.alt || a.alt.trim() === '' || a.alt === 'Untitled Media');
       }).length;
     }
 

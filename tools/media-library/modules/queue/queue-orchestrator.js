@@ -6,7 +6,6 @@ import createQueueWorkerCoordinator from './worker-coordinator.js';
 import createDiscoveryCoordinator from '../discovery-coordinator.js';
 import createQueueBatchHandler from './batch-handler.js';
 import createQueueDocumentHandler from './document-handler.js';
-import createQueueCheckpointHandler from './checkpoint-handler.js';
 import createQueueDeltaHandler from './delta-handler.js';
 import createScanCompletionHandler from '../scan-completion-handler.js';
 import createScanningCoordinator from './scanning-coordinator.js';
@@ -18,7 +17,6 @@ export default function createQueueOrchestrator() {
     workerManager: createQueueWorkerCoordinator(),
     batchProcessor: createQueueBatchHandler(),
     documentProcessor: createQueueDocumentHandler(),
-    checkpointManager: createQueueCheckpointHandler(),
     deltaProcessor: createQueueDeltaHandler(),
     scanningCoordinator: createScanningCoordinator(),
     workerHandler: createWorkerHandler(),
@@ -74,11 +72,6 @@ export default function createQueueOrchestrator() {
     await state.workerManager.init(config);
     await state.batchProcessor.init(mediaProcessor);
     await state.documentProcessor.init(config, daApi);
-    await state.checkpointManager.init(
-      state.discoveryCoordinator,
-      scanStateManager || null,
-      processingStateManager,
-    );
     await state.deltaProcessor.init(config, daApi);
     await state.scanningCoordinator.init(
       state.workerManager,
@@ -225,10 +218,10 @@ export default function createQueueOrchestrator() {
    */
   async function resumeFromCheckpoint(discoveryCheckpoint, scanCheckpoint) {
     try {
-      const discoveryResult = await state.checkpointManager.resumeDiscoveryFromCheckpoint(
-        discoveryCheckpoint,
-      );
-      const scanResult = await state.checkpointManager.resumeScanningFromCheckpoint(scanCheckpoint);
+      const discoveryResult = await state.discoveryCoordinator
+        .resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
+      const scanResult = await state.processingStateManager
+        .resumeScanningFromCheckpoint(scanCheckpoint);
       return { discoveryResult, scanResult };
     } catch (error) {
       return { error: error.message };
@@ -516,16 +509,7 @@ export default function createQueueOrchestrator() {
    * @returns {Promise<Object>}
    */
   async function resumeDiscoveryFromCheckpoint(discoveryCheckpoint) {
-    return state.checkpointManager.resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
-  }
-
-  /**
-   * Resume scanning from checkpoint
-   * @param {Object} scanCheckpoint - Scan checkpoint
-   * @returns {Promise<Object>}
-   */
-  async function resumeScanningFromCheckpoint(scanCheckpoint) {
-    return state.checkpointManager.resumeScanningFromCheckpoint(scanCheckpoint);
+    return state.discoveryCoordinator.resumeDiscoveryFromCheckpoint(discoveryCheckpoint);
   }
 
   /**
@@ -720,7 +704,6 @@ export default function createQueueOrchestrator() {
     loadDiscoveryFilesWithChangeDetection,
     requestBatch,
     resumeDiscoveryFromCheckpoint,
-    resumeScanningFromCheckpoint,
     checkDiscoveryFilesExist,
     checkMediaAvailable,
     triggerUploadPhase,

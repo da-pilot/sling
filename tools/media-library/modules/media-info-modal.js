@@ -172,7 +172,7 @@ export function showMediaInfoModal(media) {
         }
       });
     }
-    const hasMissingAltText = media.occurrences && media.occurrences.some((o) => !o.hasAltText);
+    const hasMissingAltText = media.type !== 'video' && media.occurrences && media.occurrences.some((o) => !o.hasAltText);
     const isLinkMedia = media.type === 'link'
                        || media.context === 'external-link'
                        || media.context === 'internal-link'

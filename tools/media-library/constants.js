@@ -1,9 +1,10 @@
 
 /**
  * Media Library Constants
- * Centralized constants for DA storage paths and configuration
+ * Centralized constants for media types and other commonly used values
  */
 
+// DA Storage and Configuration
 export const CONTENT_DA_LIVE_BASE = 'https://content.da.live';
 
 export const DA_STORAGE = {
@@ -52,6 +53,7 @@ export const DA_PATHS = {
   getSiteStructureFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.SITE_STRUCTURE}`,
 };
 
+// Scan Configuration
 export const SCAN_CONFIG = {
   HEARTBEAT_INTERVAL_MS: 30000,
   STALE_LOCK_THRESHOLD_MS: 5 * 60 * 1000,
@@ -142,6 +144,12 @@ export const ERROR_MESSAGES = {
   CONTEXT_MISSING: 'Failed to get DA context, actions, or token from SDK',
   SESSION_CONFLICT: 'Another user is already processing. Coordinating sessions...',
   SESSION_STALE: 'Previous session was stale. Starting fresh session.',
+  NOT_INITIALIZED: 'Media processor not initialized',
+  NO_WORKER_AVAILABLE: 'No worker available for processing',
+  FILE_NOT_FOUND: 'File not found on server',
+  NETWORK_ERROR: 'Network request failed',
+  TIMEOUT_ERROR: 'Network request timed out',
+  VALIDATION_ERROR: 'Validation failed',
 };
 
 export const STORAGE_KEYS = {
@@ -185,4 +193,205 @@ export const SESSION_PREFIX = 'session_';
 export const DISCOVERY_FILE_NAMING = {
   FOLDER_BASED: true,
   SESSION_BASED: false,
+};
+
+// Media Types and Related Constants
+export const MEDIA_TYPES = {
+  IMAGE: 'image',
+  VIDEO: 'video',
+  DOCUMENT: 'document',
+  LINK: 'link',
+};
+
+export const MEDIA_TYPE_VALUES = Object.values(MEDIA_TYPES);
+
+export const MEDIA_TYPE_LABELS = {
+  [MEDIA_TYPES.IMAGE]: 'Image',
+  [MEDIA_TYPES.VIDEO]: 'Video',
+  [MEDIA_TYPES.DOCUMENT]: 'Document',
+  [MEDIA_TYPES.LINK]: 'Link',
+};
+
+export const MEDIA_CONTEXTS = {
+  IMG_TAG: 'img-tag',
+  PICTURE: 'picture',
+  VIDEO_SOURCE: 'video-source',
+  EXTERNAL_LINK: 'external-link',
+  INTERNAL_LINK: 'internal-link',
+  MEDIA_LINK: 'media-link',
+  BACKGROUND: 'background',
+  CSS_BACKGROUND: 'css-background',
+};
+
+export const OCCURRENCE_TYPES = {
+  IMAGE: 'image',
+  VIDEO: 'video',
+  LINK: 'link',
+};
+
+export const MEDIA_EXTENSIONS = {
+  IMAGE: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff'],
+  VIDEO: ['.mp4', '.webm', '.ogg', '.avi', '.mov', '.wmv', '.flv'],
+  DOCUMENT: ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt'],
+};
+
+export const DEFAULT_MEDIA_TYPE = MEDIA_TYPES.IMAGE;
+
+export const UNTITLED_MEDIA = 'Untitled Media';
+
+export const CHECKPOINT_TYPES = {
+  DISCOVERY: 'discovery',
+  SCANNING: 'scanning',
+  UPLOAD: 'upload',
+};
+
+export const BATCH_SIZE = {
+  DEFAULT: 10,
+  UPLOAD: 20,
+};
+
+export const CACHE_DURATION = {
+  MEDIA_DATA: 5 * 60 * 1000, // 5 minutes
+};
+
+export const TIMEOUTS = {
+  WORKER_PROCESSING: 1000,
+  DISCOVERY_WAIT: 10000,
+};
+
+export const FILE_PATHS = {
+  MEDIA_JSON: 'media.json',
+  SITE_STRUCTURE: 'site-structure.json',
+  CHANGE_HISTORY: 'change-history.json',
+  STRUCTURE_BASELINE: 'structure-baseline.json',
+};
+
+export const API_ENDPOINTS = {
+  SOURCE: '/source',
+  LIST: '/list',
+};
+
+export const UI_STATES = {
+  LOADING: 'loading',
+  READY: 'ready',
+  ERROR: 'error',
+  SCANNING: 'scanning',
+  COMPLETED: 'completed',
+};
+
+export const FILTER_TYPES = {
+  ALL: 'all',
+  IMAGE: 'image',
+  VIDEO: 'video',
+  DOCUMENT: 'document',
+  INTERNAL: 'internal',
+  EXTERNAL: 'external',
+  USED_ON_PAGE: 'used-on-page',
+  MISSING_ALT: 'missing-alt',
+  USED_MISSING_ALT: 'used-missing-alt',
+};
+
+export const SORT_TYPES = {
+  DISCOVERY: 'discovery',
+  NAME: 'name',
+  TYPE: 'type',
+  MODIFIED: 'modified',
+  USAGE: 'usage',
+};
+
+export const VIEW_TYPES = {
+  GRID: 'grid',
+  LIST: 'list',
+};
+
+export const EVENT_TYPES = {
+  MEDIA_UPDATED: 'mediaUpdated',
+  SCANNING_STARTED: 'scanningStarted',
+  SCANNING_COMPLETED: 'scanningCompleted',
+  SCANNING_FAILED: 'scanningFailed',
+  BATCH_COMPLETE: 'batchComplete',
+  PAGE_SCANNED: 'pageScanned',
+  MEDIA_DISCOVERED: 'mediaDiscovered',
+  ERROR: 'error',
+};
+
+export const LOG_PREFIXES = {
+  MEDIA_PROCESSOR: '[Media Processor]',
+  MEDIA_SCAN_WORKER: '[Media Scan Worker]',
+  PROCESSING_STATE_MANAGER: '[Processing State Manager]',
+  DISCOVERY_COORDINATOR: '[Discovery Coordinator]',
+  QUEUE_ORCHESTRATOR: '[Queue Orchestrator]',
+  MEDIA_BROWSER: '[Media Browser]',
+  MEDIA_INFO_MODAL: '[Media Info Modal]',
+  INDEXED_DB: '[IndexedDB]',
+  MEDIA_LOADER: '[Media Loader]',
+  MEDIA_LIBRARY: '[Media Library]',
+};
+
+export const VALIDATION_RULES = {
+  ALT_TEXT_MIN_LENGTH: 3,
+  ALT_TEXT_MAX_LENGTH: 125,
+  ALT_TEXT_MIN_WORDS: 2,
+  TOUCH_TARGET_MIN_SIZE: 44,
+  CACHE_TOLERANCE_MS: 5000,
+};
+
+export const AI_FEATURES = {
+  ALT_TEXT_GENERATION: 'alt-text-generation',
+  CONTEXT_ANALYSIS: 'context-analysis',
+  MEDIA_DESCRIPTION: 'media-description',
+};
+
+export const ACCESSIBILITY_FEATURES = {
+  ALT_TEXT: 'alt-text',
+  ARIA_LABEL: 'aria-label',
+  TITLE: 'title',
+  CAPTIONS: 'captions',
+  TRANSCRIPTS: 'transcripts',
+};
+
+export default {
+  CONTENT_DA_LIVE_BASE,
+  DA_STORAGE,
+  DA_PATHS,
+  SCAN_CONFIG,
+  PROCESSING_CONFIG,
+  PROCESSING_STATUS,
+  SESSION_STATUS,
+  WORKER_CONFIG,
+  DISCOVERY_CONFIG,
+  UI_CONFIG,
+  SCAN_STATUS,
+  STAGE_STATUS,
+  FILE_EXTENSIONS,
+  ERROR_MESSAGES,
+  STORAGE_KEYS,
+  DB_CONFIG,
+  UPLOAD_CONFIG,
+  LOCALSTORAGE_KEYS,
+  SESSION_PREFIX,
+  DISCOVERY_FILE_NAMING,
+  MEDIA_TYPES,
+  MEDIA_TYPE_VALUES,
+  MEDIA_TYPE_LABELS,
+  MEDIA_CONTEXTS,
+  OCCURRENCE_TYPES,
+  MEDIA_EXTENSIONS,
+  DEFAULT_MEDIA_TYPE,
+  UNTITLED_MEDIA,
+  CHECKPOINT_TYPES,
+  BATCH_SIZE,
+  CACHE_DURATION,
+  TIMEOUTS,
+  FILE_PATHS,
+  API_ENDPOINTS,
+  UI_STATES,
+  FILTER_TYPES,
+  SORT_TYPES,
+  VIEW_TYPES,
+  EVENT_TYPES,
+  LOG_PREFIXES,
+  VALIDATION_RULES,
+  AI_FEATURES,
+  ACCESSIBILITY_FEATURES,
 };

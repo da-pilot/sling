@@ -163,13 +163,18 @@ export default function createMediaProcessor() {
     await state.metadataManager.init(state.config);
     const existingData = await state.metadataManager.getMetadata();
 
-    const updatedMedia = await mergeMediaWithDeduplication(existingData || [], allBatchMedia);
+    const { media: updatedMedia, stats } = await mergeMediaWithDeduplication(
+      existingData || [],
+      allBatchMedia,
+    );
 
     await state.metadataManager.saveMetadata(updatedMedia);
     state.mediaDataCache = null;
     state.mediaDataCacheTimestamp = null;
 
     console.log(`===== Media Upload Completed: ${updatedMedia.length} total media items (${allBatchMedia.length} new, ${existingData ? existingData.length : 0} existing) ======`);
+    console.log(`===== Deduplication Stats: Merged ${stats.merged}, Added ${stats.added}, Duplicates ${stats.duplicates} ======`);
+    console.log(`===== Breakdown: ${stats.totalNew} new items → ${stats.added} added + ${stats.merged} merged with existing ======`);
 
     if (state.onMediaUpdatedCallback) {
       state.onMediaUpdatedCallback(updatedMedia);
@@ -266,18 +271,18 @@ export default function createMediaProcessor() {
           {
             occurrenceId,
             pagePath: pageUrl,
-            altText: media.alt,
-            hasAltText: media.hasAltText || !!(media.alt && media.alt.trim()),
-            occurrenceType: media.occurrenceType || media.type,
+            altText: media.alt || '',
+            hasAltText: Boolean(media.alt && media.alt.trim()),
+            occurrenceType: determineMediaType(src),
             contextualText: media.contextualText || '',
             context: media.context || '',
           },
         ],
         metadata: {
-          width: media.dimensions?.width || media.width || null,
-          height: media.dimensions?.height || media.height || null,
-          size: media.size || null,
-          format: media.format || null,
+          width: media.metadata?.width || media.dimensions?.width || null,
+          height: media.metadata?.height || media.dimensions?.height || null,
+          size: media.metadata?.size || null,
+          format: media.metadata?.format || null,
         },
       };
       return normalizedMediaItem;
@@ -286,56 +291,54 @@ export default function createMediaProcessor() {
   }
 
   /**
-   * Enhance media with additional metadata
+   * Extract image metadata
    */
   async function extractImageMetadata(src) {
-    return new Promise((resolve) => {
+    try {
       const img = new Image();
-      img.onload = () => {
-        resolve({
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-          size: null,
-          format: src.split('.').pop() || 'unknown',
-        });
+      return new Promise((resolve) => {
+        img.onload = () => {
+          resolve({
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          });
+        };
+        img.onerror = () => {
+          resolve({
+            width: null,
+            height: null,
+          });
+        };
+        img.src = src;
+      });
+    } catch (error) {
+      return {
+        width: null,
+        height: null,
       };
-      img.onerror = () => {
-        resolve({
-          width: null,
-          height: null,
-          size: null,
-          format: src.split('.').pop() || 'unknown',
-        });
-      };
-      img.src = src;
-    });
+    }
   }
 
   /**
-     * Enhance media array with extracted image metadata.
-     * Uses Promise.all to avoid await-in-loop and generator usage.
-     */
+   * Enhance media with metadata
+   */
   async function enhanceMediaWithMetadata(mediaArray) {
-    if (!Array.isArray(mediaArray) || !mediaArray.length) return [];
-    const enhancements = await Promise.all(
+    const enhancedMedia = await Promise.all(
       mediaArray.map(async (media) => {
-        try {
+        if (media.type === 'image' && media.src) {
           const metadata = await extractImageMetadata(media.src);
           return {
             ...media,
             metadata: {
-              width: metadata.width,
-              height: metadata.height,
-              size: metadata.size,
-              format: metadata.format,
+              ...media.metadata,
+              ...metadata,
             },
           };
-        } catch (error) {
-          return media;
         }
+        return media;
       }),
     );
-    return enhancements;
+    return enhancedMedia;
   }
 
   /**
@@ -343,10 +346,19 @@ export default function createMediaProcessor() {
    */
   async function mergeMediaWithDeduplication(existingMedia, newMedia) {
     const mediaMap = new Map();
+    const stats = {
+      totalNew: newMedia.length,
+      totalExisting: existingMedia.length,
+      merged: 0,
+      added: 0,
+      duplicates: 0,
+    };
+
     existingMedia.forEach((media) => {
       mediaMap.set(media.id, media);
       state.deduplicationCache.set(media.src, media.id);
     });
+
     const processedMedia = await Promise.all(
       newMedia.map(async (media) => {
         const normalizedSrc = media.src;
@@ -354,9 +366,12 @@ export default function createMediaProcessor() {
         return { media: { ...media, src: normalizedSrc }, mediaId };
       }),
     );
+
     processedMedia.forEach(({ media, mediaId }) => {
       const existingId = state.deduplicationCache.get(media.src);
       if (existingId && mediaMap.has(existingId)) {
+        stats.merged += 1;
+        stats.duplicates += 1;
         const existing = mediaMap.get(existingId);
         const existingUsedIn = Array.isArray(existing.usedIn) ? existing.usedIn : [];
         const newUsedIn = Array.isArray(media.usedIn) ? media.usedIn : [];
@@ -386,6 +401,7 @@ export default function createMediaProcessor() {
         };
         mediaMap.set(existingId, merged);
       } else {
+        stats.added += 1;
         const normalizedMedia = validateAndCleanMedia({
           ...media,
           id: mediaId,
@@ -394,8 +410,11 @@ export default function createMediaProcessor() {
         state.deduplicationCache.set(media.src, mediaId);
       }
     });
+
     const result = Array.from(mediaMap.values());
-    return result;
+    stats.final = result.length;
+
+    return { media: result, stats };
   }
 
   /**
@@ -443,188 +462,181 @@ export default function createMediaProcessor() {
    * Extract img tags from document
    */
   function extractImgTags(doc) {
-    const images = doc.querySelectorAll('img');
-    const media = [];
-
-    images.forEach((img) => {
-      const src = img.getAttribute('src');
-      if (src) {
-        media.push({
-          src,
-          alt: img.getAttribute('alt') || '',
-          title: img.getAttribute('title') || '',
-          width: img.getAttribute('width'),
-          height: img.getAttribute('height'),
-          context: getElementContext(img),
-        });
-      }
+    const imgElements = doc.querySelectorAll('img');
+    return Array.from(imgElements).map((img) => {
+      const src = img.src || img.getAttribute('src') || '';
+      const alt = img.alt || img.getAttribute('alt') || '';
+      const title = img.title || img.getAttribute('title') || '';
+      const context = getElementContext(img);
+      return {
+        src,
+        alt,
+        title,
+        context,
+        type: 'image',
+      };
     });
-
-    return media;
   }
 
   /**
    * Extract picture images from document
    */
   function extractPictureImages(doc) {
-    const pictures = doc.querySelectorAll('picture');
-    const media = [];
-
-    pictures.forEach((picture) => {
+    const pictureElements = doc.querySelectorAll('picture');
+    const pictureImages = [];
+    pictureElements.forEach((picture) => {
       const img = picture.querySelector('img');
       if (img) {
-        const src = img.getAttribute('src');
-        if (src) {
-          media.push({
-            src,
-            alt: img.getAttribute('alt') || '',
-            title: img.getAttribute('title') || '',
-            width: img.getAttribute('width'),
-            height: img.getAttribute('height'),
-            context: getElementContext(picture),
-          });
-        }
+        const src = img.src || img.getAttribute('src') || '';
+        const alt = img.alt || img.getAttribute('alt') || '';
+        const title = img.title || img.getAttribute('title') || '';
+        const context = getElementContext(picture);
+        pictureImages.push({
+          src,
+          alt,
+          title,
+          context,
+          type: 'image',
+        });
       }
     });
-
-    return media;
+    return pictureImages;
   }
 
   /**
    * Extract video sources from document
    */
   function extractVideoSources(doc) {
-    const videos = doc.querySelectorAll('video');
-    const media = [];
-
-    videos.forEach((video) => {
+    const videoElements = doc.querySelectorAll('video');
+    const videoSources = [];
+    videoElements.forEach((video) => {
       const sources = video.querySelectorAll('source');
       sources.forEach((source) => {
-        const src = source.getAttribute('src');
+        const src = source.src || source.getAttribute('src') || '';
         if (src) {
-          media.push({
+          const context = getElementContext(video);
+          videoSources.push({
             src,
-            alt: video.getAttribute('alt') || '',
-            title: video.getAttribute('title') || '',
-            context: getElementContext(video),
+            alt: video.alt || video.getAttribute('alt') || '',
+            title: video.title || video.getAttribute('title') || '',
+            context,
+            type: 'video',
           });
         }
       });
+      const videoSrc = video.src || video.getAttribute('src') || '';
+      if (videoSrc) {
+        const context = getElementContext(video);
+        videoSources.push({
+          src: videoSrc,
+          alt: video.alt || video.getAttribute('alt') || '',
+          title: video.title || video.getAttribute('title') || '',
+          context,
+          type: 'video',
+        });
+      }
     });
-    return media;
+    return videoSources;
   }
 
   /**
    * Extract background images from document
    */
   function extractBackgroundImages(doc) {
-    const elements = doc.querySelectorAll('*');
-    const media = [];
-
-    elements.forEach((element) => {
-      const { style } = element;
-      if (style.backgroundImage && style.backgroundImage !== 'none') {
-        const matches = style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/g);
-        if (matches) {
-          matches.forEach((match) => {
-            const src = match.replace(/url\(['"]?([^'"]+)['"]?\)/, '$1');
-            if (src) {
-              media.push({
-                src,
-                context: getElementContext(element),
-              });
-            }
-          });
-        }
+    const backgroundImages = [];
+    const elementsWithBackground = doc.querySelectorAll('*[style*="background"]');
+    elementsWithBackground.forEach((element) => {
+      const style = element.getAttribute('style') || '';
+      const backgroundMatch = style.match(/background(?:-image)?\s*:\s*url\(['"]?([^'"]+)['"]?\)/i);
+      if (backgroundMatch) {
+        const src = backgroundMatch[1];
+        const context = getElementContext(element);
+        backgroundImages.push({
+          src,
+          alt: element.alt || element.getAttribute('alt') || '',
+          title: element.title || element.getAttribute('title') || '',
+          context,
+          type: 'image',
+        });
       }
     });
-
-    return media;
+    return backgroundImages;
   }
 
   /**
    * Extract media links from document
    */
   function extractMediaLinks(doc) {
-    const links = doc.querySelectorAll('a[href]');
-    const media = [];
-
-    links.forEach((link) => {
-      const href = link.getAttribute('href');
-      if (href && isMediaFile(href)) {
-        media.push({
+    const mediaLinks = [];
+    const linkElements = doc.querySelectorAll('a[href]');
+    linkElements.forEach((link) => {
+      const href = link.href || link.getAttribute('href') || '';
+      if (isMediaFile(href)) {
+        const context = getElementContext(link);
+        mediaLinks.push({
           src: href,
-          alt: link.getAttribute('alt') || '',
-          title: link.getAttribute('title') || '',
-          context: getElementContext(link),
+          alt: link.alt || link.getAttribute('alt') || '',
+          title: link.title || link.getAttribute('title') || '',
+          context,
+          type: determineMediaType(href),
         });
       }
     });
-
-    return media;
+    return mediaLinks;
   }
 
   /**
    * Extract CSS backgrounds from document
    */
   function extractCSSBackgrounds(doc) {
-    const styleSheets = doc.querySelectorAll('style');
-    const media = [];
-
-    styleSheets.forEach((style) => {
-      const { textContent } = style;
-      const urlMatches = textContent.match(/url\(['"]?([^'"]+)['"]?\)/g);
-
-      if (urlMatches) {
-        urlMatches.forEach((match) => {
-          const src = match.replace(/url\(['"]?([^'"]+)['"]?\)/, '$1');
-          if (src && isMediaFile(src)) {
-            media.push({
+    const cssBackgrounds = [];
+    const styleElements = doc.querySelectorAll('style');
+    styleElements.forEach((style) => {
+      const cssText = style.textContent || '';
+      const backgroundMatches = cssText.match(/background(?:-image)?\s*:\s*url\(['"]?([^'"]+)['"]?\)/gi);
+      if (backgroundMatches) {
+        backgroundMatches.forEach((match) => {
+          const urlMatch = match.match(/url\(['"]?([^'"]+)['"]?\)/i);
+          if (urlMatch) {
+            const src = urlMatch[1];
+            const context = getElementContext(style);
+            cssBackgrounds.push({
               src,
-              context: 'CSS background',
+              alt: '',
+              title: '',
+              context,
+              type: 'image',
             });
           }
         });
       }
     });
-
-    return media;
+    return cssBackgrounds;
   }
 
   /**
-   * Check if URL points to a media file
+   * Check if URL is a media file
    */
   function isMediaFile(url) {
-    const mediaExtensions = [
-      'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp',
-      'mp4', 'webm', 'ogg', 'avi', 'mov', 'wmv',
-      'mp3', 'wav', 'ogg', 'aac', 'flac',
-    ];
-
-    const extension = url.split('.').pop()?.toLowerCase();
-    return mediaExtensions.includes(extension);
+    if (!url) return false;
+    const mediaExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.mp4', '.webm', '.ogg', '.mp3', '.wav'];
+    const lowerUrl = url.toLowerCase();
+    return mediaExtensions.some((ext) => lowerUrl.includes(ext));
   }
 
   /**
-   * Get context information for an element
+   * Get element context
    */
   function getElementContext(element) {
     const context = [];
-
-    const heading = element.closest('h1, h2, h3, h4, h5, h6');
-    if (heading) {
-      context.push(heading.textContent.trim().substring(0, 30));
-    }
-
-    const section = element.closest('section, article, div[class*="content"]');
-    if (section) {
-      const sectionText = section.textContent.trim().substring(0, 50);
-      if (sectionText) {
-        context.push(sectionText);
+    let current = element;
+    while (current && current !== element.ownerDocument.body) {
+      if (current.tagName) {
+        context.unshift(current.tagName.toLowerCase());
       }
+      current = current.parentElement;
     }
-
-    return context.join(' - ');
+    return context.join(' > ');
   }
 
   /**
@@ -673,20 +685,25 @@ export default function createMediaProcessor() {
     return { ...state.stats };
   }
 
+  /**
+   * Initialize deduplication cache
+   */
   async function initializeDeduplicationCache() {
     try {
       const existingData = await state.metadataManager.getMetadata();
       if (existingData && Array.isArray(existingData)) {
         existingData.forEach((media) => {
-          if (media.src && media.id) {
-            state.deduplicationCache.set(media.src, media.id);
-          }
+          state.deduplicationCache.set(media.src, media.id);
         });
       }
     } catch (error) {
-      state.deduplicationCache.clear();
+      console.error('[Media Processor] ❌ Failed to initialize deduplication cache:', error);
     }
   }
+
+  /**
+   * Cleanup resources
+   */
   function cleanup() {
     state.isInitialized = false;
     state.listeners.clear();
@@ -697,14 +714,14 @@ export default function createMediaProcessor() {
   }
 
   /**
-   * Set callback for media updates
+   * Set media updated callback
    */
   function setOnMediaUpdated(callback) {
     state.onMediaUpdatedCallback = callback;
   }
 
   /**
-   * Set current session context
+   * Set current session
    */
   function setCurrentSession(sessionId, userId, browserId) {
     state.currentSessionId = sessionId;
@@ -745,7 +762,10 @@ export default function createMediaProcessor() {
       throw new Error('Media processor not initialized');
     }
     const existingData = await state.metadataManager.getMetadata();
-    const mergedMedia = await mergeMediaWithDeduplication(existingData || [], mediaData);
+    const { media: mergedMedia } = await mergeMediaWithDeduplication(
+      existingData || [],
+      mediaData,
+    );
     await state.metadataManager.saveMetadata(mergedMedia);
     state.mediaDataCache = mergedMedia;
     state.mediaDataCacheTimestamp = Date.now();
