@@ -111,6 +111,12 @@ export default function createWorkerHandler() {
       await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
         updatedDiscoveryFiles,
       );
+
+      // Cleanup old session files after scanning is complete
+      if (state.sessionManager && typeof state.sessionManager.cleanupOldSessionFiles === 'function') {
+        await state.sessionManager.cleanupOldSessionFiles();
+      }
+
       eventEmitter.emit('scanningCompletionHandled', {
         processedCount,
         totalPages,
