@@ -81,8 +81,6 @@ export default function createWorkerHandler() {
    */
   async function handleScanningCompletion(processedCount) {
     try {
-      console.log('[Worker Handler] 🎯 Handling scanning completion...');
-
       const session = state.sessionManager.getCurrentSession();
 
       await state.scanCompletionHandler.saveScanningCheckpoint({
@@ -93,35 +91,24 @@ export default function createWorkerHandler() {
         sessionId: session?.sessionId,
       });
 
-      // Sync cache with IndexedDB scan results FIRST
       let updatedDiscoveryFiles = null;
       if (state.discoveryCoordinator) {
-        console.log('[Worker Handler] 🔄 Calling syncDiscoveryFilesCacheWithIndexedDB...');
-        updatedDiscoveryFiles = await state.scanCompletionHandler.syncDiscoveryFilesCacheWithIndexedDB(
-          state.discoveryCoordinator,
-        );
-        console.log('[Worker Handler] 📊 Sync result:', {
-          hasUpdatedFiles: !!updatedDiscoveryFiles,
-          fileCount: updatedDiscoveryFiles?.length || 0,
-        });
-      } else {
-        console.log('[Worker Handler] ⚠️ No discovery coordinator available for sync');
+        updatedDiscoveryFiles = await state.scanCompletionHandler
+          .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
       }
 
-      // If cache sync failed, load discovery files as fallback
       if (!updatedDiscoveryFiles || updatedDiscoveryFiles.length === 0) {
-        console.log('[Worker Handler] 🔄 Using original discovery files as fallback');
         const discoveryFiles = await state.discoveryHandler.loadDiscoveryFiles();
         updatedDiscoveryFiles = discoveryFiles;
       }
 
-      // Update DA files with the updated cache data
-      await state.scanCompletionHandler.updateAllDiscoveryFiles(updatedDiscoveryFiles);
+      await state.scanCompletionHandler.updateAllDiscoveryFiles(
+        updatedDiscoveryFiles,
+      );
 
-      // Create site structure with the updated cache data
-      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
-
-      console.log('[Worker Handler] ✅ Scanning completion handled successfully');
+      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
+        updatedDiscoveryFiles,
+      );
 
       eventEmitter.emit('scanningCompletionHandled', {
         processedCount,
@@ -129,7 +116,6 @@ export default function createWorkerHandler() {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('[Worker Handler] ❌ Error handling scanning completion:', error);
       eventEmitter.emit('error', { error: error.message });
     }
   }
@@ -166,8 +152,7 @@ export default function createWorkerHandler() {
       },
       onPageScanned: async (data) => {
         eventEmitter.emit('pageScanned', data);
-        
-        // Update discovery files cache with scan results
+
         if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
           const updateData = {
             fileName: data.sourceFile,
@@ -176,7 +161,7 @@ export default function createWorkerHandler() {
             mediaCount: data?.mediaCount || 0,
             error: null,
           };
-          
+
           state.discoveryCoordinator.updateDiscoveryFileInCache(
             updateData.fileName,
             updateData.pagePath,
@@ -184,18 +169,11 @@ export default function createWorkerHandler() {
             updateData.mediaCount,
             updateData.error,
           );
-          
-          console.log('[Worker Handler] 📋 Updated discovery files cache:', {
-            page: data.page,
-            sourceFile: data.sourceFile,
-            mediaCount: data?.mediaCount || 0,
-          });
         }
       },
       onBatchComplete: async (data) => {
         eventEmitter.emit('batchComplete', data);
-        
-        // Update scanning checkpoint with batch progress
+
         if (state.processingStateManager && data?.processedCount) {
           const currentProgress = await state.processingStateManager.loadScanningCheckpoint();
           const updatedProgress = {
@@ -206,18 +184,11 @@ export default function createWorkerHandler() {
             lastUpdated: Date.now(),
           };
           await state.processingStateManager.saveScanningCheckpointFile(updatedProgress);
-          
-          console.log('[Worker Handler] 📊 Updated scanning checkpoint after batch:', {
-            processedCount: data.processedCount,
-            totalScanned: updatedProgress.scannedPages,
-            totalMedia: updatedProgress.totalMedia,
-          });
         }
       },
       onPageScanError: async (data) => {
         eventEmitter.emit('pageScanError', data);
-        
-        // Update discovery files cache with error status
+
         if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
           const updateData = {
             fileName: data.sourceFile,
@@ -226,7 +197,7 @@ export default function createWorkerHandler() {
             mediaCount: 0,
             error: data?.error || 'Unknown error',
           };
-          
+
           state.discoveryCoordinator.updateDiscoveryFileInCache(
             updateData.fileName,
             updateData.pagePath,
@@ -234,12 +205,6 @@ export default function createWorkerHandler() {
             updateData.mediaCount,
             updateData.error,
           );
-          
-          console.log('[Worker Handler] ❌ Updated discovery files cache with error:', {
-            page: data.page,
-            sourceFile: data.sourceFile,
-            error: data?.error,
-          });
         }
       },
       onQueueProcessingStopped: async (data) => {

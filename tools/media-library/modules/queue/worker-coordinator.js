@@ -9,6 +9,7 @@ export default function createQueueWorkerManager() {
     workers: new Map(),
     workerConfigs: new Map(),
   };
+
   /**
    * Initialize worker manager
    * @param {Object} config - Configuration object
@@ -16,6 +17,7 @@ export default function createQueueWorkerManager() {
   async function init(config) {
     state.config = config;
   }
+
   /**
    * Initialize a worker and wait for confirmation
    * @param {Worker} worker - Worker instance
@@ -39,6 +41,7 @@ export default function createQueueWorkerManager() {
       worker.postMessage({ type: 'init', data: { apiConfig } });
     });
   }
+
   /**
    * Setup worker event handlers
    * @param {Object} handlers - Event handlers object
@@ -52,6 +55,7 @@ export default function createQueueWorkerManager() {
     eventEmitter.on('error', onError);
     eventEmitter.on('progress', onProgress);
   }
+
   /**
    * Register worker
    * @param {string} workerId - Worker identifier
@@ -60,6 +64,7 @@ export default function createQueueWorkerManager() {
   function registerWorker(workerId, worker) {
     state.workers.set(workerId, worker);
   }
+
   /**
    * Unregister worker
    * @param {string} workerId - Worker identifier
@@ -67,6 +72,7 @@ export default function createQueueWorkerManager() {
   function unregisterWorker(workerId) {
     state.workers.delete(workerId);
   }
+
   /**
    * Get worker by ID
    * @param {string} workerId - Worker identifier
@@ -84,7 +90,10 @@ export default function createQueueWorkerManager() {
     const mediaScanWorker = state.workers.get('media-scan');
     if (!mediaScanWorker) {
       try {
-        const worker = new Worker(new URL('../../workers/media-scan-worker.js', import.meta.url), { type: 'module' });
+        const worker = new Worker(
+          new URL('../../workers/media-scan-worker.js', import.meta.url),
+          { type: 'module' },
+        );
         await initializeWorker(worker, 'media-scan', state.config);
         state.workers.set('media-scan', worker);
         return worker;
@@ -120,6 +129,7 @@ export default function createQueueWorkerManager() {
       return null;
     }
   }
+
   /**
    * Get all workers
    * @returns {Map} Map of workers
@@ -127,6 +137,7 @@ export default function createQueueWorkerManager() {
   function getAllWorkers() {
     return state.workers;
   }
+
   /**
    * Cleanup all workers
    */
@@ -159,10 +170,10 @@ export default function createQueueWorkerManager() {
    * Reset statistics
    */
   function resetStats() {
-    // Reset worker statistics
     state.workers.clear();
     state.workerConfigs.clear();
   }
+
   /**
    * Add event listener
    * @param {string} event - Event name
@@ -171,6 +182,7 @@ export default function createQueueWorkerManager() {
   function on(event, callback) {
     eventEmitter.on(event, callback);
   }
+
   /**
    * Remove event listener
    * @param {string} event - Event name
@@ -179,6 +191,7 @@ export default function createQueueWorkerManager() {
   function off(event, callback) {
     eventEmitter.off(event, callback);
   }
+
   /**
    * Emit event
    * @param {string} event - Event name
@@ -187,6 +200,7 @@ export default function createQueueWorkerManager() {
   function emit(event, data) {
     eventEmitter.emit(event, data);
   }
+
   return {
     init,
     initializeWorker,
