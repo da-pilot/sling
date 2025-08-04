@@ -275,7 +275,10 @@ export default function createDiscoveryCoordinator() {
   }
 
   function getProcessingStateManager() {
-    return state.discoveryManager?.getProcessingStateManager();
+    // The discovery manager doesn't have getProcessingStateManager method
+    // This method is kept for backward compatibility but returns null
+    // The processing state manager should be passed directly to components that need it
+    return null;
   }
 
   async function performIncrementalDiscovery(changes) {

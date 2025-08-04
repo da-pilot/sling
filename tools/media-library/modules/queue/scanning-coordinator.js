@@ -9,7 +9,7 @@ export default function createScanningCoordinator() {
     workerManager: null,
     sessionManager: null,
     documentProcessor: null,
-    discoveryHandler: null,
+    discoveryCoordinator: null,
     processingStateManager: null,
   };
 
@@ -18,14 +18,14 @@ export default function createScanningCoordinator() {
    * @param {Object} workerManager - Worker manager instance
    * @param {Object} sessionManager - Session manager instance
    * @param {Object} documentProcessor - Document processor instance
-   * @param {Object} discoveryHandler - Discovery handler instance
+   * @param {Object} discoveryCoordinator - Discovery coordinator instance
    * @param {Object} processingStateManager - Processing state manager instance
    */
-  async function init(workerManager, sessionManager, documentProcessor, discoveryHandler, processingStateManager = null) {
+  async function init(workerManager, sessionManager, documentProcessor, discoveryCoordinator, processingStateManager = null) {
     state.workerManager = workerManager;
     state.sessionManager = sessionManager;
     state.documentProcessor = documentProcessor;
-    state.discoveryHandler = discoveryHandler;
+    state.discoveryCoordinator = discoveryCoordinator;
     state.processingStateManager = processingStateManager;
   }
 
@@ -36,7 +36,7 @@ export default function createScanningCoordinator() {
    */
   async function startScanningPhase(forceRescan = false) {
     try {
-      const discoveryFiles = await state.discoveryHandler.loadDiscoveryFiles();
+      const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
       const documentsToScan = state.documentProcessor.getDocumentsToScan(
         discoveryFiles,
         forceRescan,

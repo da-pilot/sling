@@ -3,7 +3,6 @@
  */
 import createEventEmitter from '../../shared/event-emitter.js';
 import createQueueWorkerCoordinator from './worker-coordinator.js';
-import createQueueDiscoveryCoordinator from './discovery-coordinator.js';
 import createDiscoveryCoordinator from '../discovery-coordinator.js';
 import createQueueBatchHandler from './batch-handler.js';
 import createQueueDocumentHandler from './document-handler.js';
@@ -18,7 +17,6 @@ export default function createQueueOrchestrator() {
   const eventEmitter = createEventEmitter('Queue Orchestrator');
   const state = {
     workerManager: createQueueWorkerCoordinator(),
-    discoveryHandler: createQueueDiscoveryCoordinator(),
     batchProcessor: createQueueBatchHandler(),
     documentProcessor: createQueueDocumentHandler(),
     checkpointManager: createQueueCheckpointHandler(),
@@ -76,7 +74,6 @@ export default function createQueueOrchestrator() {
       state.scanCompletionHandler = scanCompletionHandler;
     }
     await state.workerManager.init(config);
-    await state.discoveryHandler.init(state.discoveryCoordinator, processingStateManager);
     await state.batchProcessor.init(mediaProcessor);
     await state.documentProcessor.init(config, daApi);
     await state.checkpointManager.init(
@@ -90,16 +87,16 @@ export default function createQueueOrchestrator() {
       state.workerManager,
       state.sessionManager,
       state.documentProcessor,
-      state.discoveryHandler,
+      state.discoveryCoordinator,
       state.processingStateManager,
     );
     await state.workerHandler.init(
       state.workerManager,
-      state.discoveryHandler,
       state.discoveryCoordinator,
       state.documentProcessor,
       state.mediaProcessor,
       state.sessionManager,
+      state.processingStateManager,
     );
     await state.workerHandler.setupWorkerHandlers();
   }
@@ -148,18 +145,18 @@ export default function createQueueOrchestrator() {
     }
 
     try {
-      const discoveryStatus = await state.discoveryHandler.checkDiscoveryFilesExist();
+      const discoveryStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
       console.log('[Queue Orchestrator] 📋 Discovery status check:', discoveryStatus);
 
       if (discoveryStatus.shouldRunDiscovery) {
         console.log('===== Starting Discovery Process ======');
-        await state.discoveryHandler.startDiscoveryWithSession(sessionId, forceRescan);
+        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, forceRescan);
         console.log('===== Discovery Process Completed ======');
       } else {
         console.log('===== Discovery files exist, skipping discovery ======');
       }
 
-      const scanningStatus = await state.discoveryHandler.checkDiscoveryFilesExist();
+      const scanningStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
       if (scanningStatus.filesExist) {
         console.log('===== Starting Scanning Phase ======');
         await startScanningPhase(null, forceRescan);
@@ -197,7 +194,7 @@ export default function createQueueOrchestrator() {
     });
 
     try {
-      await state.discoveryHandler.stopDiscovery();
+      await state.discoveryCoordinator.stopDiscovery();
       console.log('[Queue Orchestrator] ✅ Queue scanning stopped successfully');
       return { success: true };
     } catch (error) {
@@ -287,7 +284,7 @@ export default function createQueueOrchestrator() {
    */
   async function forceCompleteScan() {
     try {
-      await state.discoveryHandler.stopDiscovery();
+      await state.discoveryCoordinator.stopDiscovery();
       await state.workerManager.cleanup();
     } catch (error) {
       eventEmitter.emit('error', { error: error.message });
@@ -354,7 +351,7 @@ export default function createQueueOrchestrator() {
   async function cleanup() {
     try {
       await state.workerManager.cleanup();
-      await state.discoveryHandler.stopDiscovery();
+      await state.discoveryCoordinator.stopDiscovery();
     } catch (error) {
       eventEmitter.emit('error', { error: error.message });
     }
@@ -419,7 +416,7 @@ export default function createQueueOrchestrator() {
    * @returns {Promise<void>}
    */
   async function setupDiscoveryHandlers() {
-    return state.discoveryHandler.setupDiscoveryHandlers();
+    return state.discoveryCoordinator.setupDiscoveryHandlers();
   }
 
   /**

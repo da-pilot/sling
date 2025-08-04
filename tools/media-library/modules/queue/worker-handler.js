@@ -14,36 +14,37 @@ export default function createWorkerHandler() {
     mediaProcessor: null,
     sessionManager: null,
     scanCompletionHandler: null,
+    processingStateManager: null,
   };
 
   /**
    * Initialize worker handler
    * @param {Object} workerManager - Worker manager instance
-   * @param {Object} discoveryHandler - Discovery handler instance
    * @param {Object} discoveryCoordinator - Discovery coordinator instance
    * @param {Object} documentProcessor - Document processor instance
    * @param {Object} mediaProcessor - Media processor instance
    * @param {Object} sessionManager - Session manager instance
+   * @param {Object} processingStateManager - Processing state manager instance
    */
   async function init(
     workerManager,
-    discoveryHandler,
     discoveryCoordinator,
     documentProcessor,
     mediaProcessor,
     sessionManager,
+    processingStateManager,
   ) {
     state.workerManager = workerManager;
-    state.discoveryHandler = discoveryHandler;
     state.discoveryCoordinator = discoveryCoordinator;
     state.documentProcessor = documentProcessor;
     state.mediaProcessor = mediaProcessor;
     state.sessionManager = sessionManager;
+    state.processingStateManager = processingStateManager;
     state.scanCompletionHandler = createScanCompletionHandler();
     await state.scanCompletionHandler.init(
-      discoveryHandler.getConfig(),
-      discoveryHandler.getDaApi(),
-      discoveryHandler.getProcessingStateManager(),
+      discoveryCoordinator.getConfig(),
+      discoveryCoordinator.getDaApi(),
+      processingStateManager,
     );
   }
 
@@ -98,7 +99,7 @@ export default function createWorkerHandler() {
       }
 
       if (!updatedDiscoveryFiles || updatedDiscoveryFiles.length === 0) {
-        const discoveryFiles = await state.discoveryHandler.loadDiscoveryFiles();
+        const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
         updatedDiscoveryFiles = discoveryFiles;
       }
 
@@ -135,7 +136,7 @@ export default function createWorkerHandler() {
         eventEmitter.emit('queueProcessingStarted', data);
       },
       onRequestBatch: async () => {
-        const discoveryFiles = await state.discoveryHandler.loadDiscoveryFiles();
+        const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
         const documentsToScan = state.documentProcessor.getDocumentsToScan(discoveryFiles, false);
         if (documentsToScan.length > 0) {
           const batch = documentsToScan.slice(0, 10);
