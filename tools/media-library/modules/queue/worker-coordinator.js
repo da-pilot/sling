@@ -160,13 +160,6 @@ export default function createQueueWorkerManager() {
   }
 
   /**
-   * Cleanup all workers (alias for cleanup)
-   */
-  function cleanupAll() {
-    return cleanup();
-  }
-
-  /**
    * Reset statistics
    */
   function resetStats() {
@@ -212,7 +205,6 @@ export default function createQueueWorkerManager() {
     createWorker,
     getAllWorkers,
     cleanup,
-    cleanupAll,
     hasActiveWorkers,
     resetStats,
     on,

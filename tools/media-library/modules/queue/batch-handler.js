@@ -161,55 +161,6 @@ export default function createQueueBatchProcessor() {
   }
 
   /**
-   * Reset batch processing (alias for resetBatchProcessingPhase)
-   */
-  function resetBatchProcessing() {
-    return resetBatchProcessingPhase();
-  }
-
-  /**
-   * Check threshold trigger
-   * @returns {Promise<boolean>}
-   */
-  async function checkThresholdTrigger() {
-    return state.batchProcessingPhase.status === 'active';
-  }
-
-  /**
-   * Process remaining media
-   * @returns {Promise<void>}
-   */
-  async function processRemainingMedia() {
-    if (state.batchProcessingPhase.status === 'active') {
-      await processAndUploadBatches([]);
-    }
-  }
-
-  /**
-   * Request batch
-   * @returns {Promise<Object>}
-   */
-  async function requestBatch() {
-    return { success: true, batch: [] };
-  }
-
-  /**
-   * Trigger upload phase
-   * @returns {Promise<void>}
-   */
-  async function triggerUploadPhase() {
-    await startBatchProcessingPhase();
-  }
-
-  /**
-   * Get queue size
-   * @returns {Promise<number>}
-   */
-  async function getQueueSize() {
-    return state.batchProcessingPhase.totalMedia || 0;
-  }
-
-  /**
    * Add event listener
    * @param {string} event - Event name
    * @param {Function} callback - Callback function
@@ -243,12 +194,6 @@ export default function createQueueBatchProcessor() {
     getBatchProcessingConfig,
     getBatchProcessingPhase,
     resetBatchProcessingPhase,
-    resetBatchProcessing,
-    checkThresholdTrigger,
-    processRemainingMedia,
-    requestBatch,
-    triggerUploadPhase,
-    getQueueSize,
     on,
     off,
     emit,

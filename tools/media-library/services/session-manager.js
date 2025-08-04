@@ -24,7 +24,6 @@ export default function createSessionManager() {
     try {
       state.daApi = docAuthoringService;
       state.config = docAuthoringService.getConfig();
-      await cleanupOldSessionFiles();
     } catch (error) {
       console.error('[Session Manager] ❌ Initialization failed:', error);
       throw error;
