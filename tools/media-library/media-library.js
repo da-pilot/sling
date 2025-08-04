@@ -87,6 +87,7 @@ let media = [];
 window.loadMediaFromMediaJson = loadMediaFromMediaJson;
 window.loadMediaFromIndexedDB = loadMediaFromIndexedDB;
 window.checkIndexedDBStatus = checkIndexedDBStatus;
+window.mediaLibraryMode = null; // Will be set during init
 
 if (typeof setMediaLoaderMediaBrowser === 'function') setMediaLoaderMediaBrowser(media);
 
@@ -95,12 +96,63 @@ if (typeof setMediaLoaderMediaBrowser === 'function') setMediaLoaderMediaBrowser
 // =============================================================================
 
 /**
+ * Detect if running in iframe or full app mode
+ */
+function detectMode() {
+  const isIframe = window.self !== window.top;
+  const isFullApp = window.location.pathname.includes('/app/');
+  const isShadowDOM = window.location.href.includes('shadow-dom')
+    || (window.parent && window.parent !== window);
+
+  // Get current page path for mode detection
+  let currentPagePath = 'not-available';
+  let isMediaLibraryPage = false;
+
+  if (daContext && daContext.path) {
+    currentPagePath = daContext.path;
+    isMediaLibraryPage = currentPagePath.includes('tools/media-library/media-library');
+  }
+
+  // Shell mode = when we're on the media library page itself
+  const isShellMode = isFullApp || isMediaLibraryPage;
+
+  // Determine mode based on access level
+  let mode;
+  let capabilities;
+
+  if (isShellMode) {
+    mode = 'shell';
+    capabilities = 'full-scan';
+  } else {
+    mode = 'iframe';
+    capabilities = 'quick-access';
+  }
+
+  console.log('🔧 [MODE DETECTION]', {
+    detectedMode: mode,
+    capabilities,
+    daContextPath: currentPagePath,
+    timestamp: new Date().toISOString(),
+  });
+
+  return {
+    mode,
+    capabilities,
+    isIframe,
+    isFullApp,
+    isShadowDOM,
+    isShellMode,
+  };
+}
+
+/**
    * Initialize the media library
    */
 async function init() {
   try {
     // eslint-disable-next-line no-console
     console.log('🔧 [INIT] Initializing Media Library...');
+
     if (typeof DA_SDK === 'undefined') {
       throw new Error(ERROR_MESSAGES.DA_SDK_MISSING);
     }
@@ -112,6 +164,10 @@ async function init() {
     daContext = { ...context, token };
     daActions = actions;
     window.daContext = daContext;
+
+    // Add mode detection here AFTER daContext is available
+    const modeInfo = detectMode();
+    window.mediaLibraryMode = modeInfo; // Make it globally accessible
 
     await initializeCoreServices();
 
@@ -417,7 +473,7 @@ function renderMedia(mediaToRender = media) {
         <div class="empty-state-icon">📁</div>
         <h3 class="empty-state-title">No media found</h3>
         <p class="empty-state-description">
-          No media has been discovered yet. The system is scanning your content 
+          No media has been discovered yet. The system is scanning your content
           for images, videos, and documents.
         </p>
         <div class="empty-state-actions">
