@@ -8,7 +8,6 @@ import createQueueBatchHandler from './batch-handler.js';
 import createQueueDocumentHandler from './document-handler.js';
 import createQueueCheckpointHandler from './checkpoint-handler.js';
 import createQueueDeltaHandler from './delta-handler.js';
-import createQueueStatusCoordinator from './status-coordinator.js';
 import createScanCompletionHandler from '../scan-completion-handler.js';
 import createScanningCoordinator from './scanning-coordinator.js';
 import createWorkerHandler from './worker-handler.js';
@@ -21,7 +20,6 @@ export default function createQueueOrchestrator() {
     documentProcessor: createQueueDocumentHandler(),
     checkpointManager: createQueueCheckpointHandler(),
     deltaProcessor: createQueueDeltaHandler(),
-    statusUpdater: createQueueStatusCoordinator(),
     scanningCoordinator: createScanningCoordinator(),
     workerHandler: createWorkerHandler(),
     config: null,
@@ -82,7 +80,6 @@ export default function createQueueOrchestrator() {
       processingStateManager,
     );
     await state.deltaProcessor.init(config, daApi);
-    await state.statusUpdater.init(state.scanCompletionHandler, processingStateManager);
     await state.scanningCoordinator.init(
       state.workerManager,
       state.sessionManager,
@@ -257,13 +254,19 @@ export default function createQueueOrchestrator() {
   async function updateStatus(type, data) {
     switch (type) {
       case 'scan':
-        await state.statusUpdater.updateScanProgress(data);
+        if (state.processingStateManager) {
+          await state.processingStateManager.updateScanProgress(data);
+        }
         break;
       case 'discovery':
-        await state.statusUpdater.updateDiscoveryProgress(data);
+        if (state.processingStateManager) {
+          await state.processingStateManager.updateDiscoveryProgress(data);
+        }
         break;
       case 'processing':
-        await state.statusUpdater.updateProcessingStatus(data.status, data);
+        if (state.processingStateManager) {
+          await state.processingStateManager.updateStatus(data.status, data);
+        }
         break;
       default:
         break;
