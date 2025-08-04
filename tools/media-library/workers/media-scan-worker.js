@@ -14,6 +14,7 @@ import {
   generateOccurrenceId,
   getContextualText,
 } from '../services/media-worker-utils.js';
+import { MEDIA_PROCESSING } from '../constants.js';
 
 const HTML_PATTERNS = {
   IMG_TAG: /<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi,
@@ -70,40 +71,22 @@ const state = {
 let config = null;
 let daApi = null;
 
-/**
- * Generate hash for occurrence ID
- */
-
-/**
- * Initialize worker with configuration
- */
 async function init(workerConfig) {
   config = workerConfig;
   daApi = createWorkerDaApi();
   await daApi.init(config);
-
   state.batchSize = config.batchSize || 10;
   state.processingInterval = config.processingInterval || 1000;
-
   return true;
 }
 
-/**
- * Validate if alt text is meaningful and not a URL or file path
- */
-
-/**
- * Start processing pages from queue
- */
 async function startQueueProcessing(sessionData = null) {
   state.isRunning = true;
-
   if (sessionData) {
     state.sessionId = sessionData.sessionId;
     state.userId = sessionData.userId;
     state.browserId = sessionData.browserId;
   }
-
   const intervalId = setInterval(async () => {
     if (state.isRunning) {
       await processNextBatch();
@@ -111,7 +94,6 @@ async function startQueueProcessing(sessionData = null) {
       clearInterval(intervalId);
     }
   }, state.processingInterval);
-
   postMessage({
     type: 'queueProcessingStarted',
     data: {
@@ -121,9 +103,6 @@ async function startQueueProcessing(sessionData = null) {
   });
 }
 
-/**
- * Process next batch of pages from queue
- */
 async function processNextBatch() {
   try {
     postMessage({
@@ -131,7 +110,6 @@ async function processNextBatch() {
       data: { batchSize: state.batchSize },
     });
   } catch (error) {
-    console.error('[Media Scan Worker] ❌ Error requesting batch:', error);
     postMessage({
       type: 'batchError',
       data: { error: error.message },
@@ -139,36 +117,23 @@ async function processNextBatch() {
   }
 }
 
-/**
- * Process a batch of pages concurrently
- */
 async function processBatch(pages) {
   if (!pages || pages.length === 0) {
     return;
   }
-
   const batchStartTime = Date.now();
-  const batchNumber = Math.floor(batchStartTime / 100) % 10000; // More unique batch number
-
+  const batchNumber = Math.floor(batchStartTime / 100) % 10000;
   state.isProcessing = true;
-
   try {
     const scanPromises = pages.map((page) => scanPageForMedia(page));
     await Promise.all(scanPromises);
-
     const batchDuration = Date.now() - batchStartTime;
-    const durationMs = batchDuration;
-
-    // Count total media items from all pages in this batch
     const totalMedia = pages.reduce((sum, page) => {
       if (page.media && Array.isArray(page.media)) {
         return sum + page.media.length;
       }
       return sum;
     }, 0);
-
-    console.log(`===== Batch ${batchNumber} completed: ${pages.length} pages, ${totalMedia} media items, took ${durationMs} ms ======`);
-
     postMessage({
       type: 'batchComplete',
       data: {
@@ -184,20 +149,13 @@ async function processBatch(pages) {
   }
 }
 
-/**
- * Scan a single page for media
- */
 async function scanPageForMedia(page) {
   const startTime = Date.now();
-
   try {
     const html = await getPageContent(page.path);
     const media = await extractMediaFromHTML(html, page.path);
     const scanTime = Date.now() - startTime;
-
-    // Attach media to page object for batch counting
     page.media = media;
-
     if (media.length > 0) {
       postMessage({
         type: 'mediaDiscovered',
@@ -208,7 +166,6 @@ async function scanPageForMedia(page) {
         },
       });
     }
-
     postMessage({
       type: 'pageScanned',
       data: {
@@ -226,18 +183,11 @@ async function scanPageForMedia(page) {
         },
       },
     });
-
     postMessage({
       type: 'markPageScanned',
       data: { path: page?.path || '' },
     });
   } catch (error) {
-    console.error('[Media Scan Worker] ❌ Page scan error:', {
-      page: page?.path || '',
-      error: error?.message || 'unknown error',
-      retryCount: page?.retryCount || 0,
-    });
-
     postMessage({
       type: 'pageScanError',
       data: {
@@ -256,9 +206,6 @@ async function scanPageForMedia(page) {
   }
 }
 
-/**
- * Get page content from DA API
- */
 async function getPageContent(path) {
   if (!daApi) {
     throw new Error('DA API service not initialized');
@@ -269,24 +216,24 @@ async function getPageContent(path) {
 
 async function extractMediaFromHTML(html, sourcePath) {
   const mediaMap = new Map();
-  await extractImgTags(html, mediaMap, sourcePath);
-  await extractPictureImages(html, mediaMap, sourcePath);
-  extractBackgroundImages(html, mediaMap, sourcePath);
-  extractVideoSources(html, mediaMap, sourcePath);
-  await extractMediaLinks(html, mediaMap, sourcePath);
-  extractCSSBackgrounds(html, mediaMap, sourcePath);
-
+  const processedSrcs = new Set();
+  await extractImgTags(html, mediaMap, sourcePath, processedSrcs);
+  await extractPictureImages(html, mediaMap, sourcePath, processedSrcs);
+  extractBackgroundImages(html, mediaMap, sourcePath, processedSrcs);
+  extractVideoSources(html, mediaMap, sourcePath, processedSrcs);
+  await extractMediaLinks(html, mediaMap, sourcePath, processedSrcs);
+  extractCSSBackgrounds(html, mediaMap, sourcePath, processedSrcs);
   const mediaArray = Array.from(mediaMap.values());
-
   return mediaArray;
 }
 
-async function extractImgTags(html, mediaMap, sourcePath) {
+async function extractImgTags(html, mediaMap, sourcePath, processedSrcs) {
   let occurrenceIndex = 0;
   const matches = Array.from(html.matchAll(HTML_PATTERNS.IMG_TAG));
   await Promise.all(matches.map(async (match) => {
     const src = match[1];
-    if (src && isValidMediaSrc(src)) {
+    if (src && isValidMediaSrc(src) && !processedSrcs.has(src)) {
+      processedSrcs.add(src);
       const imgTag = match[0];
       const altMatch = imgTag.match(ATTRIBUTE_PATTERNS.ALT);
       const titleMatch = imgTag.match(ATTRIBUTE_PATTERNS.TITLE);
@@ -295,7 +242,7 @@ async function extractImgTags(html, mediaMap, sourcePath) {
       const altText = altMatch ? altMatch[1] : '';
       const titleText = titleMatch ? titleMatch[1] : '';
       const hasAltText = isValidAltText(altText);
-      const occurrenceId = await generateOccurrenceId(sourcePath, src, occurrenceIndex);
+      const occurrenceId = await generateOccurrenceId(sourcePath, src, `${MEDIA_PROCESSING.IMG_CONTEXT_PREFIX}${occurrenceIndex}`);
       const isExternal = isExternalMedia(src, config.org, config.repo);
       const occurrence = {
         occurrenceId,
@@ -331,7 +278,7 @@ async function extractImgTags(html, mediaMap, sourcePath) {
   }));
 }
 
-async function extractPictureImages(html, mediaMap, sourcePath) {
+async function extractPictureImages(html, mediaMap, sourcePath, processedSrcs) {
   let occurrenceIndex = 0;
   const pictureMatches = Array.from(html.matchAll(HTML_PATTERNS.PICTURE_TAG));
   await Promise.all(pictureMatches.map(async (match) => {
@@ -339,48 +286,51 @@ async function extractPictureImages(html, mediaMap, sourcePath) {
     const imgMatch = pictureTag.match(/<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/i);
     if (imgMatch) {
       const src = imgMatch[1];
-      const altMatch = pictureTag.match(ATTRIBUTE_PATTERNS.ALT);
-      const titleMatch = pictureTag.match(ATTRIBUTE_PATTERNS.TITLE);
-      const altText = altMatch ? altMatch[1] : '';
-      const titleText = titleMatch ? titleMatch[1] : '';
-      const hasAltText = isValidAltText(altText);
-      const occurrenceId = await generateOccurrenceId(sourcePath, src, occurrenceIndex);
-      const isExternal = isExternalMedia(src, config.org, config.repo);
-      const occurrence = {
-        occurrenceId,
-        pagePath: sourcePath,
-        altText,
-        hasAltText,
-        occurrenceType: 'image',
-        contextualText: getContextualText(html, match.index),
-        context: 'picture',
-      };
-      if (mediaMap.has(src)) {
-        const existing = mediaMap.get(src);
-        existing.occurrences.push(occurrence);
-        existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
-      } else {
-        mediaMap.set(src, {
-          src,
-          alt: altText,
-          title: titleText,
-          type: determineMediaType(src),
-          usedIn: [sourcePath],
-          dimensions: {
-            width: null,
-            height: null,
-          },
+      if (src && isValidMediaSrc(src) && !processedSrcs.has(src)) {
+        processedSrcs.add(src);
+        const altMatch = pictureTag.match(ATTRIBUTE_PATTERNS.ALT);
+        const titleMatch = pictureTag.match(ATTRIBUTE_PATTERNS.TITLE);
+        const altText = altMatch ? altMatch[1] : '';
+        const titleText = titleMatch ? titleMatch[1] : '';
+        const hasAltText = isValidAltText(altText);
+        const occurrenceId = await generateOccurrenceId(sourcePath, src, `${MEDIA_PROCESSING.PICTURE_CONTEXT_PREFIX}${occurrenceIndex}`);
+        const isExternal = isExternalMedia(src, config.org, config.repo);
+        const occurrence = {
+          occurrenceId,
+          pagePath: sourcePath,
+          altText,
+          hasAltText,
+          occurrenceType: 'image',
+          contextualText: getContextualText(html, match.index),
           context: 'picture',
-          occurrences: [occurrence],
-          isExternal,
-        });
+        };
+        if (mediaMap.has(src)) {
+          const existing = mediaMap.get(src);
+          existing.occurrences.push(occurrence);
+          existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+        } else {
+          mediaMap.set(src, {
+            src,
+            alt: altText,
+            title: titleText,
+            type: determineMediaType(src),
+            usedIn: [sourcePath],
+            dimensions: {
+              width: null,
+              height: null,
+            },
+            context: 'picture',
+            occurrences: [occurrence],
+            isExternal,
+          });
+        }
+        occurrenceIndex += 1;
       }
-      occurrenceIndex += 1;
     }
   }));
 }
 
-function extractBackgroundImages(html, mediaMap, sourcePath) {
+function extractBackgroundImages(html, mediaMap, sourcePath, processedSrcs) {
   const styleMatches = [];
   let styleMatch;
   styleMatch = HTML_PATTERNS.STYLE_TAG.exec(html);
@@ -390,7 +340,7 @@ function extractBackgroundImages(html, mediaMap, sourcePath) {
   }
   styleMatches.forEach((match) => {
     const styleContent = match[1];
-    extractBgImagesFromStyle(styleContent, mediaMap, sourcePath);
+    extractBgImagesFromStyle(styleContent, mediaMap, sourcePath, processedSrcs);
   });
   const inlineMatches = [];
   let inlineMatch;
@@ -401,11 +351,11 @@ function extractBackgroundImages(html, mediaMap, sourcePath) {
   }
   inlineMatches.forEach((match) => {
     const inlineStyle = match[1];
-    extractBgImagesFromStyle(inlineStyle, mediaMap, sourcePath);
+    extractBgImagesFromStyle(inlineStyle, mediaMap, sourcePath, processedSrcs);
   });
 }
 
-function extractVideoSources(html, mediaMap, sourcePath) {
+function extractVideoSources(html, mediaMap, sourcePath, processedSrcs) {
   let videoMatch;
   let occurrenceIndex = 0;
   videoMatch = HTML_PATTERNS.VIDEO_TAG.exec(html);
@@ -415,11 +365,12 @@ function extractVideoSources(html, mediaMap, sourcePath) {
     sourceMatch = HTML_PATTERNS.SOURCE_TAG.exec(videoContent);
     while (sourceMatch !== null) {
       const src = sourceMatch[1];
-      if (src && isValidMediaSrc(src)) {
+      if (src && isValidMediaSrc(src) && !processedSrcs.has(src)) {
+        processedSrcs.add(src);
         const sourceTag = sourceMatch[0];
         const typeMatch = sourceTag.match(ATTRIBUTE_PATTERNS.TYPE);
         const mediaMatch = sourceTag.match(ATTRIBUTE_PATTERNS.MEDIA);
-        const occurrenceId = generateOccurrenceId(sourcePath, src, occurrenceIndex);
+        const occurrenceId = generateOccurrenceId(sourcePath, src, `${MEDIA_PROCESSING.VIDEO_CONTEXT_PREFIX}${occurrenceIndex}`);
         const occurrence = {
           occurrenceId,
           pagePath: sourcePath,
@@ -460,19 +411,20 @@ function extractVideoSources(html, mediaMap, sourcePath) {
   }
 }
 
-async function extractMediaLinks(html, mediaMap, sourcePath) {
+async function extractMediaLinks(html, mediaMap, sourcePath, processedSrcs) {
   let occurrenceIndex = 0;
   const matches = Array.from(html.matchAll(HTML_PATTERNS.LINK_TAG));
   await Promise.all(matches.map(async (match) => {
     const href = match[1];
-    if (href && isMediaFile(href)) {
+    if (href && isMediaFile(href) && !processedSrcs.has(href)) {
+      processedSrcs.add(href);
       const linkTag = match[0];
       const titleMatch = linkTag.match(ATTRIBUTE_PATTERNS.TITLE);
       const ariaLabelMatch = linkTag.match(ATTRIBUTE_PATTERNS.ARIA_LABEL);
       const titleText = titleMatch ? titleMatch[1] : '';
       const ariaLabelText = ariaLabelMatch ? ariaLabelMatch[1] : '';
       const hasAltText = isValidAltText(titleText) || isValidAltText(ariaLabelText);
-      const occurrenceId = await generateOccurrenceId(sourcePath, href, occurrenceIndex);
+      const occurrenceId = await generateOccurrenceId(sourcePath, href, `${MEDIA_PROCESSING.LINK_CONTEXT_PREFIX}${occurrenceIndex}`);
       const isExternal = isExternalMedia(href, config.org, config.repo);
       const occurrence = {
         occurrenceId,
@@ -509,7 +461,7 @@ async function extractMediaLinks(html, mediaMap, sourcePath) {
   }));
 }
 
-async function extractCSSBackgrounds(html, mediaMap, sourcePath) {
+async function extractCSSBackgrounds(html, mediaMap, sourcePath, processedSrcs) {
   let occurrenceIndex = 0;
   const styleMatches = Array.from(html.matchAll(CSS_PATTERNS.INLINE_STYLE));
   await Promise.all(styleMatches.map(async (match) => {
@@ -517,8 +469,9 @@ async function extractCSSBackgrounds(html, mediaMap, sourcePath) {
     const urlMatches = Array.from(styleContent.matchAll(CSS_PATTERNS.URL_FUNCTION));
     await Promise.all(urlMatches.map(async (urlMatch) => {
       const url = urlMatch[1];
-      if (url && isMediaFile(url)) {
-        const occurrenceId = generateOccurrenceId(sourcePath, url, occurrenceIndex);
+      if (url && isMediaFile(url) && !processedSrcs.has(url)) {
+        processedSrcs.add(url);
+        const occurrenceId = generateOccurrenceId(sourcePath, url, `${MEDIA_PROCESSING.CSS_BACKGROUND_CONTEXT_PREFIX}${occurrenceIndex}`);
         const occurrence = {
           occurrenceId,
           pagePath: sourcePath,
@@ -555,8 +508,9 @@ async function extractCSSBackgrounds(html, mediaMap, sourcePath) {
   const backgroundMatches = Array.from(html.matchAll(CSS_PATTERNS.BACKGROUND_IMAGE));
   await Promise.all(backgroundMatches.map(async (match) => {
     const url = match[1];
-    if (url && isMediaFile(url)) {
-      const occurrenceId = generateOccurrenceId(sourcePath, url, occurrenceIndex);
+    if (url && isMediaFile(url) && !processedSrcs.has(url)) {
+      processedSrcs.add(url);
+      const occurrenceId = generateOccurrenceId(sourcePath, url, `${MEDIA_PROCESSING.CSS_BACKGROUND_CONTEXT_PREFIX}${occurrenceIndex}`);
       const occurrence = {
         occurrenceId,
         pagePath: sourcePath,
@@ -591,14 +545,15 @@ async function extractCSSBackgrounds(html, mediaMap, sourcePath) {
   }));
 }
 
-function extractBgImagesFromStyle(style, mediaMap, sourcePath) {
+function extractBgImagesFromStyle(style, mediaMap, sourcePath, processedSrcs) {
   let bgMatch;
   let occurrenceIndex = 0;
   bgMatch = CSS_PATTERNS.BACKGROUND_IMAGE.exec(style);
   while (bgMatch !== null) {
     const url = bgMatch[1];
-    if (url && isMediaFile(url)) {
-      const occurrenceId = generateOccurrenceId(sourcePath, url, occurrenceIndex);
+    if (url && isMediaFile(url) && !processedSrcs.has(url)) {
+      processedSrcs.add(url);
+      const occurrenceId = generateOccurrenceId(sourcePath, url, `${MEDIA_PROCESSING.CSS_BACKGROUND_CONTEXT_PREFIX}${occurrenceIndex}`);
       const occurrence = {
         occurrenceId,
         pagePath: sourcePath,
@@ -662,14 +617,7 @@ function getContextualTextForLink(html, linkStartIndex, linkEndIndex, maxLength 
   return contextualText || 'No contextual text found';
 }
 
-/**
- * Discover documents in a folder
- * @param {string} folderPath - Path to the folder to discover
- * @param {string} discoveryType - Type of discovery to perform
- * @returns {Promise<void>}
- */
-async function discoverFolder(folderPath, discoveryType) {
-  // discoveryType parameter is intentionally unused in this implementation
+async function discoverFolder(folderPath) {
   try {
     const items = await daApi.listPath(folderPath);
     const documents = items
@@ -715,7 +663,6 @@ function stopQueueProcessing() {
 // eslint-disable-next-line no-restricted-globals
 self.addEventListener('message', async (event) => {
   const { type, data } = event.data;
-
   try {
     switch (type) {
       case 'init': {
@@ -723,22 +670,14 @@ self.addEventListener('message', async (event) => {
         postMessage({ type: 'initialized' });
         break;
       }
-
       case 'startQueueProcessing': {
         if (data?.documentsToScan && data.documentsToScan.length > 0) {
-          console.log(`===== Scanning Started: ${data.documentsToScan.length} documents ======`);
-
           const batchSize = data.batchSize || 10;
-          let totalProcessed = 0;
-
+          const batches = [];
           for (let i = 0; i < data.documentsToScan.length; i += batchSize) {
-            const batch = data.documentsToScan.slice(i, i + batchSize);
-            await processBatch(batch);
-            totalProcessed += batch.length;
+            batches.push(data.documentsToScan.slice(i, i + batchSize));
           }
-
-          console.log(`===== Scanning Completed: ${data.documentsToScan.length} documents processed ======`);
-
+          await Promise.all(batches.map(processBatch));
           postMessage({
             type: 'queueProcessingStopped',
             data: { reason: 'completed', processedCount: data.documentsToScan.length },
@@ -752,42 +691,35 @@ self.addEventListener('message', async (event) => {
         }
         break;
       }
-
       case 'stopQueueProcessing': {
         if (state.isRunning) {
           stopQueueProcessing();
         }
         break;
       }
-
       case 'processBatch': {
         await processBatch(data.pages);
         break;
       }
-
       case 'discoverFolder': {
-        await discoverFolder(data.folderPath, data.discoveryType);
+        await discoverFolder(data.folderPath);
         break;
       }
-
       case 'stopDiscovery': {
         stopQueueProcessing();
         break;
       }
-
       default: {
-        console.warn('[Media Scan Worker] ⚠️ Unknown message type:', type);
+        postMessage({
+          type: 'unknownMessage',
+          data: { type, data },
+        });
       }
     }
   } catch (error) {
-    console.error('[Media Scan Worker] ❌ Error handling message:', {
-      type,
-      error: error.message,
-      stack: error.stack,
-    });
     postMessage({
-      type: 'error',
-      data: { error: error.message, originalType: type },
+      type: 'workerError',
+      data: { error: error.message, timestamp: new Date().toISOString() },
     });
   }
 });

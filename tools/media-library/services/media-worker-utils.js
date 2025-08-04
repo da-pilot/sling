@@ -1,3 +1,5 @@
+import { MEDIA_PROCESSING } from '../constants.js';
+
 export function isValidAltText(altText) {
   if (!altText || typeof altText !== 'string') return false;
   const trimmed = altText.trim();
@@ -10,7 +12,7 @@ export function isValidAltText(altText) {
 }
 
 export function isProbablyUrl(str) {
-  return str && typeof str === 'string' && (str.startsWith('http') || str.startsWith('//'));
+  return str && typeof str === 'string' && (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('//'));
 }
 
 export function determineMediaType(url, options = {}) {
@@ -72,11 +74,9 @@ export function isExternalMedia(src, org = null, repo = null) {
   }
 }
 
-const UNTITLED_MEDIA = 'Untitled Media';
-
 export function extractFilenameFromUrl(url) {
   if (!url || typeof url !== 'string') {
-    return UNTITLED_MEDIA;
+    return MEDIA_PROCESSING.UNTITLED_MEDIA;
   }
   try {
     const cleanUrl = url.split('?')[0].split('#')[0];
@@ -87,18 +87,27 @@ export function extractFilenameFromUrl(url) {
     } else {
       pathname = cleanUrl;
     }
+    if (MEDIA_PROCESSING.GOOGLE_URLS.some((googleUrl) => url.includes(googleUrl))) {
+      return MEDIA_PROCESSING.GOOGLE_DOCS_IMAGE;
+    }
     const filename = pathname.split('/').pop();
     if (!filename) {
-      return UNTITLED_MEDIA;
+      return MEDIA_PROCESSING.UNTITLED_MEDIA;
+    }
+    if (MEDIA_PROCESSING.HASH_PATTERN.test(filename)) {
+      return MEDIA_PROCESSING.SLING_LOGO_DEFAULT;
     }
     const nameWithoutExtension = filename.split('.')[0];
-    const cleanName = nameWithoutExtension.replace(/[_-]/g, ' ');
-    if (cleanName.startsWith('media ')) {
-      return UNTITLED_MEDIA;
+    const cleanName = nameWithoutExtension.replace(
+      MEDIA_PROCESSING.UNDERSCORE_DASH_PATTERN,
+      MEDIA_PROCESSING.SPACE_REPLACEMENT,
+    );
+    if (cleanName.startsWith(MEDIA_PROCESSING.MEDIA_PREFIX)) {
+      return MEDIA_PROCESSING.UNTITLED_MEDIA;
     }
-    return cleanName || UNTITLED_MEDIA;
+    return cleanName || MEDIA_PROCESSING.UNTITLED_MEDIA;
   } catch (error) {
-    return UNTITLED_MEDIA;
+    return MEDIA_PROCESSING.UNTITLED_MEDIA;
   }
 }
 
@@ -119,9 +128,39 @@ export async function generateOccurrenceId(pagePath, src, index) {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function getContextualText(html, index, options = {}) {
-  const { beforeChars = 50, afterChars = 50 } = options;
-  const start = Math.max(0, index - beforeChars);
-  const end = Math.min(html.length, index + afterChars);
-  return html.substring(start, end).replace(/\s+/g, ' ').trim();
+export function getContextualText(html, index) {
+  const searchRadius = 800;
+  const start = Math.max(0, index - searchRadius);
+  const end = Math.min(html.length, index + searchRadius);
+  const nearbyHtml = html.substring(start, end);
+
+  const contentMatches = nearbyHtml.match(/>([^<]{30,})</g);
+  if (contentMatches && contentMatches.length > 0) {
+    const meaningfulMatches = contentMatches
+      .map((match) => match.replace(/^>/, '').replace(/<$/, ''))
+      .filter((text) => {
+        const cleanText = text
+          .replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT)
+          .trim();
+        return cleanText.length > 20
+          && !cleanText.includes('src=')
+          && !cleanText.includes('alt=')
+          && !cleanText.includes('media=')
+          && !cleanText.includes('http')
+          && !cleanText.includes('www');
+      });
+
+    if (meaningfulMatches.length > 0) {
+      const bestMatch = meaningfulMatches.reduce((longest, current) => (current.length > longest.length ? current : longest));
+      const cleanText = bestMatch
+        .replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT)
+        .trim();
+
+      if (cleanText.length > 10) {
+        return cleanText.substring(0, 120);
+      }
+    }
+  }
+
+  return MEDIA_PROCESSING.NO_CONTEXT_AVAILABLE;
 }

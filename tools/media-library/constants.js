@@ -350,6 +350,30 @@ export const ACCESSIBILITY_FEATURES = {
   TRANSCRIPTS: 'transcripts',
 };
 
+export const MEDIA_PROCESSING = {
+  UNTITLED_MEDIA: 'Untitled Media',
+  GOOGLE_DOCS_IMAGE: 'Google Docs Image',
+  SLING_LOGO_DEFAULT: 'SLING Television Logo',
+  NO_CONTEXT_AVAILABLE: 'No context available',
+  IMG_CONTEXT_PREFIX: 'img-',
+  PICTURE_CONTEXT_PREFIX: 'picture-',
+  VIDEO_CONTEXT_PREFIX: 'video-',
+  LINK_CONTEXT_PREFIX: 'link-',
+  CSS_BACKGROUND_CONTEXT_PREFIX: 'css-bg-',
+  HASH_PATTERN: /^[a-f0-9]{40,}$/i,
+  GOOGLE_URLS: ['googleusercontent.com', 'docs.google.com'],
+  HTML_TAG_PATTERN: /<[^>]*>/g,
+  HTML_ENTITY_PATTERN: /&[a-zA-Z0-9#]+;/g,
+  WHITESPACE_PATTERN: /\s+/g,
+  MEDIA_PREFIX: 'media ',
+  UNDERSCORE_DASH_PATTERN: /[_-]/g,
+  SPACE_REPLACEMENT: ' ',
+  CONTEXTUAL_TEXT_OPTIONS: {
+    beforeChars: 50,
+    afterChars: 50,
+  },
+};
+
 export default {
   CONTENT_DA_LIVE_BASE,
   DA_STORAGE,
@@ -394,4 +418,5 @@ export default {
   VALIDATION_RULES,
   AI_FEATURES,
   ACCESSIBILITY_FEATURES,
+  MEDIA_PROCESSING,
 };
