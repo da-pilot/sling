@@ -20,7 +20,7 @@ import createMediaProcessor from './modules/media-processor.js';
 // Internal modules
 import createMediaBrowser from './modules/media-browser.js';
 import createMediaInsertion from './modules/media-insert.js';
-import createQueueManager from './modules/queue-manager.js';
+import createQueueOrchestrator from './modules/queue/queue-orchestrator.js';
 import { initSelectiveRescan } from './modules/rescan.js';
 import initUIEvents from './modules/ui-events.js';
 import { initHierarchyBrowser } from './modules/hierarchy-browser.js';
@@ -69,7 +69,7 @@ let docAuthoringService = null;
 let metadataManager = null;
 let mediaBrowser = null;
 let mediaInsertion = null;
-let queueManager = null;
+let queueOrchestrator = null;
 let sessionManager = null;
 let processingStateManager = null;
 let persistenceManager = null;
@@ -450,10 +450,10 @@ function renderMedia(mediaToRender = media) {
  */
 async function initializeScanning() {
   if (useQueueBasedScanning) {
-    await initializeQueueManager();
+    await initializeQueueOrchestrator();
   }
 
-  if (queueManager?.getConfig) {
+  if (queueOrchestrator) {
     await initSelectiveRescan(
       docAuthoringService,
       sessionManager,
@@ -477,49 +477,52 @@ async function initializeScanning() {
 }
 
 /**
- * Initialize queue manager
+ * Initialize queue orchestrator
  */
-async function initializeQueueManager() {
+async function initializeQueueOrchestrator() {
   try {
-    queueManager = createQueueManager();
-    await queueManager.init(
+    queueOrchestrator = createQueueOrchestrator();
+    await queueOrchestrator.init(
+      docAuthoringService.getConfig(),
       docAuthoringService,
       sessionManager,
       processingStateManager,
       mediaProcessor,
-      persistenceManager,
+      null, // scanStateManager - will be initialized by orchestrator
+      null, // discoveryCoordinator - will be initialized by orchestrator
+      null, // scanCompletionHandler - will be initialized by orchestrator
     );
 
-    queueManager.on('scanningStopped', (data) => {
+    queueOrchestrator.on('scanningStopped', (data) => {
       console.log('[Media Library] 📡 Received scanningStopped event:', data);
       hideScanProgress();
     });
 
-    queueManager.on('scanningStarted', () => {
+    queueOrchestrator.on('scanningStarted', () => {
       resetPollingState();
       console.log('[Media Library] 📡 Received scanningStarted event');
     });
 
-    queueManager.on('batchProcessingStarted', () => {
+    queueOrchestrator.on('batchProcessingStarted', () => {
       updateLoadingText('Uploading media to media.json...');
     });
 
-    queueManager.on('batchUploaded', (data) => {
+    queueOrchestrator.on('batchUploaded', (data) => {
       const progress = Math.round((data.stats.processedBatches / data.stats.totalBatches) * 100);
       updateLoadingText(`Uploading media: ${progress}% (${data.stats.uploadedBatches}/${data.stats.totalBatches} batches)`);
     });
 
-    queueManager.on('batchProcessingComplete', () => {
+    queueOrchestrator.on('batchProcessingComplete', () => {
       updateLoadingText('Media upload completed');
       hideScanProgress();
     });
 
-    queueManager.on('batchProcessingFailed', () => {
+    queueOrchestrator.on('batchProcessingFailed', () => {
       updateLoadingText('Media upload failed');
       hideScanProgress();
     });
   } catch (error) {
-    console.error('[Media Library] ❌ Failed to initialize queue manager:', error);
+    console.error('[Media Library] ❌ Failed to initialize queue orchestrator:', error);
     throw error;
   }
 }
@@ -532,14 +535,14 @@ async function initializeQueueManager() {
  * Check current scan status
  */
 async function checkScanStatus() {
-  if (!useQueueBasedScanning || !queueManager) return;
+  if (!useQueueBasedScanning || !queueOrchestrator) return;
 
   try {
     const [isActive, persistentStats] = await Promise.all([
       /* eslint-disable-next-line no-use-before-define */
-      queueManager.isScanActive(),
+      queueOrchestrator.isScanActive(),
       /* eslint-disable-next-line no-use-before-define */
-      queueManager.getPersistentStats(),
+      queueOrchestrator.getPersistentStats(),
     ]);
 
     if (isActive && !persistentStats?.currentSession) {
@@ -593,14 +596,14 @@ async function startFullScan(forceRescan = false) {
     resetPollingState();
 
     if (sessionId) {
-      await queueManager.startQueueScanning(
+      await queueOrchestrator.startQueueScanning(
         forceRescan,
         sessionId,
         currentUserId,
         currentBrowserId,
       );
     } else {
-      await queueManager.startQueueScanning(forceRescan);
+      await queueOrchestrator.startQueueScanning(forceRescan);
     }
   } catch (error) {
     console.error('V2 full scan failed:', error);
