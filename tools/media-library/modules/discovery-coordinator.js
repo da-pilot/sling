@@ -145,8 +145,15 @@ export default function createDiscoveryCoordinator() {
     }
   }
 
-  async function startDiscoveryWithSession(sessionId, forceRescan) {
-    return state.discoveryManager.startDiscoveryWithSession(sessionId, forceRescan);
+  /**
+   * Start discovery with session
+   * @param {string} sessionId - Session ID
+   * @param {string} discoveryType - Discovery type ('full' or 'incremental')
+   * @returns {Promise<Object>} Discovery result
+   */
+  async function startDiscoveryWithSession(sessionId, discoveryType) {
+    console.log('[Discovery Coordinator] 🔍 Starting discovery with type:', discoveryType);
+    return state.discoveryManager.startDiscoveryWithSession(sessionId, discoveryType);
   }
 
   async function stopDiscovery() {
@@ -207,7 +214,12 @@ export default function createDiscoveryCoordinator() {
     const now = new Date().toISOString();
     const isCompleted = status === 'completed';
     const scanAttempts = (currentDoc.scanAttempts || 0) + 1;
-
+    let entryStatus = 'pending';
+    if (isCompleted) {
+      entryStatus = 'completed';
+    } else if (status === 'failed') {
+      entryStatus = 'failed';
+    }
     file.documents[documentIndex] = {
       ...currentDoc,
       scanStatus: status,
@@ -218,7 +230,7 @@ export default function createDiscoveryCoordinator() {
       scanErrors: error ? [error] : [],
       scanAttempts,
       needsRescan: !isCompleted,
-      entryStatus: isCompleted ? 'completed' : status === 'failed' ? 'failed' : 'pending',
+      entryStatus,
     };
 
     return true;

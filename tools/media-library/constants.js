@@ -88,6 +88,11 @@ export const PROCESSING_STATUS = {
   UPLOAD_FAILED: 'upload_failed',
 };
 
+export const DISCOVERY_TYPE = {
+  FULL: 'full',
+  INCREMENTAL: 'incremental',
+};
+
 export const SESSION_STATUS = {
   ACTIVE: 'active',
   PAUSED: 'paused',

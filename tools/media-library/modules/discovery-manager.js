@@ -29,10 +29,12 @@ function createDiscoveryManager() {
   /**
    * Start discovery with session
    * @param {string} sessionId - Session ID
-   * @param {boolean} forceRescan - Whether to force rescan
+   * @param {string} discoveryType - Discovery type ('full' or 'incremental')
+   * @returns {Promise<Object>} Discovery result
    */
-  async function startDiscoveryWithSession(sessionId, forceRescan = false) {
-    return engine.startDiscoveryWithSession(sessionId, forceRescan);
+  async function startDiscoveryWithSession(sessionId, discoveryType) {
+    console.log('[Discovery Manager] 🔍 Starting discovery with type:', discoveryType);
+    return engine.startDiscoveryWithSession(sessionId, discoveryType);
   }
 
   /**

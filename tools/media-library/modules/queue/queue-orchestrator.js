@@ -10,6 +10,7 @@ import createQueueDeltaHandler from './delta-handler.js';
 import createScanCompletionHandler from '../scan-completion-handler.js';
 import createScanningCoordinator from './scanning-coordinator.js';
 import createWorkerHandler from './worker-handler.js';
+import { DISCOVERY_TYPE, PROCESSING_STATUS } from '../../constants.js';
 
 export default function createQueueOrchestrator() {
   const eventEmitter = createEventEmitter('Queue Orchestrator');
@@ -118,6 +119,21 @@ export default function createQueueOrchestrator() {
   }
 
   /**
+   * Determine discovery type based on checkpoint status
+   * @returns {Promise<string>} Discovery type ('full' or 'incremental')
+   */
+  async function determineDiscoveryType() {
+    try {
+      const checkpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
+      return checkpoint.status === PROCESSING_STATUS.COMPLETED
+        ? DISCOVERY_TYPE.INCREMENTAL
+        : DISCOVERY_TYPE.FULL;
+    } catch (error) {
+      return DISCOVERY_TYPE.FULL;
+    }
+  }
+
+  /**
    * Start queue scanning process
    * @param {boolean} forceRescan - Whether to force rescan
    * @param {string} sessionId - Session ID
@@ -128,8 +144,10 @@ export default function createQueueOrchestrator() {
       state.batchProcessor.setCurrentSession(sessionId);
     }
     try {
+      const discoveryType = forceRescan ? DISCOVERY_TYPE.FULL : await determineDiscoveryType();
+      console.log('[Queue Orchestrator] 🔍 Discovery type determined:', discoveryType);
       if (forceRescan) {
-        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, forceRescan);
+        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, discoveryType);
         await startScanningPhase(null, forceRescan);
         try {
           await state.mediaProcessor.processAndUploadQueuedMedia();
@@ -139,8 +157,16 @@ export default function createQueueOrchestrator() {
         return { success: true };
       }
       const discoveryStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
+      console.log('[Queue Orchestrator] 📁 Discovery files check:', {
+        shouldRunDiscovery: discoveryStatus.shouldRunDiscovery,
+        filesExist: discoveryStatus.filesExist,
+        fileCount: discoveryStatus.fileCount,
+        discoveryType,
+      });
       if (discoveryStatus.shouldRunDiscovery) {
-        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, forceRescan);
+        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, discoveryType);
+      } else {
+        console.log('[Queue Orchestrator] ⏭️ Skipping discovery process - files already exist');
       }
       const scanningStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
       if (scanningStatus.filesExist) {

@@ -103,17 +103,28 @@ export default function createDiscoveryEngine() {
     await Promise.all(promises);
     await triggerDiscoveryComplete();
   }
-  async function startDiscoveryWithSession() {
+  /**
+   * Start discovery with session
+   * @param {string} sessionId - Session ID
+   * @param {string} discoveryType - Discovery type ('full' or 'incremental')
+   * @returns {Promise<void>}
+   */
+  async function startDiscoveryWithSession(sessionId, discoveryType) {
     try {
       state.discoveryStartTime = Date.now();
-      const checkpoint = await persistenceManager.loadDiscoveryCheckpoint();
-      state.discoveryType = checkpoint.discoveryType || 'full';
+      state.discoveryType = discoveryType;
+      console.log('[Discovery Engine] 🔍 Starting discovery process:', {
+        discoveryType,
+        sessionId,
+      });
       await resetDiscoveryState();
       const { folders, files } = await documentScanner.getTopLevelItems();
       const totalWork = folders.length + (files.length > 0 ? 1 : 0);
-
-      console.log(`===== Discovery Started: ${totalWork} folders, ${files.length} files ======`);
-
+      console.log('[Discovery Engine] 📁 Discovery targets:', {
+        folders: folders.length,
+        files: files.length,
+        totalWork,
+      });
       state.isRunning = true;
       statsTracker.setTotalFolders(totalWork);
       if (files.length > 0) {
