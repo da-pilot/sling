@@ -124,49 +124,35 @@ export default function createQueueOrchestrator() {
    * @returns {Promise<Object>} Scanning result
    */
   async function startQueueScanning(forceRescan = false, sessionId = null) {
-    console.log('[Queue Orchestrator] 🚀 Starting queue scanning process:', {
-      forceRescan,
-      sessionId,
-      timestamp: new Date().toISOString(),
-    });
-
     if (sessionId && state.batchProcessor) {
       state.batchProcessor.setCurrentSession(sessionId);
     }
-
     try {
-      const discoveryStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
-      console.log('[Queue Orchestrator] 📋 Discovery status check:', discoveryStatus);
-
-      if (discoveryStatus.shouldRunDiscovery) {
-        console.log('===== Starting Discovery Process ======');
+      if (forceRescan) {
         await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, forceRescan);
-        console.log('===== Discovery Process Completed ======');
-      } else {
-        console.log('===== Discovery files exist, skipping discovery ======');
-      }
-
-      const scanningStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
-      if (scanningStatus.filesExist) {
-        console.log('===== Starting Scanning Phase ======');
         await startScanningPhase(null, forceRescan);
-        console.log('===== Scanning Phase Completed ======');
-
-        console.log('===== Processing and uploading queued media ======');
         try {
           await state.mediaProcessor.processAndUploadQueuedMedia();
-          console.log('===== Queued media processed and uploaded successfully ======');
         } catch (uploadError) {
-          console.error('[Queue Orchestrator] ❌ Error processing queued media:', uploadError);
+          return { success: false, error: uploadError.message };
         }
-      } else {
-        console.log('===== No discovery files found, skipping scanning ======');
+        return { success: true };
       }
-
-      console.log('===== Queue scanning process completed successfully ======');
+      const discoveryStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
+      if (discoveryStatus.shouldRunDiscovery) {
+        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, forceRescan);
+      }
+      const scanningStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
+      if (scanningStatus.filesExist) {
+        await startScanningPhase(null, forceRescan);
+        try {
+          await state.mediaProcessor.processAndUploadQueuedMedia();
+        } catch (uploadError) {
+          return { success: false, error: uploadError.message };
+        }
+      }
       return { success: true };
     } catch (error) {
-      console.error('[Queue Orchestrator] ❌ Queue scanning process failed:', error);
       return { success: false, error: error.message };
     }
   }

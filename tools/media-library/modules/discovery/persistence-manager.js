@@ -28,15 +28,26 @@ export default function createDiscoveryPersistenceManager() {
   }
 
   /**
-   * Load discovery checkpoint
+   * Load discovery checkpoint and determine discovery type
    * @param {boolean} forceRescan - Whether to force rescan
-   * @returns {Object} Checkpoint data and discovery type
+   * @returns {Promise<Object>} Discovery type and checkpoint data
    */
   async function loadDiscoveryCheckpoint(forceRescan = false) {
     try {
+      if (forceRescan) {
+        return {
+          discoveryType: 'full',
+          checkpoint: {
+            totalFolders: 0,
+            completedFolders: 0,
+            totalDocuments: 0,
+            status: 'idle',
+          },
+        };
+      }
       const checkpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
       let discoveryType = 'full';
-      if (!forceRescan && checkpoint.status === 'completed') {
+      if (checkpoint.status === 'completed') {
         discoveryType = 'incremental';
       }
       return {
