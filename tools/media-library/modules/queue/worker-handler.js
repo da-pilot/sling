@@ -33,6 +33,7 @@ export default function createWorkerHandler() {
     mediaProcessor,
     sessionManager,
     processingStateManager,
+    persistenceManager,
   ) {
     state.workerManager = workerManager;
     state.discoveryCoordinator = discoveryCoordinator;
@@ -40,6 +41,7 @@ export default function createWorkerHandler() {
     state.mediaProcessor = mediaProcessor;
     state.sessionManager = sessionManager;
     state.processingStateManager = processingStateManager;
+    state.persistenceManager = persistenceManager;
     state.scanCompletionHandler = createScanCompletionHandler();
     await state.scanCompletionHandler.init(
       discoveryCoordinator.getConfig(),
@@ -161,6 +163,11 @@ export default function createWorkerHandler() {
       onPageScanned: async (data) => {
         eventEmitter.emit('pageScanned', data);
         if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
+          // Clean up existing media for this updated document first
+          if (state.mediaProcessor) {
+            await state.mediaProcessor.cleanupMediaForUpdatedDocuments([data.page]);
+          }
+          
           const updateData = {
             fileName: data.sourceFile,
             pagePath: data.page,
@@ -175,6 +182,17 @@ export default function createWorkerHandler() {
             updateData.mediaCount,
             updateData.error,
           );
+          
+          // Save to IndexedDB for sync process
+          if (state.persistenceManager) {
+            await state.persistenceManager.savePageScanStatus({
+              pagePath: data.page,
+              sourceFile: data.sourceFile,
+              status: 'completed',
+              mediaCount: data?.mediaCount || 0,
+              sessionId: state.sessionManager?.getCurrentSession()?.sessionId,
+            });
+          }
         }
       },
       onBatchComplete: async (data) => {

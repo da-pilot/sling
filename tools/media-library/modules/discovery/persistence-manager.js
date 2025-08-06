@@ -242,29 +242,20 @@ export default function createDiscoveryPersistenceManager() {
       const storageDir = DA_PATHS.getStorageDir(state.apiConfig.org, state.apiConfig.repo);
       const pagesDir = `${storageDir}/${DA_STORAGE.PAGES_DIR.split('/').pop()}`;
       const listUrl = `${ADMIN_DA_LIVE_BASE}${API_ENDPOINTS.LIST}${pagesDir}`;
-      console.log('[Persistence Manager] 🔍 [DEBUG] Loading discovery files...');
-      console.log('[Persistence Manager] 🔍 [DEBUG] Storage dir:', storageDir);
-      console.log('[Persistence Manager] 🔍 [DEBUG] Pages dir:', pagesDir);
-      console.log('[Persistence Manager] 🔍 [DEBUG] List URL:', listUrl);
       const response = await fetch(listUrl, {
         headers: { Authorization: `Bearer ${state.apiConfig.token}` },
       });
-      console.log('[Persistence Manager] 🔍 [DEBUG] Response status:', response.status);
       if (!response.ok) {
         console.error('[Persistence Manager] 🔍 [DEBUG] Response not ok:', response.statusText);
         throw new Error(`Failed to list files: ${response.status} ${response.statusText}`);
       }
       const items = await response.json();
-      console.log('[Persistence Manager] 🔍 [DEBUG] Raw items:', items);
       const discoveryFiles = items.filter((item) => item.name && (item.name.endsWith('.json') || item.ext === 'json'));
-      console.log('[Persistence Manager] 🔍 [DEBUG] Discovery files found:', discoveryFiles.length);
-      console.log('[Persistence Manager] 🔍 [DEBUG] Discovery file names:', discoveryFiles.map((f) => f.name));
       const fileContents = await Promise.all(
         discoveryFiles.map(async (file) => {
           try {
             const fileName = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
             const fileUrl = `${CONTENT_DA_LIVE_BASE}${pagesDir}/${fileName}`;
-            console.log('[Persistence Manager] 🔍 [DEBUG] Loading file:', fileUrl);
             const data = await loadData(fileUrl, state.apiConfig.token);
             return {
               name: file.name,
@@ -282,7 +273,6 @@ export default function createDiscoveryPersistenceManager() {
           }
         }),
       );
-      console.log('[Persistence Manager] 🔍 [DEBUG] Final file contents:', fileContents.map((f) => ({ name: f.name, count: f.documentCount })));
       return fileContents;
     } catch (error) {
       console.error('[Persistence Manager] ❌ Failed to load discovery files:', error);

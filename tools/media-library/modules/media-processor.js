@@ -810,6 +810,140 @@ export default function createMediaProcessor() {
     }
   }
 
+  /**
+   * Clean up media entries for deleted documents
+   * @param {Array} deletedDocumentPaths - Array of deleted document paths
+   * @returns {Promise<void>}
+   */
+  async function cleanupMediaForDeletedDocuments(deletedDocumentPaths) {
+    if (!state.isInitialized) {
+      throw new Error('Media processor not initialized');
+    }
+    if (!deletedDocumentPaths || deletedDocumentPaths.length === 0) {
+      return;
+    }
+    console.log('[Media Processor] 🔍 [CLEANUP] Starting cleanup for deleted documents:', {
+      deletedCount: deletedDocumentPaths.length,
+      deletedPaths: deletedDocumentPaths,
+    });
+    const mediaData = await getMediaData();
+    if (!Array.isArray(mediaData) || mediaData.length === 0) {
+      console.log('[Media Processor] 🔍 [CLEANUP] No media data found');
+      return;
+    }
+    let cleanedEntries = 0;
+    let removedPaths = 0;
+    const updatedMedia = mediaData.filter((mediaEntry) => {
+      if (!mediaEntry.usedIn || !mediaEntry.occurrences) {
+        return true;
+      }
+      const usedInPaths = mediaEntry.usedIn.split(',').map((path) => path.trim());
+      const deletedPathsInEntry = usedInPaths.filter((path) => deletedDocumentPaths.includes(path));
+      if (deletedPathsInEntry.length === 0) {
+        return true;
+      }
+      if (deletedPathsInEntry.length === usedInPaths.length) {
+        console.log('[Media Processor] 🔍 [CLEANUP] Removing entire media entry:', {
+          mediaId: mediaEntry.id,
+          usedIn: usedInPaths,
+        });
+        cleanedEntries += 1;
+        return false;
+      }
+      const remainingPaths = usedInPaths.filter((path) => !deletedDocumentPaths.includes(path));
+      const remainingOccurrences = mediaEntry.occurrences.filter((occurrence) => 
+        !deletedDocumentPaths.includes(occurrence.pagePath));
+      mediaEntry.usedIn = remainingPaths.join(',');
+      mediaEntry.occurrences = remainingOccurrences;
+      console.log('[Media Processor] 🔍 [CLEANUP] Updated media entry:', {
+        mediaId: mediaEntry.id,
+        removedPaths: deletedPathsInEntry,
+        remainingPaths,
+      });
+      removedPaths += deletedPathsInEntry.length;
+      return true;
+    });
+    if (cleanedEntries > 0 || removedPaths > 0) {
+      await state.metadataManager.saveMetadata(updatedMedia);
+      state.mediaDataCache = updatedMedia;
+      state.mediaDataCacheTimestamp = Date.now();
+      console.log('[Media Processor] 🔍 [CLEANUP] Cleanup completed:', {
+        cleanedEntries,
+        removedPaths,
+        remainingEntries: updatedMedia.length,
+      });
+    } else {
+      console.log('[Media Processor] 🔍 [CLEANUP] No cleanup needed');
+    }
+  }
+
+  /**
+   * Clean up media entries for updated documents and prepare for new media
+   * @param {Array} updatedDocumentPaths - Array of updated document paths
+   * @returns {Promise<void>}
+   */
+  async function cleanupMediaForUpdatedDocuments(updatedDocumentPaths) {
+    if (!state.isInitialized) {
+      throw new Error('Media processor not initialized');
+    }
+    if (!updatedDocumentPaths || updatedDocumentPaths.length === 0) {
+      return;
+    }
+    console.log('[Media Processor] 🔍 [UPDATE] Starting cleanup for updated documents:', {
+      updatedCount: updatedDocumentPaths.length,
+      updatedPaths: updatedDocumentPaths,
+    });
+    const mediaData = await getMediaData();
+    if (!Array.isArray(mediaData) || mediaData.length === 0) {
+      console.log('[Media Processor] 🔍 [UPDATE] No media data found');
+      return;
+    }
+    let cleanedEntries = 0;
+    let removedPaths = 0;
+    const updatedMedia = mediaData.filter((mediaEntry) => {
+      if (!mediaEntry.usedIn || !mediaEntry.occurrences) {
+        return true;
+      }
+      const usedInPaths = mediaEntry.usedIn.split(',').map((path) => path.trim());
+      const updatedPathsInEntry = usedInPaths.filter((path) => updatedDocumentPaths.includes(path));
+      if (updatedPathsInEntry.length === 0) {
+        return true;
+      }
+      if (updatedPathsInEntry.length === usedInPaths.length) {
+        console.log('[Media Processor] 🔍 [UPDATE] Removing entire media entry (only used in updated docs):', {
+          mediaId: mediaEntry.id,
+          usedIn: usedInPaths,
+        });
+        cleanedEntries += 1;
+        return false;
+      }
+      const remainingPaths = usedInPaths.filter((path) => !updatedDocumentPaths.includes(path));
+      const remainingOccurrences = mediaEntry.occurrences.filter((occurrence) =>
+        !updatedDocumentPaths.includes(occurrence.pagePath));
+      mediaEntry.usedIn = remainingPaths.join(',');
+      mediaEntry.occurrences = remainingOccurrences;
+      console.log('[Media Processor] 🔍 [UPDATE] Updated media entry:', {
+        mediaId: mediaEntry.id,
+        removedPaths: updatedPathsInEntry,
+        remainingPaths,
+      });
+      removedPaths += updatedPathsInEntry.length;
+      return true;
+    });
+    if (cleanedEntries > 0 || removedPaths > 0) {
+      await state.metadataManager.saveMetadata(updatedMedia);
+      state.mediaDataCache = updatedMedia;
+      state.mediaDataCacheTimestamp = Date.now();
+      console.log('[Media Processor] 🔍 [UPDATE] Cleanup completed:', {
+        cleanedEntries,
+        removedPaths,
+        remainingEntries: updatedMedia.length,
+      });
+    } else {
+      console.log('[Media Processor] 🔍 [UPDATE] No cleanup needed');
+    }
+  }
+
   return {
     init,
     processMediaFromHTML,
@@ -829,5 +963,7 @@ export default function createMediaProcessor() {
     off,
     emit,
     mergeMediaWithDeduplication,
+    cleanupMediaForDeletedDocuments,
+    cleanupMediaForUpdatedDocuments,
   };
 }

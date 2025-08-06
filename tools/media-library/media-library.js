@@ -547,6 +547,7 @@ async function initializeQueueOrchestrator() {
       null, // scanStateManager - will be initialized by orchestrator
       null, // discoveryCoordinator - will be initialized by orchestrator
       null, // scanCompletionHandler - will be initialized by orchestrator
+      persistenceManager,
     );
 
     queueOrchestrator.on('scanningStopped', (data) => {
@@ -698,7 +699,6 @@ async function checkScanAndStartPolling() {
       lastMediaCount = currentMediaCount;
       lastMediaUpdateTime = currentTime;
       consecutiveUnchangedCount = 0;
-      console.log('[Media Library] Media count updated:', currentMediaCount);
 
       // Reset spinner timeout on activity
       if (spinnerTimeoutId) {
@@ -715,7 +715,6 @@ async function checkScanAndStartPolling() {
       }
     } else {
       consecutiveUnchangedCount += 1;
-      console.log('[Media Library] No media count change detected, skipping UI refresh');
 
       // Stop polling if count hasn't changed for multiple consecutive checks
       if (consecutiveUnchangedCount >= MAX_UNCHANGED_COUNT) {

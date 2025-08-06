@@ -127,13 +127,78 @@ export default function createDocumentScanner() {
   }
 
   /**
+   * Process documents with incremental logic
+   * @param {Array} documents - Documents to process
+   * @param {string} folderName - Folder name
+   * @param {Array} existingDocuments - Existing documents from DA
+   * @returns {Promise<Array>} Documents that need scanning
+   */
+  async function processDocumentsIncremental(documents, folderName, existingDocuments) {
+    const existingDocs = new Map();
+    existingDocuments.forEach((doc) => {
+      existingDocs.set(doc.path, doc);
+    });
+    const documentsToSave = [];
+    const documentsToScan = [];
+    documents.forEach((doc) => {
+      const existingDoc = existingDocs.get(doc.path);
+      const isNew = !existingDoc;
+      const isModified = existingDoc && doc.lastModified !== existingDoc.lastModified;
+      if (isNew || isModified) {
+        const documentToSave = {
+          ...doc,
+          discoveredAt: new Date().toISOString(),
+          discoveryComplete: true,
+          scanComplete: false,
+          needsRescan: true,
+          lastScanned: '',
+          mediaCount: 0,
+          scanStatus: 'pending',
+          lastScannedAt: '',
+          scanAttempts: 0,
+          scanErrors: [],
+          entryStatus: isNew ? 'new' : 'updated',
+        };
+        documentsToSave.push(documentToSave);
+        documentsToScan.push(documentToSave);
+      } else {
+        const documentToSave = {
+          name: existingDoc.name,
+          ext: existingDoc.ext,
+          path: existingDoc.path,
+          lastModified: existingDoc.lastModified,
+          discoveredAt: existingDoc.discoveredAt,
+          discoveryComplete: existingDoc.discoveryComplete,
+          scanComplete: existingDoc.scanComplete,
+          needsRescan: existingDoc.needsRescan,
+          lastScanned: existingDoc.lastScanned,
+          mediaCount: existingDoc.mediaCount,
+          scanStatus: existingDoc.scanStatus,
+          lastScannedAt: existingDoc.lastScannedAt,
+          scanAttempts: existingDoc.scanAttempts,
+          scanErrors: existingDoc.scanErrors,
+          entryStatus: 'unchanged',
+        };
+        documentsToSave.push(documentToSave);
+      }
+    });
+    if (documentsToSave.length > 0) {
+      const fileName = `${folderName}.json`;
+      const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
+      const url = `${state.apiConfig.baseUrl}/source${filePath}`;
+      await saveData(url, documentsToSave, state.apiConfig.token);
+    }
+    return documentsToScan;
+  }
+
+  /**
    * Process a single folder using worker
    * @param {Object} folder - Folder to process
    * @param {string} discoveryType - Type of discovery
    * @param {Object} workerManager - Worker manager instance
    * @param {Object} progressTracker - Progress tracker instance
    * @param {Object} eventEmitter - Event emitter instance
-   * @param {Object} checkpointManager - Checkpoint manager instance
+   * @param {Array} existingDocuments - Existing documents for incremental processing
    * @returns {Promise} Promise that resolves when folder processing is complete
    */
   async function processFolder(
@@ -142,6 +207,7 @@ export default function createDocumentScanner() {
     workerManager,
     progressTracker,
     eventEmitter,
+    incrementalChanges = null,
   ) {
     return new Promise((resolve, reject) => {
       const workerId = `worker_${folder.path.replace(/[/\\]/g, '_')}_${Date.now()}`;
@@ -168,26 +234,44 @@ export default function createDocumentScanner() {
 
               if (data.documents && data.documents.length > 0) {
                 const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop() || 'root';
-                const fileName = `${folderName}.json`;
-                const documentsToSave = data.documents.map((doc) => ({
-                  ...doc,
-                  scanStatus: 'pending',
-                  scanComplete: false,
-                  needsRescan: false,
-                  lastScannedAt: null,
-                  scanAttempts: 0,
-                  scanErrors: [],
-                  mediaCount: 0,
-                }));
 
-                const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
-                const url = `${state.apiConfig.baseUrl}/source${filePath}`;
-                await saveData(url, documentsToSave, state.apiConfig.token);
+                if (discoveryType === 'incremental' && incrementalChanges) {
+                  const existingFolderDocs = incrementalChanges.existingFiles.find(
+                    (file) => file.name === folderName,
+                  )?.data || [];
+                  const isNewFolder = !existingFolderDocs || existingFolderDocs.length === 0;
 
-                eventEmitter.emitDocumentsDiscovered({
-                  documents: documentsToSave,
-                  folder: folder.path,
-                });
+                  if (isNewFolder) {
+                    await processDocumentsIncremental(data.documents, folderName, []);
+                  } else {
+                    await processDocumentsIncremental(
+                      data.documents,
+                      folderName,
+                      existingFolderDocs,
+                    );
+                  }
+                } else {
+                  const fileName = `${folderName}.json`;
+                  const documentsToSave = data.documents.map((doc) => ({
+                    ...doc,
+                    scanStatus: 'pending',
+                    scanComplete: false,
+                    needsRescan: false,
+                    lastScannedAt: null,
+                    scanAttempts: 0,
+                    scanErrors: [],
+                    mediaCount: 0,
+                  }));
+
+                  const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
+                  const url = `${state.apiConfig.baseUrl}/source${filePath}`;
+                  await saveData(url, documentsToSave, state.apiConfig.token);
+
+                  eventEmitter.emitDocumentsDiscovered({
+                    documents: documentsToSave,
+                    folder: folder.path,
+                  });
+                }
               }
 
               workerManager.cleanup(workerId);
@@ -220,8 +304,8 @@ export default function createDocumentScanner() {
   }
 
   /**
-   * Get top-level items (folders and files)
-   * @returns {Object} Object containing folders and files arrays
+   * Get top level items
+   * @returns {Promise<Object>} Top level items
    */
   async function getTopLevelItems() {
     try {
@@ -263,5 +347,6 @@ export default function createDocumentScanner() {
     processFolder,
     getTopLevelItems,
     matchesExcludePatterns,
+    processDocumentsIncremental,
   };
 }

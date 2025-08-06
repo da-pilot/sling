@@ -150,12 +150,13 @@ function createDocAuthoringService() {
     }
 
     const items = Array.isArray(data) ? data : data.items || [];
-    return items.map((item) => ({
+    const mappedItems = items.map((item) => ({
       name: item.name,
       path: item.path,
       ext: item.ext,
       lastModified: item.lastModified,
     }));
+    return mappedItems;
   }
 
   async function getSource(path, ext = 'html') {

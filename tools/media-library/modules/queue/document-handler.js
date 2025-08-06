@@ -52,6 +52,12 @@ export default function createQueueDocumentProcessor() {
 
       file.documents.forEach((doc) => {
         totalDocuments += 1;
+        
+        if (doc.entryStatus === 'deleted') {
+          console.log('[Document Handler] ⏭️ Skipping deleted document:', doc.path);
+          return;
+        }
+        
         const hasScanStatus = Object.prototype.hasOwnProperty.call(doc, 'scanStatus');
         const hasScanComplete = Object.prototype.hasOwnProperty.call(doc, 'scanComplete');
         let needsScan = false;
@@ -180,6 +186,56 @@ export default function createQueueDocumentProcessor() {
   }
 
   /**
+   * Detect document-level changes for incremental discovery
+   * @param {Array} existingDiscoveryFiles - Existing discovery files from DA
+   * @param {Array} currentDiscoveryFiles - Current discovery files from file system
+   * @returns {Object} Change detection results
+   */
+  async function detectIncrementalDocumentChanges(existingDiscoveryFiles, currentDiscoveryFiles) {
+    console.log('[Document Handler] 🔍 [INCREMENTAL] Detecting document-level changes...');
+    const changes = {
+      newDocuments: [],
+      modifiedDocuments: [],
+      deletedDocuments: [],
+      unchangedDocuments: [],
+    };
+    const existingDocs = new Map();
+    const currentDocs = new Map();
+    existingDiscoveryFiles.forEach((file) => {
+      file.data.forEach((doc) => {
+        existingDocs.set(doc.path, { ...doc, sourceFile: file.name });
+      });
+    });
+    currentDiscoveryFiles.forEach((file) => {
+      file.documents.forEach((doc) => {
+        currentDocs.set(doc.path, { ...doc, sourceFile: file.fileName });
+      });
+    });
+    currentDocs.forEach((currentDoc, path) => {
+      const existingDoc = existingDocs.get(path);
+      if (!existingDoc) {
+        changes.newDocuments.push(currentDoc);
+      } else if (currentDoc.lastModified !== existingDoc.lastModified) {
+        changes.modifiedDocuments.push({ current: currentDoc, existing: existingDoc });
+      } else {
+        changes.unchangedDocuments.push(currentDoc);
+      }
+    });
+    existingDocs.forEach((existingDoc, path) => {
+      if (!currentDocs.has(path)) {
+        changes.deletedDocuments.push(existingDoc);
+      }
+    });
+    console.log('[Document Handler] 🔍 [INCREMENTAL] Document change detection:', {
+      newDocuments: changes.newDocuments.length,
+      modifiedDocuments: changes.modifiedDocuments.length,
+      deletedDocuments: changes.deletedDocuments.length,
+      unchangedDocuments: changes.unchangedDocuments.length,
+    });
+    return changes;
+  }
+
+  /**
    * Add documents for scanning
    * @param {Object} discoveryFile - Discovery file
    * @param {Array} documents - Documents to add
@@ -241,6 +297,7 @@ export default function createQueueDocumentProcessor() {
     init,
     getDocumentsToScan,
     detectChangedDocuments,
+    detectIncrementalDocumentChanges,
     addDocumentsForScanning,
     on,
     off,

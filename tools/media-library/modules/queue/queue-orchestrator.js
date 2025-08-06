@@ -51,6 +51,7 @@ export default function createQueueOrchestrator() {
     scanStateManager,
     discoveryCoordinator,
     scanCompletionHandler,
+    persistenceManager,
   ) {
     state.config = config;
     state.daApi = daApi;
@@ -58,12 +59,14 @@ export default function createQueueOrchestrator() {
     state.processingStateManager = processingStateManager;
     state.mediaProcessor = mediaProcessor;
     state.scanStateManager = scanStateManager;
+    state.persistenceManager = persistenceManager;
     if (!discoveryCoordinator) {
       state.discoveryCoordinator = createDiscoveryCoordinator();
       await state.discoveryCoordinator.init(config, daApi, sessionManager, processingStateManager);
     } else {
       state.discoveryCoordinator = discoveryCoordinator;
     }
+    state.discoveryCoordinator.setMediaProcessor(mediaProcessor);
     if (!scanCompletionHandler) {
       state.scanCompletionHandler = createScanCompletionHandler();
       await state.scanCompletionHandler.init(config, daApi, processingStateManager);
@@ -88,8 +91,28 @@ export default function createQueueOrchestrator() {
       state.mediaProcessor,
       state.sessionManager,
       state.processingStateManager,
+      state.persistenceManager,
     );
     await state.workerHandler.setupWorkerHandlers();
+    state.discoveryCoordinator.setupDiscoveryHandlers({
+      discoveryComplete: async () => {
+        console.log('[Queue Orchestrator] 📡 Discovery complete event received, populating cache');
+        try {
+          const freshDiscoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
+          state.discoveryCoordinator.setDiscoveryFilesCache(freshDiscoveryFiles);
+          const totalDocuments = freshDiscoveryFiles.reduce(
+            (sum, file) => sum + (file.documents?.length || 0),
+            0,
+          );
+          console.log('[Queue Orchestrator] ✅ Discovery cache populated with fresh data:', {
+            fileCount: freshDiscoveryFiles.length,
+            totalDocuments,
+          });
+        } catch (error) {
+          console.error('[Queue Orchestrator] ❌ Failed to populate discovery cache:', error);
+        }
+      },
+    });
   }
 
   /**
@@ -98,14 +121,23 @@ export default function createQueueOrchestrator() {
    * @param {boolean} forceRescan - Whether to force rescan
    * @returns {Promise<Object>} Scanning result
    */
-  async function startScanningPhase(discoveryFile = null, forceRescan = false) {
+  async function startScanningPhase(
+    discoveryFile = null,
+    forceRescan = false,
+    incrementalChanges = null,
+  ) {
     console.log('[Queue Orchestrator] 🔍 Starting scanning phase:', {
       hasDiscoveryFile: !!discoveryFile,
       forceRescan,
+      hasIncrementalChanges: !!incrementalChanges,
     });
 
     try {
-      const result = await state.scanningCoordinator.startScanningPhase(discoveryFile, forceRescan);
+      const result = await state.scanningCoordinator.startScanningPhase(
+        discoveryFile,
+        forceRescan,
+        incrementalChanges,
+      );
       console.log('[Queue Orchestrator] ✅ Scanning phase completed:', {
         success: result.success,
         documentsScanned: result.documentsScanned || 0,
@@ -125,9 +157,19 @@ export default function createQueueOrchestrator() {
   async function determineDiscoveryType() {
     try {
       const checkpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
-      return checkpoint.status === PROCESSING_STATUS.COMPLETED
+
+      // Check if discovery files exist - if they do, use incremental
+      const discoveryStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
+
+      // If discovery files exist, use incremental discovery
+      if (discoveryStatus.filesExist && discoveryStatus.fileCount > 0) {
+        return DISCOVERY_TYPE.INCREMENTAL;
+      }
+
+      const discoveryType = checkpoint.status === PROCESSING_STATUS.COMPLETED
         ? DISCOVERY_TYPE.INCREMENTAL
         : DISCOVERY_TYPE.FULL;
+      return discoveryType;
     } catch (error) {
       return DISCOVERY_TYPE.FULL;
     }
@@ -151,6 +193,11 @@ export default function createQueueOrchestrator() {
         await startScanningPhase(null, forceRescan);
         try {
           await state.mediaProcessor.processAndUploadQueuedMedia();
+          await state.scanCompletionHandler.syncDiscoveryFilesCacheWithIndexedDB(
+            state.discoveryCoordinator,
+          );
+          await state.scanCompletionHandler.updateAllDiscoveryFiles();
+          await state.scanCompletionHandler.updateSiteStructureWithMediaCounts();
         } catch (uploadError) {
           return { success: false, error: uploadError.message };
         }
@@ -165,19 +212,49 @@ export default function createQueueOrchestrator() {
       });
       if (discoveryType === DISCOVERY_TYPE.INCREMENTAL && discoveryStatus.filesExist) {
         console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Running discovery to detect changes');
-        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, discoveryType);
+        const discoveryResult = await state.discoveryCoordinator.startDiscoveryWithSession(
+          sessionId,
+          discoveryType,
+        );
+        console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Discovery completed, checking for changes');
+
+        if (discoveryResult && discoveryResult.hasChanges) {
+          console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Changes detected, processing incremental updates');
+          await startScanningPhase(null, forceRescan, discoveryResult.incrementalChanges);
+          try {
+            await state.mediaProcessor.processAndUploadQueuedMedia();
+            await state.scanCompletionHandler.syncDiscoveryFilesCacheWithIndexedDB(
+              state.discoveryCoordinator,
+            );
+            await state.scanCompletionHandler.updateAllDiscoveryFiles();
+            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts();
+          } catch (uploadError) {
+            return { success: false, error: uploadError.message };
+          }
+        } else {
+          console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] No changes detected, skipping scanning');
+        }
       } else if (discoveryStatus.shouldRunDiscovery) {
         await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, discoveryType);
+        const scanningStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
+        if (scanningStatus.filesExist) {
+          await startScanningPhase(null, forceRescan);
+          try {
+            await state.mediaProcessor.processAndUploadQueuedMedia();
+          } catch (uploadError) {
+            return { success: false, error: uploadError.message };
+          }
+        }
       } else {
         console.log('[Queue Orchestrator] ⏭️ Skipping discovery process - files already exist');
-      }
-      const scanningStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
-      if (scanningStatus.filesExist) {
-        await startScanningPhase(null, forceRescan);
-        try {
-          await state.mediaProcessor.processAndUploadQueuedMedia();
-        } catch (uploadError) {
-          return { success: false, error: uploadError.message };
+        const scanningStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
+        if (scanningStatus.filesExist) {
+          await startScanningPhase(null, forceRescan);
+          try {
+            await state.mediaProcessor.processAndUploadQueuedMedia();
+          } catch (uploadError) {
+            return { success: false, error: uploadError.message };
+          }
         }
       }
       return { success: true };

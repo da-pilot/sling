@@ -116,6 +116,11 @@ function createDiscoveryManager() {
   async function clearQueue() {
     return engine.clearQueue();
   }
+
+  function setMediaProcessor(mediaProcessor) {
+    return engine.setMediaProcessor(mediaProcessor);
+  }
+
   return {
     init,
     startDiscoveryWithSession,
@@ -129,6 +134,7 @@ function createDiscoveryManager() {
     getProgressSummary,
     buildSiteStructureFromDiscoveryFiles,
     clearQueue,
+    setMediaProcessor,
   };
 }
 

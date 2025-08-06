@@ -9,6 +9,7 @@ import createDiscoveryPersistenceManager from './persistence-manager.js';
 import createParallelProcessor from './parallel-processor.js';
 import createDocumentScanner from './document-scanner.js';
 import createSiteAggregator from './site-aggregator.js';
+import { loadData, saveData } from '../sheet-utils.js';
 
 export default function createDiscoveryEngine() {
   const eventEmitter = createDiscoveryEvents();
@@ -17,11 +18,92 @@ export default function createDiscoveryEngine() {
   const parallelProcessor = createParallelProcessor();
   const documentScanner = createDocumentScanner();
   const siteAggregator = createSiteAggregator();
+
   const state = {
+    isRunning: false,
     discoveryStartTime: null,
     discoveryType: 'full',
-    isRunning: false,
+    incrementalChanges: null,
+    apiConfig: null,
+    mediaProcessor: null,
+    daApi: null,
   };
+
+  async function removeDeletedFolderFiles(deletedFolders) {
+    try {
+      const promises = deletedFolders.map(async (folderName) => {
+        const fileName = `${folderName}.json`;
+        const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
+        try {
+          const success = await state.daApi.deleteFile(filePath);
+          if (!success) {
+            console.warn('[Discovery Engine] ⚠️ Failed to remove discovery file:', fileName);
+          }
+        } catch (error) {
+          console.warn('[Discovery Engine] ⚠️ Could not remove discovery file:', {
+            fileName,
+            error: error.message,
+          });
+        }
+      });
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('[Discovery Engine] ❌ Error removing deleted folder files:', error);
+    }
+  }
+
+  async function buildSiteStructureFromDiscoveryFiles() {
+    return siteAggregator.buildSiteStructureFromDiscoveryFiles();
+  }
+
+  async function markDeletedFolders(deletedFolders) {
+    try {
+      const promises = deletedFolders.map(async (folderName) => {
+        const fileName = `${folderName}.json`;
+        const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
+        const url = `${state.apiConfig.baseUrl}/source${filePath}`;
+
+        try {
+          const existingData = await loadData(url, state.apiConfig.token);
+
+          const documents = existingData?.data || [];
+
+          if (documents.length > 0) {
+            const updatedDocuments = documents.map((doc) => ({
+              ...doc,
+              entryStatus: 'deleted',
+              scanStatus: 'deleted',
+              scanComplete: false,
+              needsRescan: false,
+              lastScannedAt: new Date().toISOString(),
+            }));
+
+            await saveData(url, updatedDocuments, state.apiConfig.token);
+            return updatedDocuments.map((doc) => doc.path);
+          }
+          return [];
+        } catch (error) {
+          console.warn('[Discovery Engine] ⚠️ Could not update deleted folder:', {
+            folderName,
+            error: error.message,
+          });
+          return [];
+        }
+      });
+
+      const deletedDocumentPaths = await Promise.all(promises);
+      const allDeletedPaths = deletedDocumentPaths.flat();
+      if (allDeletedPaths.length > 0 && state.mediaProcessor) {
+        await state.mediaProcessor.cleanupMediaForDeletedDocuments(allDeletedPaths);
+      }
+      await removeDeletedFolderFiles(deletedFolders);
+      if (deletedFolders.length > 0) {
+        await buildSiteStructureFromDiscoveryFiles();
+      }
+    } catch (error) {
+      console.error('[Discovery Engine] ❌ Error marking deleted folders:', error);
+    }
+  }
 
   async function init(docAuthoringService, sessionManagerInstance, processingStateManagerInstance) {
     const apiConfig = docAuthoringService.getConfig();
@@ -30,6 +112,8 @@ export default function createDiscoveryEngine() {
     await documentScanner.init(apiConfig, daApi);
     await siteAggregator.init(apiConfig);
     siteAggregator.setDaApi(daApi);
+    state.apiConfig = apiConfig;
+    state.daApi = daApi;
   }
 
   async function triggerDiscoveryComplete() {
@@ -94,13 +178,17 @@ export default function createDiscoveryEngine() {
     }
   }
   async function processFoldersInParallel(folders) {
-    const promises = folders.map((folder) => documentScanner.processFolder(
-      folder,
-      state.discoveryType,
-      parallelProcessor,
-      statsTracker,
-      eventEmitter,
-    ));
+    const promises = folders.map((folder) => {
+      const { incrementalChanges } = state;
+      return documentScanner.processFolder(
+        folder,
+        state.discoveryType,
+        parallelProcessor,
+        statsTracker,
+        eventEmitter,
+        incrementalChanges,
+      );
+    });
     await Promise.all(promises);
     await triggerDiscoveryComplete();
   }
@@ -118,16 +206,21 @@ export default function createDiscoveryEngine() {
         discoveryType,
         sessionId,
       });
-      await resetDiscoveryState();
+
+      // Only reset state for full discovery, preserve for incremental
+      if (discoveryType === 'full') {
+        await resetDiscoveryState();
+      } else {
+        // For incremental, just reset running state but preserve checkpoint
+        state.isRunning = false;
+        state.discoveryStartTime = null;
+        parallelProcessor.cleanupAll();
+        statsTracker.resetProgress();
+      }
+
       const { folders, files } = await documentScanner.getTopLevelItems();
       const totalWork = folders.length + (files.length > 0 ? 1 : 0);
-      console.log('[Discovery Engine] 📁 Discovery targets:', {
-        folders: folders.length,
-        files: files.length,
-        totalWork,
-      });
       if (discoveryType === 'incremental') {
-        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Comparing with existing discovery files');
         const existingFiles = await persistenceManager.loadAllDiscoveryFiles();
         const allExistingFolderNames = existingFiles.map((file) => file.name.replace('.json', ''));
         const existingFolderNames = allExistingFolderNames.filter((name) => name !== 'root');
@@ -141,29 +234,43 @@ export default function createDiscoveryEngine() {
         const deletedFolders = existingFolderNames.filter(
           (name) => !currentFolderNames.includes(name),
         );
-        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Change detection:', {
-          newFolders: newFolders.length,
-          deletedFolders: deletedFolders.length,
-          existingFolders: existingFolderNames,
-          currentFolders: currentFolderNames,
-        });
-        console.log('[Discovery Engine] 🔍 [INCREMENTAL] All existing folder names (including root):', allExistingFolderNames);
-        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Filtered existing folder names (excluding root):', existingFolderNames);
-        if (newFolders.length > 0) {
-          console.log('[Discovery Engine] 🔍 [INCREMENTAL] New folders found:', newFolders.map((f) => f.path));
-        }
-        if (deletedFolders.length > 0) {
-          console.log('[Discovery Engine] 🔍 [INCREMENTAL] Deleted folders found:', deletedFolders);
-        }
-        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Current folder names:', currentFolderNames);
+        state.incrementalChanges = {
+          newFolders,
+          deletedFolders,
+          existingFiles,
+        };
       }
       state.isRunning = true;
+      state.hasFileChanges = false;
       statsTracker.setTotalFolders(totalWork);
+
+      if (discoveryType === 'incremental' && state.incrementalChanges) {
+        if (state.incrementalChanges.newFolders.length > 0) {
+          await processFoldersInParallel(state.incrementalChanges.newFolders);
+        }
+
+        if (state.incrementalChanges.deletedFolders.length > 0) {
+          await markDeletedFolders(state.incrementalChanges.deletedFolders);
+        }
+      }
+
       if (files.length > 0) {
-        await documentScanner.processRootFiles(files, statsTracker, eventEmitter);
+        if (discoveryType === 'incremental' && state.incrementalChanges) {
+          const existingRootDocs = state.incrementalChanges.existingFiles.find((file) => file.name === 'root')?.data || [];
+          const documentsToScan = await documentScanner.processDocumentsIncremental(files, 'root', existingRootDocs, discoveryType, eventEmitter);
+          if (documentsToScan && documentsToScan.length > 0) {
+            state.hasFileChanges = true;
+          }
+        } else {
+          await documentScanner.processRootFiles(files, statsTracker, eventEmitter);
+        }
       }
       if (folders.length > 0) {
-        await processFoldersInParallel(folders);
+        if (discoveryType === 'incremental' && state.incrementalChanges) {
+          await processFoldersInParallel(folders);
+        } else {
+          await processFoldersInParallel(folders);
+        }
       } else {
         await triggerDiscoveryComplete();
       }
@@ -173,6 +280,17 @@ export default function createDiscoveryEngine() {
     } finally {
       state.isRunning = false;
     }
+
+    if (discoveryType === 'incremental' && state.incrementalChanges) {
+      const hasChanges = state.incrementalChanges.newFolders.length > 0
+        || state.incrementalChanges.deletedFolders.length > 0
+        || state.hasFileChanges;
+      return {
+        hasChanges,
+        incrementalChanges: state.incrementalChanges,
+      };
+    }
+    return { hasChanges: false };
   }
 
   async function stopDiscovery() {
@@ -204,13 +322,15 @@ export default function createDiscoveryEngine() {
   function getProgressSummary() {
     return statsTracker.getProgressSummary();
   }
-  async function buildSiteStructureFromDiscoveryFiles() {
-    return siteAggregator.buildSiteStructureFromDiscoveryFiles();
-  }
   async function clearQueue() {
     parallelProcessor.cleanupAll();
     statsTracker.resetProgress();
   }
+
+  function setMediaProcessor(mediaProcessor) {
+    state.mediaProcessor = mediaProcessor;
+  }
+
   return {
     init,
     startDiscoveryWithSession,
@@ -224,5 +344,6 @@ export default function createDiscoveryEngine() {
     getProgressSummary,
     buildSiteStructureFromDiscoveryFiles,
     clearQueue,
+    setMediaProcessor,
   };
 }

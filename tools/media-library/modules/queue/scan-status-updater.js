@@ -185,6 +185,16 @@ export default function createScanStatusUpdater() {
         return { success: false, error: 'Invalid parameters' };
       }
 
+      // Get scanning checkpoint to know which documents were scanned
+      let scanningCheckpoint = null;
+      if (processingStateManager) {
+        try {
+          scanningCheckpoint = await processingStateManager.loadScanningCheckpoint();
+        } catch (error) {
+          console.warn('[Scan Status Updater] Could not load scanning checkpoint:', error.message);
+        }
+      }
+
       const updatePromises = discoveryFiles.map(async (file) => {
         if (!file.fileName || !file.documents || !Array.isArray(file.documents)) {
           return { fileName: file.fileName, success: false, error: 'Invalid file data' };
@@ -192,21 +202,37 @@ export default function createScanStatusUpdater() {
 
         try {
           const updatedDocuments = file.documents.map((doc) => {
-            const isCompleted = doc.scanStatus === 'completed';
             const now = new Date().toISOString();
+            
+            // Check if this document was scanned in the current session
+            let scanStatus = doc.scanStatus || 'pending';
+            let mediaCount = doc.mediaCount || 0;
+            let scanComplete = doc.scanComplete || false;
+            
+            // If scanning checkpoint shows completed status, mark documents as completed
+            if (scanningCheckpoint && scanningCheckpoint.status === 'completed') {
+              // For now, assume all documents in the discovery file were scanned
+              // This is a simplified approach - ideally we'd track individual document paths
+              scanStatus = 'completed';
+              scanComplete = true;
+              // Use the mediaCount from the synced cache data (should be updated by syncDiscoveryFilesCacheWithIndexedDB)
+              // Don't override mediaCount if it's already been updated by the sync process
+            }
+
+
 
             return {
               ...doc,
-              scanStatus: doc.scanStatus || 'pending',
-              mediaCount: doc.mediaCount || 0,
+              scanStatus,
+              mediaCount,
               lastScannedAt: doc.lastScannedAt || now,
               lastScanned: doc.lastScanned || now,
-              scanComplete: doc.scanComplete || isCompleted,
+              scanComplete,
               scanErrors: doc.scanErrors || [],
               scanAttempts: doc.scanAttempts || 0,
               needsRescan: doc.needsRescan !== undefined
-                ? doc.needsRescan : !isCompleted,
-              entryStatus: doc.entryStatus || (isCompleted ? 'completed' : 'pending'),
+                ? doc.needsRescan : !scanComplete,
+              entryStatus: doc.entryStatus || (scanComplete ? 'completed' : 'pending'),
             };
           });
 

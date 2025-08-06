@@ -315,10 +315,18 @@ export default function createDiscoveryCoordinator() {
   }
 
   async function updateDiscoveryFileForFileChanges(folderPath, fileChanges) {
-    if (state.discoveryManager && typeof state.discoveryManager.updateDiscoveryFileForFileChanges === 'function') {
-      return state.discoveryManager.updateDiscoveryFileForFileChanges(folderPath, fileChanges);
+    return state.discoveryFileManager.updateDiscoveryFileForFileChanges(
+      state.config,
+      state.daApi,
+      folderPath,
+      fileChanges,
+    );
+  }
+
+  function setMediaProcessor(mediaProcessor) {
+    if (state.discoveryManager) {
+      state.discoveryManager.setMediaProcessor(mediaProcessor);
     }
-    return false;
   }
 
   return {
@@ -348,5 +356,6 @@ export default function createDiscoveryCoordinator() {
     loadSiteStructureForComparison,
     generateDiscoveryFileForFolder,
     updateDiscoveryFileForFileChanges,
+    setMediaProcessor,
   };
 }

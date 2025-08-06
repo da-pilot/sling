@@ -619,9 +619,38 @@ function getContextualTextForLink(html, linkStartIndex, linkEndIndex, maxLength 
 
 async function discoverFolder(folderPath) {
   try {
+    const allDocuments = [];
+    await discoverFolderRecursive(folderPath, allDocuments);
+
+    postMessage({
+      type: 'folderDiscoveryComplete',
+      data: {
+        documents: allDocuments,
+        documentCount: allDocuments.length,
+        folderPath,
+      },
+    });
+  } catch (error) {
+    console.error('[Media Scan Worker] ❌ Error discovering folder:', {
+      folderPath,
+      error: error.message,
+    });
+    postMessage({
+      type: 'folderDiscoveryError',
+      data: {
+        error: error.message,
+        folderPath,
+      },
+    });
+  }
+}
+
+async function discoverFolderRecursive(folderPath, allDocuments) {
+  try {
     const items = await daApi.listPath(folderPath);
-    const documents = items
-      .filter((item) => item.ext && item.ext !== 'json' && item.ext !== 'md')
+
+    const htmlFiles = items
+      .filter((item) => item.ext && item.ext === 'html')
       .map((item) => ({
         path: item.path,
         name: item.name,
@@ -630,22 +659,21 @@ async function discoverFolder(folderPath) {
         lastModified: item.lastModified,
         discoveredAt: Date.now(),
       }));
-    postMessage({
-      type: 'folderDiscoveryComplete',
-      data: {
-        documents,
-        documentCount: documents.length,
-        folderPath,
-      },
-    });
+
+    const subfolders = items.filter((item) => !item.ext);
+
+    allDocuments.push(...htmlFiles);
+
+    const subfolderPromises = subfolders.map((subfolder) =>
+      discoverFolderRecursive(subfolder.path, allDocuments),
+    );
+    await Promise.all(subfolderPromises);
   } catch (error) {
-    postMessage({
-      type: 'folderDiscoveryError',
-      data: {
-        error: error.message,
-        folderPath,
-      },
+    console.error('[Media Scan Worker] ❌ Error in recursive discovery:', {
+      folderPath,
+      error: error.message,
     });
+    throw error;
   }
 }
 
