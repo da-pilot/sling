@@ -23,7 +23,8 @@ import createMediaInsertion from './modules/media-insert.js';
 import createQueueOrchestrator from './modules/queue/queue-orchestrator.js';
 import { initSelectiveRescan } from './modules/rescan.js';
 import initUIEvents from './modules/ui-events.js';
-import { initHierarchyBrowser } from './modules/hierarchy-browser.js';
+
+import createFolderModal from './modules/folder-modal.js';
 import { showMediaInfoModal } from './modules/media-info-modal.js';
 import { showError } from './modules/toast.js';
 
@@ -74,6 +75,7 @@ let sessionManager = null;
 let processingStateManager = null;
 let persistenceManager = null;
 let mediaProcessor = null;
+let folderModal = null;
 let currentUserId = null;
 // eslint-disable-next-line no-unused-vars
 let currentSessionId = null;
@@ -248,6 +250,16 @@ async function initializeCoreServices() {
   );
 
   window.mediaProcessor = mediaProcessor;
+  
+  // Initialize folder modal
+  folderModal = createFolderModal();
+  await folderModal.init(docAuthoringService.getConfig(), docAuthoringService, {
+    emit: (event, data) => {
+      console.log('[Media Library] Folder modal event:', event, data);
+      handleFolderModalEvent(event, data);
+    },
+  });
+
   // Generate session identifiers
   currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const userAgent = navigator.userAgent.replace(/[^a-zA-Z0-9]/g, '').substr(0, 20);
@@ -297,13 +309,7 @@ async function loadAndRenderMedia() {
     media = loadedMedia || [];
     renderMedia(media);
 
-    // Initialize hierarchy browser after media is loaded
-    try {
-      await initHierarchyBrowser();
-    } catch (hierarchyError) {
-      // eslint-disable-next-line no-console
-      console.warn('Failed to initialize hierarchy browser:', hierarchyError);
-    }
+
   } catch (error) {
     // eslint-disable-next-line no-console
     console.warn('Failed to load media:', error);
@@ -357,8 +363,83 @@ function showPlaceholderCards() {
   }
 }
 
+/**
+ * Handle folder modal events
+ * @param {string} event - Event name
+ * @param {Object} data - Event data
+ */
+function handleFolderModalEvent(event, data) {
+  switch (event) {
+    case 'folderFilterApplied':
+      console.log('[Media Library] Applying folder filter:', data);
+      applyFolderFilter(data);
+      break;
+    case 'folderFilterCleared':
+      console.log('[Media Library] Clearing folder filter');
+      clearFolderFilter();
+      break;
+    default:
+      console.log('[Media Library] Unknown folder modal event:', event);
+  }
+}
+
+/**
+ * Apply folder-based filter to media
+ * @param {Object} data - Filter data with path and type
+ */
+function applyFolderFilter(data) {
+  if (!mediaBrowser) return;
+  
+  const { path, type } = data;
+  
+  if (type === 'folder') {
+    // For folders, show media from all files in that folder
+    const folderPath = path;
+    mediaBrowser.setFilter({
+      folderPath,
+      types: ['image', 'video', 'document'],
+      isExternal: undefined,
+      usedOnPage: false,
+      missingAlt: undefined,
+      search: '',
+    });
+  } else if (type === 'file') {
+    // For individual files, show media from that specific page
+    const pagePath = path;
+    mediaBrowser.setFilter({
+      pagePath,
+      types: ['image', 'video', 'document'],
+      isExternal: undefined,
+      usedOnPage: false,
+      missingAlt: undefined,
+      search: '',
+    });
+  }
+  
+  // Update UI to show active filter
+  document.querySelectorAll('.folder-item').forEach((item) => item.classList.remove('active'));
+}
+
+/**
+ * Clear folder-based filter
+ */
+function clearFolderFilter() {
+  if (!mediaBrowser) return;
+  
+  mediaBrowser.setFilter({
+    types: ['image', 'video', 'document'],
+    isExternal: undefined,
+    usedOnPage: false,
+    missingAlt: undefined,
+    search: '',
+  });
+  
+  // Clear active states
+  document.querySelectorAll('.folder-item').forEach((item) => item.classList.remove('active'));
+}
+
 function setupUIEventHandlers() {
-  document.querySelectorAll('.view-btn:not(#hierarchyToggle)').forEach((btn) => {
+  document.querySelectorAll('.view-btn[data-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const view = btn.getAttribute('data-view');
       if (view) {
@@ -367,11 +448,15 @@ function setupUIEventHandlers() {
     });
   });
 
-  const hierarchyToggle = document.getElementById('hierarchyToggle');
-  if (hierarchyToggle) {
-    hierarchyToggle.addEventListener('click', () => {
-      if (typeof window.toggleHierarchyView === 'function') {
-        window.toggleHierarchyView();
+  const folderBrowserBtn = document.getElementById('folderBrowserBtn');
+  if (folderBrowserBtn) {
+    folderBrowserBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (folderModal) {
+        folderModal.showModal();
+      } else {
+        console.warn('[Media Library] Folder modal not initialized');
       }
     });
   }
@@ -865,9 +950,6 @@ function handleSearch(query) {
  * Handle view changes
  */
 function handleViewChange(view) {
-  const hierarchyContainer = document.getElementById('hierarchyContainer');
-  const isInFolderView = hierarchyContainer && hierarchyContainer.style.display !== 'none';
-
   const viewBtns = document.querySelectorAll('.view-btn');
   viewBtns.forEach((btn) => btn.classList.remove('active'));
 
@@ -878,17 +960,6 @@ function handleViewChange(view) {
     mediaBrowser.setView(view);
   } else {
     console.log('[MediaLibrary] ⚠️ mediaBrowser not available');
-  }
-
-  if (!isInFolderView) {
-    document.getElementById('hierarchyToggle')?.classList.remove('active');
-  } else {
-    console.log('[MediaLibrary] ⚠️ Still in folder view, calling returnToAllMedia');
-    if (typeof window.returnToAllMedia === 'function') {
-      window.returnToAllMedia();
-    } else {
-      console.log('[MediaLibrary] ❌ returnToAllMedia function not available');
-    }
   }
 }
 

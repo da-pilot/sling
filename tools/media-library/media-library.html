@@ -7,6 +7,7 @@
   <!-- Adobe Fonts (matching DA Live) -->
   <link rel="stylesheet" href="https://use.typekit.net/hah7vzn.css">
   <link rel="stylesheet" href="media-library.css">
+  <link rel="stylesheet" href="folder-modal.css">
   <style>
     /* Prevent loading flash */
     body { opacity: 0; transition: opacity 0.3s ease; }
@@ -109,9 +110,9 @@
           </div>
           <button class="view-btn active" id="gridViewBtn" data-view="grid" title="Grid View" aria-pressed="true">⊞</button>
           <button class="view-btn" id="listViewBtn" data-view="list" title="List View" aria-pressed="false">☰</button>
-          <button id="hierarchyToggle" class="view-btn" title="Switch to folder view">
-            <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 18 18" width="16">
-              <path d="M16.5,4l-7.16577.00378L7.68188,2.3031A1.00063,1.00063,0,0,0,6.9646,2H2A1,1,0,0,0,1,3V14.5a.5.5,0,0,0,.5.5h15a.5.5,0,0,0,.5-.5V4.5A.50018.50018,0,0,0,16.5,4ZM2,3H6.9646L8.908,5H2ZM12.35352,8.85352l-3,3a.49984.49984,0,0,1-.707,0l-3-3a.5.5,0,0,1,.707-.707L9,10.793l2.64648-2.64649a.5.5,0,0,1,.707.707Z"></path>
+          <button id="folderBrowserBtn" class="folder-browser-btn" title="Folder Browser" aria-pressed="false">
+            <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 24 24" width="16" fill="currentColor">
+              <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"/>
             </svg>
           </button>
         </div>
@@ -120,10 +121,7 @@
       <nav class="breadcrumb" aria-label="Current location">
         <span class="breadcrumb-item">All Media</span>
       </nav>
-      <!-- Hierarchy Browser Container -->
-      <div class="hierarchy-container" id="hierarchyContainer" style="display: none;">
-        <div class="hierarchy-grid" id="hierarchyGrid"></div>
-      </div>
+
       
       <!-- Media Grid -->
       <div class="media-container" id="mediaContainer">

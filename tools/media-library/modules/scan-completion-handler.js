@@ -28,10 +28,8 @@ export default function createScanCompletionHandler() {
   }
 
   async function updateAllDiscoveryFiles(discoveryFiles) {
-    console.log('[Scan Completion Handler] 🔄 Starting updateAllDiscoveryFiles');
     let files = discoveryFiles;
     if (!files || files.length === 0) {
-      console.log('[Scan Completion Handler] 📁 Loading discovery files from manager');
       const discoveryFileManager = createDiscoveryFileManager();
       files = await discoveryFileManager.loadDiscoveryFilesWithChangeDetection(
         state.config,
@@ -43,15 +41,9 @@ export default function createScanCompletionHandler() {
     if (state.discoveryCoordinator) {
       const updatedCache = state.discoveryCoordinator.getUpdatedDiscoveryFilesFromCache();
       if (updatedCache && updatedCache.length > 0) {
-        console.log('[Scan Completion Handler] 📋 Using updated cache data');
         files = updatedCache;
       }
     }
-
-    console.log('[Scan Completion Handler] 📄 Updating discovery files:', {
-      fileCount: files.length,
-      fileNames: files.map((f) => f.fileName),
-    });
 
     const result = await state.scanStatusUpdater.updateDiscoveryFilesInParallel(
       state.config,
@@ -59,12 +51,6 @@ export default function createScanCompletionHandler() {
       state.processingStateManager,
       files,
     );
-
-    console.log('[Scan Completion Handler] ✅ Discovery files updated:', {
-      success: result.success,
-      totalMediaCount: result.totalMediaCount,
-      totalCompletedDocuments: result.totalCompletedDocuments,
-    });
 
     eventEmitter.emit('discoveryFilesUpdated', {
       fileCount: files.length,
@@ -148,19 +134,12 @@ export default function createScanCompletionHandler() {
 
       const filePromises = discoveryFiles.map(async (file) => {
         if (file.fileName && file.documents) {
-          const completedPages = await state.persistenceManager.getCompletedPagesByFile(
-            file.fileName,
-          );
-          console.log('[Scan Completion Handler] 📄 Completed pages for', file.fileName, ':', completedPages);
+          const completedPages = await state.persistenceManager
+            .getCompletedPagesByFile(file.fileName);
 
           completedPages.forEach((page) => {
             const document = file.documents.find((doc) => doc.path === page.pageUrl);
             if (document) {
-              console.log('[Scan Completion Handler] ✅ Found document match:', {
-                pageUrl: page.pageUrl,
-                mediaCount: page.mediaCount,
-                scanStatus: page.scanStatus,
-              });
               updates.push({
                 fileName: file.fileName,
                 pagePath: page.pageUrl,
@@ -168,8 +147,6 @@ export default function createScanCompletionHandler() {
                 mediaCount: page.mediaCount || 0,
                 error: page.scanErrors?.length > 0 ? page.scanErrors[0] : null,
               });
-            } else {
-              console.log('[Scan Completion Handler] ❌ No document match found for:', page.pageUrl);
             }
           });
         }
@@ -208,29 +185,19 @@ export default function createScanCompletionHandler() {
   }
 
   async function updateSiteStructureWithMediaCounts(discoveryFilesData = null) {
-    console.log('[Scan Completion Handler] 🔄 Starting updateSiteStructureWithMediaCounts');
     try {
       let newSiteStructure;
 
       if (discoveryFilesData && Array.isArray(discoveryFilesData)) {
-        console.log('[Scan Completion Handler] 📊 Creating site structure from cache data');
         newSiteStructure = await state.siteAggregator.createSiteStructureFromCache(
           discoveryFilesData,
         );
       } else {
-        console.log('[Scan Completion Handler] 📊 Creating site structure from scratch');
         newSiteStructure = await state.siteAggregator.createSiteStructure();
       }
 
       if (newSiteStructure) {
-        console.log('[Scan Completion Handler] 💾 Saving site structure file');
         await state.processingStateManager.saveSiteStructureFile(newSiteStructure);
-
-        console.log('[Scan Completion Handler] ✅ Site structure updated:', {
-          totalFolders: newSiteStructure?.stats?.totalFolders || 0,
-          totalFiles: newSiteStructure?.stats?.totalFiles || 0,
-          totalMediaItems: newSiteStructure?.stats?.totalMediaItems || 0,
-        });
 
         eventEmitter.emit('siteStructureUpdated', {
           totalFolders: newSiteStructure?.stats?.totalFolders || 0,
