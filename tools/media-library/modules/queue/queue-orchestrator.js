@@ -163,7 +163,10 @@ export default function createQueueOrchestrator() {
         fileCount: discoveryStatus.fileCount,
         discoveryType,
       });
-      if (discoveryStatus.shouldRunDiscovery) {
+      if (discoveryType === DISCOVERY_TYPE.INCREMENTAL && discoveryStatus.filesExist) {
+        console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Running discovery to detect changes');
+        await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, discoveryType);
+      } else if (discoveryStatus.shouldRunDiscovery) {
         await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, discoveryType);
       } else {
         console.log('[Queue Orchestrator] ⏭️ Skipping discovery process - files already exist');

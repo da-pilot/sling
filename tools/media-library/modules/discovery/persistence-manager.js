@@ -6,7 +6,14 @@
 import {
   saveData,
   loadData,
+  ADMIN_DA_LIVE_BASE,
 } from '../sheet-utils.js';
+import {
+  CONTENT_DA_LIVE_BASE,
+  DA_PATHS,
+  DA_STORAGE,
+  API_ENDPOINTS,
+} from '../../constants.js';
 
 export default function createDiscoveryPersistenceManager() {
   const state = {
@@ -74,8 +81,10 @@ export default function createDiscoveryPersistenceManager() {
   async function saveDiscoveryCheckpointFile(checkpoint) {
     try {
       const jsonToWrite = checkpoint;
-      const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.processing/discovery-checkpoint.json`;
-      const url = `${state.apiConfig.baseUrl}/source${filePath}`;
+      const storageDir = DA_PATHS.getStorageDir(state.apiConfig.org, state.apiConfig.repo);
+      const processingDir = `${storageDir}/${DA_STORAGE.PROCESSING_DIR.split('/').pop()}`;
+      const filePath = `${processingDir}/${DA_STORAGE.FILES.DISCOVERY_CHECKPOINT}`;
+      const url = `${ADMIN_DA_LIVE_BASE}${API_ENDPOINTS.SOURCE}${filePath}`;
       await saveData(url, jsonToWrite, state.apiConfig.token);
     } catch (error) {
       console.error('[Persistence Manager] ❌ Failed to save discovery checkpoint:', error);
@@ -91,11 +100,22 @@ export default function createDiscoveryPersistenceManager() {
   async function loadExistingDiscoveryFile(folderPath) {
     try {
       const folderName = folderPath === '/' ? 'root' : folderPath.split('/').pop() || 'root';
-      const items = await loadData('.media/.pages');
+      const storageDir = DA_PATHS.getStorageDir(state.apiConfig.org, state.apiConfig.repo);
+      const pagesDir = `${storageDir}/${DA_STORAGE.PAGES_DIR.split('/').pop()}`;
+      const listUrl = `${ADMIN_DA_LIVE_BASE}${API_ENDPOINTS.LIST}${pagesDir}`;
+      const response = await fetch(listUrl, {
+        headers: { Authorization: `Bearer ${state.apiConfig.token}` },
+      });
+      if (!response.ok) {
+        return [];
+      }
+      const items = await response.json();
       const existingFile = items.find((item) => item.name && item.name === `${folderName}.json`);
       if (existingFile) {
         try {
-          const configData = await loadData(`.media/.pages/${existingFile.name}`);
+          const fileName = existingFile.name.endsWith('.json') ? existingFile.name : `${existingFile.name}.json`;
+          const fileUrl = `${CONTENT_DA_LIVE_BASE}${pagesDir}/${fileName}`;
+          const configData = await loadData(fileUrl, state.apiConfig.token);
           return configData?.data || [];
         } catch (fileError) {
           return [];
@@ -113,8 +133,17 @@ export default function createDiscoveryPersistenceManager() {
    */
   async function validateDiscoveryFilesComplete() {
     try {
-      const items = await loadData('.media/.pages');
-      const discoveryFiles = items.filter((item) => item.name && item.name.endsWith('.json'));
+      const storageDir = DA_PATHS.getStorageDir(state.apiConfig.org, state.apiConfig.repo);
+      const pagesDir = `${storageDir}/${DA_STORAGE.PAGES_DIR.split('/').pop()}`;
+      const listUrl = `${ADMIN_DA_LIVE_BASE}${API_ENDPOINTS.LIST}${pagesDir}`;
+      const response = await fetch(listUrl, {
+        headers: { Authorization: `Bearer ${state.apiConfig.token}` },
+      });
+      if (!response.ok) {
+        return { isValid: false, reason: 'Failed to list discovery files' };
+      }
+      const items = await response.json();
+      const discoveryFiles = items.filter((item) => item.name && (item.name.endsWith('.json') || item.ext === 'json'));
 
       if (discoveryFiles.length === 0) {
         return { isValid: false, reason: 'No discovery files found' };
@@ -123,7 +152,9 @@ export default function createDiscoveryPersistenceManager() {
       const fileContents = await Promise.all(
         discoveryFiles.map(async (file) => {
           try {
-            const data = await loadData(`.media/.pages/${file.name}`);
+            const fileName = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
+            const fileUrl = `${CONTENT_DA_LIVE_BASE}${pagesDir}/${fileName}`;
+            const data = await loadData(fileUrl, state.apiConfig.token);
             return {
               name: file.name,
               data: data?.data || [],
@@ -191,8 +222,10 @@ export default function createDiscoveryPersistenceManager() {
     try {
       const jsonToWrite = documents;
       const fileName = `${folderName}.json`;
-      const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
-      const url = `${state.apiConfig.baseUrl}/source${filePath}`;
+      const storageDir = DA_PATHS.getStorageDir(state.apiConfig.org, state.apiConfig.repo);
+      const pagesDir = `${storageDir}/${DA_STORAGE.PAGES_DIR.split('/').pop()}`;
+      const filePath = `${pagesDir}/${fileName}`;
+      const url = `${ADMIN_DA_LIVE_BASE}${API_ENDPOINTS.SOURCE}${filePath}`;
       await saveData(url, jsonToWrite, state.apiConfig.token);
     } catch (error) {
       console.error('[Persistence Manager] ❌ Failed to save discovery data:', error);
@@ -206,18 +239,40 @@ export default function createDiscoveryPersistenceManager() {
    */
   async function loadAllDiscoveryFiles() {
     try {
-      const items = await loadData('.media/.pages');
-      const discoveryFiles = items.filter((item) => item.name && item.name.endsWith('.json'));
+      const storageDir = DA_PATHS.getStorageDir(state.apiConfig.org, state.apiConfig.repo);
+      const pagesDir = `${storageDir}/${DA_STORAGE.PAGES_DIR.split('/').pop()}`;
+      const listUrl = `${ADMIN_DA_LIVE_BASE}${API_ENDPOINTS.LIST}${pagesDir}`;
+      console.log('[Persistence Manager] 🔍 [DEBUG] Loading discovery files...');
+      console.log('[Persistence Manager] 🔍 [DEBUG] Storage dir:', storageDir);
+      console.log('[Persistence Manager] 🔍 [DEBUG] Pages dir:', pagesDir);
+      console.log('[Persistence Manager] 🔍 [DEBUG] List URL:', listUrl);
+      const response = await fetch(listUrl, {
+        headers: { Authorization: `Bearer ${state.apiConfig.token}` },
+      });
+      console.log('[Persistence Manager] 🔍 [DEBUG] Response status:', response.status);
+      if (!response.ok) {
+        console.error('[Persistence Manager] 🔍 [DEBUG] Response not ok:', response.statusText);
+        throw new Error(`Failed to list files: ${response.status} ${response.statusText}`);
+      }
+      const items = await response.json();
+      console.log('[Persistence Manager] 🔍 [DEBUG] Raw items:', items);
+      const discoveryFiles = items.filter((item) => item.name && (item.name.endsWith('.json') || item.ext === 'json'));
+      console.log('[Persistence Manager] 🔍 [DEBUG] Discovery files found:', discoveryFiles.length);
+      console.log('[Persistence Manager] 🔍 [DEBUG] Discovery file names:', discoveryFiles.map((f) => f.name));
       const fileContents = await Promise.all(
         discoveryFiles.map(async (file) => {
           try {
-            const data = await loadData(`.media/.pages/${file.name}`);
+            const fileName = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
+            const fileUrl = `${CONTENT_DA_LIVE_BASE}${pagesDir}/${fileName}`;
+            console.log('[Persistence Manager] 🔍 [DEBUG] Loading file:', fileUrl);
+            const data = await loadData(fileUrl, state.apiConfig.token);
             return {
               name: file.name,
               data: data?.data || [],
               documentCount: data?.data?.length || 0,
             };
           } catch (error) {
+            console.error('[Persistence Manager] 🔍 [DEBUG] Failed to load file:', file.name, error.message);
             return {
               name: file.name,
               data: [],
@@ -227,6 +282,7 @@ export default function createDiscoveryPersistenceManager() {
           }
         }),
       );
+      console.log('[Persistence Manager] 🔍 [DEBUG] Final file contents:', fileContents.map((f) => ({ name: f.name, count: f.documentCount })));
       return fileContents;
     } catch (error) {
       console.error('[Persistence Manager] ❌ Failed to load discovery files:', error);

@@ -50,7 +50,8 @@ export default function createDiscoveryEngine() {
       const discoveryDuration = Date.now() - (state.discoveryStartTime || Date.now());
       const durationMs = discoveryDuration;
 
-      console.log(`===== Discovery Completed: ${progress.completedFolders} folders, ${progress.totalDocuments} files, took ${durationMs} ms ======`);
+      console.log(`===== Discovery Completed: ${progress.completedFolders} folders,
+         ${progress.totalDocuments} files, took ${durationMs} ms ======`);
 
       eventEmitter.emitDiscoveryComplete({
         totalFolders: progress.totalFolders,
@@ -125,6 +126,37 @@ export default function createDiscoveryEngine() {
         files: files.length,
         totalWork,
       });
+      if (discoveryType === 'incremental') {
+        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Comparing with existing discovery files');
+        const existingFiles = await persistenceManager.loadAllDiscoveryFiles();
+        const allExistingFolderNames = existingFiles.map((file) => file.name.replace('.json', ''));
+        const existingFolderNames = allExistingFolderNames.filter((name) => name !== 'root');
+        const currentFolderNames = folders.map((folder) => (
+          folder.path === '/' ? 'root' : folder.path.split('/').pop()
+        ));
+        const newFolders = folders.filter((folder) => {
+          const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop();
+          return !existingFolderNames.includes(folderName);
+        });
+        const deletedFolders = existingFolderNames.filter(
+          (name) => !currentFolderNames.includes(name),
+        );
+        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Change detection:', {
+          newFolders: newFolders.length,
+          deletedFolders: deletedFolders.length,
+          existingFolders: existingFolderNames,
+          currentFolders: currentFolderNames,
+        });
+        console.log('[Discovery Engine] 🔍 [INCREMENTAL] All existing folder names (including root):', allExistingFolderNames);
+        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Filtered existing folder names (excluding root):', existingFolderNames);
+        if (newFolders.length > 0) {
+          console.log('[Discovery Engine] 🔍 [INCREMENTAL] New folders found:', newFolders.map((f) => f.path));
+        }
+        if (deletedFolders.length > 0) {
+          console.log('[Discovery Engine] 🔍 [INCREMENTAL] Deleted folders found:', deletedFolders);
+        }
+        console.log('[Discovery Engine] 🔍 [INCREMENTAL] Current folder names:', currentFolderNames);
+      }
       state.isRunning = true;
       statsTracker.setTotalFolders(totalWork);
       if (files.length > 0) {
