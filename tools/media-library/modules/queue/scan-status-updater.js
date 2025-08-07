@@ -203,12 +203,12 @@ export default function createScanStatusUpdater() {
         try {
           const updatedDocuments = file.documents.map((doc) => {
             const now = new Date().toISOString();
-            
+
             // Check if this document was scanned in the current session
             let scanStatus = doc.scanStatus || 'pending';
-            let mediaCount = doc.mediaCount || 0;
+            const mediaCount = doc.mediaCount || 0;
             let scanComplete = doc.scanComplete || false;
-            
+
             // If scanning checkpoint shows completed status, mark documents as completed
             if (scanningCheckpoint && scanningCheckpoint.status === 'completed') {
               // For now, assume all documents in the discovery file were scanned
@@ -218,8 +218,6 @@ export default function createScanStatusUpdater() {
               // Use the mediaCount from the synced cache data (should be updated by syncDiscoveryFilesCacheWithIndexedDB)
               // Don't override mediaCount if it's already been updated by the sync process
             }
-
-
 
             return {
               ...doc,

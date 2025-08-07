@@ -15,10 +15,11 @@ export default function createScanCompletionHandler() {
     processingStateManager: null,
   };
 
-  async function init(config, daApi, processingStateManager) {
+  async function init(config, daApi, processingStateManager, discoveryCoordinator) {
     state.config = config;
     state.daApi = daApi;
     state.processingStateManager = processingStateManager;
+    state.discoveryCoordinator = discoveryCoordinator;
     state.scanStatusUpdater = createScanStatusUpdater();
     state.siteAggregator = createSiteAggregator();
     state.persistenceManager = createPersistenceManager();
@@ -75,26 +76,29 @@ export default function createScanCompletionHandler() {
       if (!state.processingStateManager) {
         return null;
       }
-
+      const currentCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
+      const currentTotalPages = totalPages || currentCheckpoint?.totalPages || 0;
+      const currentScannedPages = totalPages || currentCheckpoint?.scannedPages || 0;
+      const currentTotalMedia = totalMedia || currentCheckpoint?.totalMedia || 0;
       const updatedCheckpoint = {
-        totalPages,
-        scannedPages: totalPages,
+        totalPages: currentTotalPages,
+        scannedPages: currentScannedPages,
         pendingPages: 0,
         failedPages: 0,
-        totalMedia,
+        totalMedia: currentTotalMedia,
         status: 'completed',
+        scanningStartTime: currentCheckpoint?.scanningStartTime || Date.now(),
+        scanningEndTime: Date.now(),
+        discoveryType: currentCheckpoint?.discoveryType || 'full',
         lastUpdated: Date.now(),
       };
-
       await state.processingStateManager.saveScanningCheckpointFile(updatedCheckpoint);
-
       eventEmitter.emit('scanningCheckpointCompleted', {
-        totalPages,
-        scannedPages: totalPages,
-        totalMedia,
+        totalPages: updatedCheckpoint.totalPages,
+        scannedPages: updatedCheckpoint.scannedPages,
+        totalMedia: updatedCheckpoint.totalMedia,
         timestamp: new Date().toISOString(),
       });
-
       return updatedCheckpoint;
     } catch (error) {
       return null;
@@ -184,36 +188,39 @@ export default function createScanCompletionHandler() {
     }
   }
 
-  async function updateSiteStructureWithMediaCounts(discoveryFilesData = null) {
+  async function updateSiteStructureWithMediaCounts(discoveryFilesData) {
     try {
-      let newSiteStructure;
+      console.log('[Scan Completion Handler] 🔄 Creating site structure from discovery files data:', {
+        hasData: !!discoveryFilesData,
+        dataLength: discoveryFilesData?.length || 0,
+      });
 
-      if (discoveryFilesData && Array.isArray(discoveryFilesData)) {
-        newSiteStructure = await state.siteAggregator.createSiteStructureFromCache(
-          discoveryFilesData,
-        );
-      } else {
-        newSiteStructure = await state.siteAggregator.createSiteStructure();
-      }
+      const siteStructure = await state.siteAggregator
+        .createSiteStructureFromCache(discoveryFilesData);
 
-      if (newSiteStructure) {
-        await state.processingStateManager.saveSiteStructureFile(newSiteStructure);
-
-        eventEmitter.emit('siteStructureUpdated', {
-          totalFolders: newSiteStructure?.stats?.totalFolders || 0,
-          totalFiles: newSiteStructure?.stats?.totalFiles || 0,
-          totalMediaItems: newSiteStructure?.stats?.totalMediaItems || 0,
-          timestamp: new Date().toISOString(),
+      if (siteStructure) {
+        console.log('[Scan Completion Handler] ✅ Site structure created successfully:', {
+          totalFolders: siteStructure.stats.totalFolders,
+          totalFiles: siteStructure.stats.totalFiles,
+          totalMediaItems: siteStructure.stats.totalMediaItems,
         });
-      }
-      try {
-        await state.persistenceManager.clearMediaStore();
-      } catch (error) {
-        throw new Error(`Failed to clear media store: ${error.message}`);
+
+        await state.processingStateManager.saveSiteStructureFile(siteStructure);
+        console.log('[Scan Completion Handler] ✅ Site structure file saved');
+
+        const eventData = {
+          totalFolders: siteStructure.stats.totalFolders,
+          totalFiles: siteStructure.stats.totalFiles,
+          totalMediaItems: siteStructure.stats.totalMediaItems,
+          timestamp: new Date().toISOString(),
+        };
+        eventEmitter.emit('siteStructureUpdated', eventData);
+        console.log('[Scan Completion Handler] 📡 Emitted siteStructureUpdated event:', eventData);
+      } else {
+        console.warn('[Scan Completion Handler] ⚠️ No site structure created');
       }
     } catch (error) {
-      console.error('[Scan Completion Handler] ❌ Failed to update site structure:', error);
-      throw new Error(`Failed to reconstruct site structure: ${error.message}`);
+      console.error('[Scan Completion Handler] ❌ Error updating site structure:', error);
     }
   }
 

@@ -9,7 +9,7 @@ import {
   DA_PATHS,
   CONTENT_DA_LIVE_BASE,
 } from '../constants.js';
-import { loadData, buildSingleSheet, saveSheetFile } from '../modules/sheet-utils.js';
+import { loadDataSafe, buildSingleSheet, saveSheetFile } from '../modules/sheet-utils.js';
 import createCheckpointQueueManager from './checkpoint-queue-manager.js';
 
 const CHECKPOINTS = {
@@ -122,6 +122,9 @@ export default function createProcessingStateManager(docAuthoringService) {
           folderStatus: {},
           excludedPatterns: [],
           rootFiles: [],
+          discoveryStartTime: null,
+          discoveryEndTime: null,
+          discoveryType: 'full',
           lastUpdated: null,
         };
       case CHECKPOINTS.SCANNING:
@@ -132,6 +135,9 @@ export default function createProcessingStateManager(docAuthoringService) {
           failedPages: 0,
           totalMedia: 0,
           status: 'idle',
+          scanningStartTime: null,
+          scanningEndTime: null,
+          discoveryType: 'full',
           lastUpdated: null,
         };
       default:
@@ -147,7 +153,7 @@ export default function createProcessingStateManager(docAuthoringService) {
       }
       const checkpointPath = getCheckpointPath(checkpointType);
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${checkpointPath}`;
-      const parsedData = await loadData(contentUrl, daConfig.token);
+      const parsedData = await loadDataSafe(contentUrl, daConfig.token);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -347,7 +353,7 @@ export default function createProcessingStateManager(docAuthoringService) {
       }
       const filePath = DA_PATHS.getSiteStructureFile(daConfig.org, daConfig.repo);
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${filePath}`;
-      const parsedData = await loadData(contentUrl, daConfig.token);
+      const parsedData = await loadDataSafe(contentUrl, daConfig.token);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }

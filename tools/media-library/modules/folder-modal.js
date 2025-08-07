@@ -2,7 +2,7 @@
  * Folder Modal Component
  * Displays site structure hierarchy and allows filtering media by folders/files
  */
-import { loadData, CONTENT_DA_LIVE_BASE } from './sheet-utils.js';
+import { loadDataSafe, CONTENT_DA_LIVE_BASE } from './sheet-utils.js';
 
 export default function createFolderModal() {
   const state = {
@@ -10,10 +10,27 @@ export default function createFolderModal() {
     siteStructure: null,
     currentPath: [],
     isVisible: false,
+    isLoading: false,
     config: null,
     daApi: null,
     eventEmitter: null,
   };
+
+  /**
+   * Render loading state
+   */
+  function renderLoadingState() {
+    const treeContainer = state.modal?.querySelector('#folderTree');
+    if (!treeContainer) return;
+    console.log('[Folder Modal] 🔄 Rendering loading state');
+    treeContainer.innerHTML = `
+      <div class="folder-loading-state">
+        <div class="folder-loading-spinner"></div>
+        <p>Loading folder structure...</p>
+        <p>Please wait while we build the folder hierarchy.</p>
+      </div>
+    `;
+  }
 
   /**
    * Show the modal
@@ -26,6 +43,16 @@ export default function createFolderModal() {
     setTimeout(() => {
       state.modal.classList.add('visible');
     }, 10);
+
+    // Show loading state if site structure is not available
+    if (!state.siteStructure) {
+      state.isLoading = true;
+      console.log('[Folder Modal] 🔄 Site structure not available, showing loading state');
+      renderLoadingState();
+    } else {
+      console.log('[Folder Modal] ✅ Site structure available, no loading needed');
+    }
+
     const searchInput = state.modal.querySelector('#folderSearchInput');
     if (searchInput) {
       setTimeout(() => searchInput.focus(), 350);
@@ -39,6 +66,7 @@ export default function createFolderModal() {
   function hideModal() {
     if (!state.modal) return;
     state.isVisible = false;
+    state.isLoading = false;
     document.body.classList.remove('modal-open');
     state.modal.classList.remove('visible');
     setTimeout(() => {
@@ -114,8 +142,9 @@ export default function createFolderModal() {
     `;
     if (hasChildren) {
       const isRoot = folderName === 'Root';
-      const displayStyle = isRoot ? 'block' : 'none';
-      const toggleIcon = isRoot ? '▼' : '▶';
+      const isFiles = folderName === 'Files';
+      const displayStyle = (isRoot || isFiles) ? 'block' : 'none';
+      const toggleIcon = (isRoot || isFiles) ? '▼' : '▶';
       html = html.replace('▼', toggleIcon);
       html += `<div class="folder-tree-children" style="display: ${displayStyle};">`;
       if (folder.files) {
@@ -181,8 +210,6 @@ export default function createFolderModal() {
       el.classList.remove('selected');
     });
     item.classList.add('selected');
-    const { path, type } = item.dataset;
-    console.log('[Folder Modal] Selected:', { path, type });
     const applyBtn = state.modal?.querySelector('#applyFolderFilter');
     if (applyBtn) {
       applyBtn.disabled = false;
@@ -213,14 +240,19 @@ export default function createFolderModal() {
     if (!selectedItem) return;
     const { path, type } = selectedItem.dataset;
     let fullPath = path;
+
+    // Handle special case for "Files" folder - it represents root-level files
+    if (path === '/files') {
+      fullPath = '/'; // Use root path for filtering root-level files
+    }
+
     if (state.config && state.config.org && state.config.repo) {
       if (type === 'folder') {
-        fullPath = `/${state.config.org}/${state.config.repo}${path}`;
+        fullPath = `/${state.config.org}/${state.config.repo}${fullPath}`;
       } else if (type === 'file') {
-        fullPath = `/${state.config.org}/${state.config.repo}${path}`;
+        fullPath = `/${state.config.org}/${state.config.repo}${fullPath}`;
       }
     }
-    console.log('[Folder Modal] Applying filter:', { path: fullPath, type });
     if (state.eventEmitter) {
       state.eventEmitter.emit('folderFilterApplied', {
         path: fullPath,
@@ -231,30 +263,30 @@ export default function createFolderModal() {
   }
 
   /**
-   * Render empty state
+   * Clear the current folder filter
    */
+  function clearFilter() {
+    // Clear any selected items
+    state.modal?.querySelectorAll('.folder-tree-item').forEach((el) => {
+      el.classList.remove('selected');
+    });
+
+    // Emit clear filter event
+    if (state.eventEmitter) {
+      state.eventEmitter.emit('folderFilterCleared', {
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
   function renderEmptyState() {
     const treeContainer = state.modal?.querySelector('#folderTree');
     if (!treeContainer) return;
+    console.log('[Folder Modal] 📝 Rendering empty state');
     treeContainer.innerHTML = `
       <div class="folder-empty-state">
         <p>No folders or files found.</p>
         <p>Run a discovery scan to build the folder hierarchy.</p>
-      </div>
-    `;
-  }
-
-  /**
-   * Render error state
-   * @param {string} errorMessage - Error message
-   */
-  function renderErrorState(errorMessage) {
-    const treeContainer = state.modal?.querySelector('#folderTree');
-    if (!treeContainer) return;
-    treeContainer.innerHTML = `
-      <div class="folder-error-state">
-        <p>Failed to load folder structure.</p>
-        <p>Error: ${errorMessage}</p>
       </div>
     `;
   }
@@ -310,13 +342,25 @@ export default function createFolderModal() {
 
     let html = '';
 
-    // Create root folder to contain everything
+    // Create root folder structure with reorganized hierarchy
     const rootFolder = {
       path: '/',
-      files: structure.files || [],
+      files: [], // Move files to separate "Files" element
       subfolders: structure.subfolders || {},
     };
+
+    // Create the Root folder (without files)
     html += createFolderNode('Root', rootFolder, 0);
+
+    // Create separate "Files" element for root-level files
+    if (structure.files && structure.files.length > 0) {
+      const filesFolder = {
+        path: '/files',
+        files: structure.files,
+        subfolders: {},
+      };
+      html += createFolderNode('Files', filesFolder, 1);
+    }
 
     const hasNoFiles = !structure.files?.length;
     const hasNoSubfolders = !structure.subfolders || Object.keys(structure.subfolders).length === 0;
@@ -333,25 +377,22 @@ export default function createFolderModal() {
    * Load site structure data
    */
   async function loadSiteStructure() {
-    try {
-      if (!state.config || !state.daApi) {
-        console.warn('[Folder Modal] Configuration not available');
-        return;
-      }
-      const filePath = `/${state.config.org}/${state.config.repo}/.media/site-structure.json`;
-      const url = `${CONTENT_DA_LIVE_BASE}${filePath}`;
-      const data = await loadData(url, state.config.token);
-      if (data && data.data && data.data.length > 0) {
-        const [siteStructure] = data.data;
-        state.siteStructure = siteStructure;
-        renderFolderTree();
-      } else {
-        console.warn('[Folder Modal] No site structure data found');
-        renderEmptyState();
-      }
-    } catch (error) {
-      console.error('[Folder Modal] Failed to load site structure:', error);
-      renderErrorState(error.message);
+    if (!state.config || !state.daApi) {
+      console.warn('[Folder Modal] Configuration not available');
+      return;
+    }
+    const filePath = `/${state.config.org}/${state.config.repo}/.media/site-structure.json`;
+    const url = `${CONTENT_DA_LIVE_BASE}${filePath}`;
+    const data = await loadDataSafe(url, state.config.token);
+    if (data && data.data && data.data.length > 0) {
+      const [siteStructure] = data.data;
+      state.siteStructure = siteStructure;
+      state.isLoading = false;
+      renderFolderTree();
+    } else {
+      console.warn('[Folder Modal] No site structure data found');
+      state.isLoading = false;
+      renderEmptyState();
     }
   }
 
@@ -361,15 +402,26 @@ export default function createFolderModal() {
   function setupEventListeners() {
     const { modal } = state;
     if (!modal) return;
+
     const closeBtn = modal.querySelector('#folderModalClose');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => hideModal());
     }
+
+    const showAllBtn = modal.querySelector('#showAllBtn');
+    if (showAllBtn) {
+      showAllBtn.addEventListener('click', () => {
+        clearFilter();
+        hideModal();
+      });
+    }
+
     modal.addEventListener('click', ({ target }) => {
       if (target === modal) {
         hideModal();
       }
     });
+
     const searchInput = modal.querySelector('#folderSearchInput');
     if (searchInput) {
       searchInput.addEventListener('input', ({ target }) => {
@@ -400,7 +452,10 @@ export default function createFolderModal() {
       <div class="folder-modal-content">
         <div class="folder-modal-header">
           <h3>📁 Folder Browser</h3>
-          <button class="folder-modal-close" id="folderModalClose">&times;</button>
+          <div class="folder-modal-actions">
+            <button class="folder-modal-action-btn" id="showAllBtn" title="Show all assets">Show All</button>
+            <button class="folder-modal-close" id="folderModalClose">&times;</button>
+          </div>
         </div>
         <div class="folder-modal-body">
           <div class="folder-search-container">
@@ -421,7 +476,7 @@ export default function createFolderModal() {
    * Initialize the folder modal
    * @param {Object} config - API configuration
    * @param {Object} daApi - DA API instance
-   * @param {Object} eventEmitter - Event emitter instance
+   * @param {Object} eventEmitter - Event emitter instance or queue orchestrator
    */
   async function init(config, daApi, eventEmitter) {
     state.config = config;
@@ -429,6 +484,14 @@ export default function createFolderModal() {
     state.eventEmitter = eventEmitter;
     createModalElement();
     await loadSiteStructure();
+
+    // Listen for site structure updates
+    if (eventEmitter && typeof eventEmitter.on === 'function') {
+      eventEmitter.on('siteStructureUpdated', async () => {
+        state.isLoading = false;
+        await loadSiteStructure();
+      });
+    }
   }
 
   return {
@@ -436,5 +499,15 @@ export default function createFolderModal() {
     showModal,
     hideModal,
     loadSiteStructure,
+    on: (event, callback) => {
+      if (state.eventEmitter && typeof state.eventEmitter.on === 'function') {
+        state.eventEmitter.on(event, callback);
+      }
+    },
+    emit: (event, data) => {
+      if (state.eventEmitter && typeof state.eventEmitter.emit === 'function') {
+        state.eventEmitter.emit(event, data);
+      }
+    },
   };
 }

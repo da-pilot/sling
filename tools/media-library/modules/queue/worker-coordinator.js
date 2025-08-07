@@ -8,6 +8,7 @@ export default function createQueueWorkerManager() {
   const state = {
     workers: new Map(),
     workerConfigs: new Map(),
+    currentHandlers: null,
   };
 
   /**
@@ -54,6 +55,22 @@ export default function createQueueWorkerManager() {
     eventEmitter.on('scanComplete', onScanComplete);
     eventEmitter.on('error', onError);
     eventEmitter.on('progress', onProgress);
+
+    // Store handlers for new workers
+    state.currentHandlers = handlers;
+
+    // Set up message forwarding for all workers
+    state.workers.forEach((worker) => {
+      if (worker && typeof worker.addEventListener === 'function') {
+        worker.addEventListener('message', (event) => {
+          const { type, data } = event.data;
+          const handler = handlers[`on${type.charAt(0).toUpperCase() + type.slice(1)}`];
+          if (handler) {
+            handler(data);
+          }
+        });
+      }
+    });
   }
 
   /**
@@ -96,6 +113,18 @@ export default function createQueueWorkerManager() {
         );
         await initializeWorker(worker, 'media-scan', state.config);
         state.workers.set('media-scan', worker);
+        
+        // Set up message listener for the new worker
+        if (state.currentHandlers) {
+          worker.addEventListener('message', (event) => {
+            const { type, data } = event.data;
+            const handler = state.currentHandlers[`on${type.charAt(0).toUpperCase() + type.slice(1)}`];
+            if (handler) {
+              handler(data);
+            }
+          });
+        }
+        
         return worker;
       } catch (error) {
         return null;

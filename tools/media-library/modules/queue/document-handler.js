@@ -45,19 +45,13 @@ export default function createQueueDocumentProcessor() {
     let missingScanComplete = 0;
 
     discoveryFiles.forEach((file) => {
-      console.log('[Document Handler] 📄 Processing discovery file:', {
-        fileName: file.fileName,
-        documentCount: file.documents ? file.documents.length : 0,
-      });
-
       file.documents.forEach((doc) => {
         totalDocuments += 1;
-        
+
         if (doc.entryStatus === 'deleted') {
-          console.log('[Document Handler] ⏭️ Skipping deleted document:', doc.path);
           return;
         }
-        
+
         const hasScanStatus = Object.prototype.hasOwnProperty.call(doc, 'scanStatus');
         const hasScanComplete = Object.prototype.hasOwnProperty.call(doc, 'scanComplete');
         let needsScan = false;
@@ -120,29 +114,17 @@ export default function createQueueDocumentProcessor() {
       return acc;
     }, {});
 
-    console.log('[Document Handler] 📊 Document scanning analysis:', {
-      totalDocuments,
-      documentsToScan: documentsToScan.length,
-      alreadyScanned,
-      newDocuments,
-      changedDocuments,
-      needsRescan,
-      missingScanComplete,
-      scanReasons,
-    });
-
     if (documentsToScan.length > 0) {
-      console.log('[Document Handler] 🎯 Documents ready for scanning:', {
-        documentCount: documentsToScan.length,
-        documents: documentsToScan.map((d) => ({
-          path: d.path,
-          name: d.name,
-          scanReason: d.scanReason,
-          sourceFile: d.sourceFile,
-        })),
+      console.log('[Document Handler] 📊 Document scanning analysis:', {
+        totalDocuments,
+        documentsToScan: documentsToScan.length,
+        alreadyScanned,
+        newDocuments,
+        changedDocuments,
+        needsRescan,
+        missingScanComplete,
+        scanReasons,
       });
-    } else {
-      console.log('[Document Handler] ℹ️ No documents need scanning');
     }
 
     return documentsToScan;

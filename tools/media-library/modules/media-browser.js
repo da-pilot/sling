@@ -218,9 +218,6 @@ export default function createMediaBrowser(container, context = null) {
         const matches = usedInPages.some((page) => {
           // Use exact path matching for better reliability
           const result = page.startsWith(state.currentFilter.folderPath);
-          if (result) {
-            console.log('[Media Browser] Media matches folder:', media.name, 'used in:', page);
-          }
           return result;
         });
         return matches;
@@ -242,9 +239,6 @@ export default function createMediaBrowser(container, context = null) {
         // Check if media is used in the specific page using exact path matching
         const matches = usedInPages.some((page) => {
           const result = page === state.currentFilter.pagePath;
-          if (result) {
-            console.log('[Media Browser] Media matches page:', media.name, 'used in:', page);
-          }
           return result;
         });
         return matches;

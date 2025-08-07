@@ -8,7 +8,7 @@ import { DA_PATHS, CONTENT_DA_LIVE_BASE } from '../constants.js';
 import {
   buildSingleSheet,
   saveSheetFile,
-  loadData,
+  loadDataSafe,
 } from '../modules/sheet-utils.js';
 
 export default function createSessionManager() {
@@ -46,7 +46,7 @@ export default function createSessionManager() {
         normalizedSessionId,
       );
       const contentUrl = `${CONTENT_DA_LIVE_BASE}${sessionPath}`;
-      const parsedData = await loadData(contentUrl, state.config.token);
+      const parsedData = await loadDataSafe(contentUrl, state.config.token);
       if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
         return parsedData.data[0];
       }
@@ -297,7 +297,7 @@ export default function createSessionManager() {
             sessionId,
           );
           const contentUrl = `${CONTENT_DA_LIVE_BASE}${sessionPath}`;
-          loadData(contentUrl, state.config.token).then((parsedData) => {
+          loadDataSafe(contentUrl, state.config.token).then((parsedData) => {
             if (parsedData.data && Array.isArray(parsedData.data) && parsedData.data.length > 0) {
               const sessionData = parsedData.data[0];
               const sessionAge = now - (sessionData.lastUpdated || sessionData.createdAt || now);

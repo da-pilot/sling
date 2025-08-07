@@ -56,6 +56,32 @@ body.modal-open {
   font-weight: 600;
   color: white;
 }
+
+.folder-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.folder-modal-action-btn {
+  background: rgb(25 118 210 / 80%);
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.folder-modal-action-btn:hover {
+  background: rgb(25 118 210);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgb(25 118 210 / 30%);
+}
+
 .folder-modal-close {
   background: none;
   border: none;
@@ -223,6 +249,32 @@ body.modal-open {
 }
 .folder-error-state {
   color: var(--danger-color);
+}
+
+.folder-loading-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-muted);
+}
+
+.folder-loading-state p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.folder-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgb(255 255 255 / 20%);
+  border-top: 3px solid rgb(25 118 210);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 @media (width <= 768px) {
   .folder-modal-content {

@@ -116,6 +116,10 @@ export default function createDiscoveryEngine() {
     state.daApi = daApi;
   }
 
+  /**
+   * Trigger discovery completion
+   * @returns {Promise<void>}
+   */
   async function triggerDiscoveryComplete() {
     try {
       const progress = statsTracker.getProgress();
@@ -124,6 +128,9 @@ export default function createDiscoveryEngine() {
         completedFolders: progress.completedFolders,
         totalDocuments: progress.totalDocuments,
         status: 'completed',
+        discoveryStartTime: state.discoveryStartTime,
+        discoveryEndTime: Date.now(),
+        discoveryType: state.discoveryType,
         lastUpdated: Date.now(),
       };
       await persistenceManager.saveDiscoveryCheckpointFile(finalCheckpoint);
@@ -132,11 +139,6 @@ export default function createDiscoveryEngine() {
         await siteAggregator.saveSiteStructure(siteStructure);
       }
       const discoveryDuration = Date.now() - (state.discoveryStartTime || Date.now());
-      const durationMs = discoveryDuration;
-
-      console.log(`===== Discovery Completed: ${progress.completedFolders} folders,
-         ${progress.totalDocuments} files, took ${durationMs} ms ======`);
-
       eventEmitter.emitDiscoveryComplete({
         totalFolders: progress.totalFolders,
         completedFolders: progress.completedFolders,
@@ -148,10 +150,13 @@ export default function createDiscoveryEngine() {
       console.error('[Discovery Engine] ❌ Failed to complete discovery:', error);
     }
   }
+  /**
+   * Reset discovery state
+   * @returns {Promise<void>}
+   */
   async function resetDiscoveryState() {
     try {
       state.isRunning = false;
-      state.discoveryStartTime = null;
       state.discoveryType = 'full';
       parallelProcessor.cleanupAll();
       statsTracker.resetProgress();
@@ -162,14 +167,6 @@ export default function createDiscoveryEngine() {
       localStorage.removeItem('media-scanning-checkpoint');
       try {
         await persistenceManager.ensureRequiredFolders();
-        const defaultCheckpoint = {
-          totalFolders: 0,
-          completedFolders: 0,
-          totalDocuments: 0,
-          status: 'idle',
-          lastUpdated: Date.now(),
-        };
-        await persistenceManager.saveDiscoveryCheckpointFile(defaultCheckpoint);
       } catch (error) {
         console.warn('[Discovery Engine] ⚠️ Failed to clear persistence data:', error.message);
       }
@@ -196,28 +193,29 @@ export default function createDiscoveryEngine() {
    * Start discovery with session
    * @param {string} sessionId - Session ID
    * @param {string} discoveryType - Discovery type ('full' or 'incremental')
-   * @returns {Promise<void>}
+   * @returns {Promise<Object>} Discovery result
    */
   async function startDiscoveryWithSession(sessionId, discoveryType) {
     try {
       state.discoveryStartTime = Date.now();
       state.discoveryType = discoveryType;
-      console.log('[Discovery Engine] 🔍 Starting discovery process:', {
-        discoveryType,
-        sessionId,
-      });
-
-      // Only reset state for full discovery, preserve for incremental
       if (discoveryType === 'full') {
         await resetDiscoveryState();
       } else {
-        // For incremental, just reset running state but preserve checkpoint
         state.isRunning = false;
-        state.discoveryStartTime = null;
         parallelProcessor.cleanupAll();
         statsTracker.resetProgress();
       }
-
+      const initialCheckpoint = {
+        totalFolders: 0,
+        completedFolders: 0,
+        totalDocuments: 0,
+        status: 'running',
+        discoveryStartTime: state.discoveryStartTime,
+        discoveryType,
+        lastUpdated: Date.now(),
+      };
+      await persistenceManager.saveDiscoveryCheckpointFile(initialCheckpoint);
       const { folders, files } = await documentScanner.getTopLevelItems();
       const totalWork = folders.length + (files.length > 0 ? 1 : 0);
       if (discoveryType === 'incremental') {
@@ -243,17 +241,14 @@ export default function createDiscoveryEngine() {
       state.isRunning = true;
       state.hasFileChanges = false;
       statsTracker.setTotalFolders(totalWork);
-
       if (discoveryType === 'incremental' && state.incrementalChanges) {
         if (state.incrementalChanges.newFolders.length > 0) {
           await processFoldersInParallel(state.incrementalChanges.newFolders);
         }
-
         if (state.incrementalChanges.deletedFolders.length > 0) {
           await markDeletedFolders(state.incrementalChanges.deletedFolders);
         }
       }
-
       if (files.length > 0) {
         if (discoveryType === 'incremental' && state.incrementalChanges) {
           const existingRootDocs = state.incrementalChanges.existingFiles.find((file) => file.name === 'root')?.data || [];
@@ -275,12 +270,10 @@ export default function createDiscoveryEngine() {
         await triggerDiscoveryComplete();
       }
     } catch (error) {
-      console.error('[Discovery Engine] ❌ Discovery failed:', error);
       state.isRunning = false;
     } finally {
       state.isRunning = false;
     }
-
     if (discoveryType === 'incremental' && state.incrementalChanges) {
       const hasChanges = state.incrementalChanges.newFolders.length > 0
         || state.incrementalChanges.deletedFolders.length > 0

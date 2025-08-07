@@ -404,8 +404,35 @@ export default function createPersistenceManager() {
     });
 
     await Promise.all(promises);
-    // eslint-disable-next-line no-console
     console.log('[IndexedDB] 🗑️ All data cleared');
+  }
+
+  async function clearIndexDBExceptCheckpoints() {
+    if (!state.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const storesToClear = [
+      state.stores.media,
+      state.stores.mediaProcessingQueue,
+      state.stores.mediaUploadBatches,
+      state.stores.mediaUploadHistory,
+      state.stores.pageScanStatus,
+    ];
+
+    const transaction = state.db.transaction(storesToClear, 'readwrite');
+
+    const promises = storesToClear.map((storeName) => {
+      const store = transaction.objectStore(storeName);
+      return new Promise((resolve, reject) => {
+        const request = store.clear();
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    });
+
+    await Promise.all(promises);
+    console.log('[IndexedDB] 🗑️ IndexDB cleared except checkpoints (scanProgress and sessions preserved)');
   }
 
   /**
@@ -790,5 +817,6 @@ export default function createPersistenceManager() {
     getCompletedPagesByFile,
     getAllPageScanStatus,
     clearPageScanStatus,
+    clearIndexDBExceptCheckpoints,
   };
 }

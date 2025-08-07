@@ -55,9 +55,9 @@ let lastMediaCount = 0;
 let lastMediaUpdateTime = null;
 let consecutiveUnchangedCount = 0;
 let spinnerTimeoutId = null;
-const MAX_UNCHANGED_COUNT = 3; // Stop polling after 3 consecutive unchanged counts
+const MAX_UNCHANGED_COUNT = 1; // Stop polling after 1 consecutive unchanged count
 const STABLE_PERIOD_MS = 30000; // 30 seconds of no changes before stopping
-const SPINNER_TIMEOUT_MS = 60000; // 60 seconds of inactivity before hiding spinner
+const SPINNER_TIMEOUT_MS = 10000; // 10 seconds of inactivity before hiding spinner
 
 // =============================================================================
 // GLOBAL STATE VARIABLES
@@ -249,16 +249,9 @@ async function initializeCoreServices() {
     processingStateManager,
   );
 
+  await persistenceManager.clearIndexDBExceptCheckpoints();
+
   window.mediaProcessor = mediaProcessor;
-  
-  // Initialize folder modal
-  folderModal = createFolderModal();
-  await folderModal.init(docAuthoringService.getConfig(), docAuthoringService, {
-    emit: (event, data) => {
-      console.log('[Media Library] Folder modal event:', event, data);
-      handleFolderModalEvent(event, data);
-    },
-  });
 
   // Generate session identifiers
   currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -266,6 +259,10 @@ async function initializeCoreServices() {
   currentBrowserId = `browser_${userAgent}_${Date.now()}`;
 
   setupMediaUpdateHandler();
+
+  // Initialize folder modal
+  folderModal = createFolderModal();
+  await folderModal.init(docAuthoringService.getConfig(), docAuthoringService, null);
 
   initUIEvents({
     mediaBrowser,
@@ -308,8 +305,6 @@ async function loadAndRenderMedia() {
     // Update global media array
     media = loadedMedia || [];
     renderMedia(media);
-
-
   } catch (error) {
     // eslint-disable-next-line no-console
     console.warn('Failed to load media:', error);
@@ -364,79 +359,34 @@ function showPlaceholderCards() {
 }
 
 /**
- * Handle folder modal events
- * @param {string} event - Event name
- * @param {Object} data - Event data
+ * Return to all assets (clear all filters)
  */
-function handleFolderModalEvent(event, data) {
-  switch (event) {
-    case 'folderFilterApplied':
-      console.log('[Media Library] Applying folder filter:', data);
-      applyFolderFilter(data);
-      break;
-    case 'folderFilterCleared':
-      console.log('[Media Library] Clearing folder filter');
-      clearFolderFilter();
-      break;
-    default:
-      console.log('[Media Library] Unknown folder modal event:', event);
-  }
-}
-
-/**
- * Apply folder-based filter to media
- * @param {Object} data - Filter data with path and type
- */
-function applyFolderFilter(data) {
+function returnToAllAssets() {
   if (!mediaBrowser) return;
-  
-  const { path, type } = data;
-  
-  if (type === 'folder') {
-    // For folders, show media from all files in that folder
-    const folderPath = path;
-    mediaBrowser.setFilter({
-      folderPath,
-      types: ['image', 'video', 'document'],
-      isExternal: undefined,
-      usedOnPage: false,
-      missingAlt: undefined,
-      search: '',
-    });
-  } else if (type === 'file') {
-    // For individual files, show media from that specific page
-    const pagePath = path;
-    mediaBrowser.setFilter({
-      pagePath,
-      types: ['image', 'video', 'document'],
-      isExternal: undefined,
-      usedOnPage: false,
-      missingAlt: undefined,
-      search: '',
-    });
-  }
-  
-  // Update UI to show active filter
-  document.querySelectorAll('.folder-item').forEach((item) => item.classList.remove('active'));
-}
 
-/**
- * Clear folder-based filter
- */
-function clearFolderFilter() {
-  if (!mediaBrowser) return;
-  
+  // Clear all filters
   mediaBrowser.setFilter({
+    folderPath: undefined,
+    pagePath: undefined,
     types: ['image', 'video', 'document'],
     isExternal: undefined,
     usedOnPage: false,
     missingAlt: undefined,
     search: '',
   });
-  
+
   // Clear active states
   document.querySelectorAll('.folder-item').forEach((item) => item.classList.remove('active'));
+
+  // Set All Media as active
+  const allMediaItem = document.querySelector('.folder-item[data-filter="all"]');
+  if (allMediaItem) {
+    allMediaItem.classList.add('active');
+  }
 }
+
+// Make returnToAllAssets available globally
+window.returnToAllAssets = returnToAllAssets;
 
 function setupUIEventHandlers() {
   document.querySelectorAll('.view-btn[data-view]').forEach((btn) => {
@@ -663,6 +613,53 @@ async function initializeQueueOrchestrator() {
       updateLoadingText('Media upload failed');
       hideScanProgress();
     });
+
+    // Re-initialize folder modal with queue orchestrator for event handling
+    if (folderModal) {
+      await folderModal.init(
+        docAuthoringService.getConfig(),
+        docAuthoringService,
+        queueOrchestrator,
+      );
+
+      // Set up folder filter event handlers
+      if (queueOrchestrator && typeof queueOrchestrator.on === 'function') {
+        queueOrchestrator.on('folderFilterApplied', (data) => {
+          if (mediaBrowser) {
+            const { path, type } = data;
+            if (type === 'folder') {
+              mediaBrowser.setFilter({
+                folderPath: path,
+                types: ['image', 'video', 'document'],
+                isExternal: undefined,
+                usedOnPage: false,
+                missingAlt: undefined,
+                search: '',
+              });
+            } else if (type === 'file') {
+              mediaBrowser.setFilter({
+                pagePath: path,
+                search: '',
+              });
+            }
+          }
+        });
+
+        queueOrchestrator.on('folderFilterCleared', () => {
+          if (mediaBrowser) {
+            mediaBrowser.setFilter({
+              folderPath: undefined,
+              pagePath: undefined,
+              types: ['image', 'video', 'document'],
+              isExternal: undefined,
+              usedOnPage: false,
+              missingAlt: undefined,
+              search: '',
+            });
+          }
+        });
+      }
+    }
   } catch (error) {
     console.error('[Media Library] ❌ Failed to initialize queue orchestrator:', error);
     throw error;

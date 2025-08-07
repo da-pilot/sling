@@ -664,9 +664,7 @@ async function discoverFolderRecursive(folderPath, allDocuments) {
 
     allDocuments.push(...htmlFiles);
 
-    const subfolderPromises = subfolders.map((subfolder) =>
-      discoverFolderRecursive(subfolder.path, allDocuments),
-    );
+    const subfolderPromises = subfolders.map((subfolder) => discoverFolderRecursive(subfolder.path, allDocuments));
     await Promise.all(subfolderPromises);
   } catch (error) {
     console.error('[Media Scan Worker] ❌ Error in recursive discovery:', {
@@ -700,6 +698,12 @@ self.addEventListener('message', async (event) => {
       }
       case 'startQueueProcessing': {
         if (data?.documentsToScan && data.documentsToScan.length > 0) {
+          // Set session data if provided
+          if (data.sessionId) {
+            state.sessionId = data.sessionId;
+            state.userId = data.userId;
+            state.browserId = data.browserId;
+          }
           const batchSize = data.batchSize || 10;
           const batches = [];
           for (let i = 0; i < data.documentsToScan.length; i += batchSize) {

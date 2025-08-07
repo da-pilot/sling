@@ -102,10 +102,12 @@ export default function createMediaProcessor() {
 
   async function queueMediaForBatchProcessing(media) {
     if (!state.isInitialized) {
+      console.error('[Media Processor] ❌ Media processor not initialized');
       throw new Error('Media processor not initialized');
     }
 
     if (!state.currentSessionId) {
+      console.error('[Media Processor] ❌ No active session for batch processing');
       throw new Error('No active session for batch processing');
     }
 
@@ -117,18 +119,15 @@ export default function createMediaProcessor() {
       const allMedia = await getMediaData();
       state.onMediaUpdatedCallback(allMedia);
     }
+
+    processAndUploadQueuedMedia();
+
     return { queued: media.length, totalQueued: totalQueuedItems };
   }
 
   async function convertQueueToUploadBatches() {
     const queueItems = await state.persistenceManager.getProcessingQueue();
     const allRawMedia = queueItems.flatMap((item) => item.media || []);
-
-    console.log('[Media Processor] 🔄 Converting queue to upload batches:', {
-      queueItems: queueItems.length,
-      totalRawMedia: allRawMedia.length,
-      timestamp: new Date().toISOString(),
-    });
 
     const batches = createBatches(allRawMedia, 20);
 
@@ -138,12 +137,6 @@ export default function createMediaProcessor() {
         await state.persistenceManager.createUploadBatch(batchData);
       }),
     );
-
-    console.log('[Media Processor] ✅ Upload batches created successfully:', {
-      batchCount: batches.length,
-      totalMedia: allRawMedia.length,
-      timestamp: new Date().toISOString(),
-    });
   }
 
   async function uploadAllBatchesToMediaJson() {
@@ -151,10 +144,7 @@ export default function createMediaProcessor() {
     await persistenceManager.init();
     const pendingBatches = await persistenceManager.getPendingBatches();
 
-    console.log(`===== Media Upload Started: ${pendingBatches.length} batches, ${pendingBatches.flatMap((batch) => batch.media).length} media items ======`);
-
     if (pendingBatches.length === 0) {
-      console.log('[Media Processor] ℹ️ No pending batches to upload');
       return;
     }
 
@@ -163,7 +153,7 @@ export default function createMediaProcessor() {
     await state.metadataManager.init(state.config);
     const existingData = await state.metadataManager.getMetadata();
 
-    const { media: updatedMedia, stats } = await mergeMediaWithDeduplication(
+    const { media: updatedMedia } = await mergeMediaWithDeduplication(
       existingData || [],
       allBatchMedia,
     );
@@ -172,24 +162,16 @@ export default function createMediaProcessor() {
     state.mediaDataCache = null;
     state.mediaDataCacheTimestamp = null;
 
-    console.log(`===== Media Upload Completed: ${updatedMedia.length} total media items (${allBatchMedia.length} new, ${existingData ? existingData.length : 0} existing) ======`);
-    console.log(`===== Deduplication Stats: Merged ${stats.merged}, Added ${stats.added}, Duplicates ${stats.duplicates} ======`);
-    console.log(`===== Breakdown: ${stats.totalNew} new items → ${stats.added} added + ${stats.merged} merged with existing ======`);
-
     if (state.onMediaUpdatedCallback) {
       state.onMediaUpdatedCallback(updatedMedia);
     }
 
-    const batchPromises = pendingBatches.map(async (batch, index) => {
+    const batchPromises = pendingBatches.map(async (batch) => {
       await persistenceManager.confirmBatchUpload(batch.id, { count: batch.media.length });
       const processedIds = batch.media.map((m) => m.id);
       await persistenceManager.removeMediaFromProcessingQueue(processedIds, batch.sessionId);
-
-      console.log(`===== Batch ${index + 1} uploaded to media.json: ${batch.media.length} media items ======`);
     });
     await Promise.all(batchPromises);
-
-    console.log(`===== All ${pendingBatches.length} batches confirmed and cleaned up ======`);
   }
 
   async function processAndUploadQueuedMedia() {
@@ -851,8 +833,9 @@ export default function createMediaProcessor() {
         return false;
       }
       const remainingPaths = usedInPaths.filter((path) => !deletedDocumentPaths.includes(path));
-      const remainingOccurrences = mediaEntry.occurrences.filter((occurrence) => 
-        !deletedDocumentPaths.includes(occurrence.pagePath));
+      const remainingOccurrences = mediaEntry.occurrences.filter(
+        (occurrence) => !deletedDocumentPaths.includes(occurrence.pagePath),
+      );
       mediaEntry.usedIn = remainingPaths.join(',');
       mediaEntry.occurrences = remainingOccurrences;
       console.log('[Media Processor] 🔍 [CLEANUP] Updated media entry:', {
@@ -889,10 +872,6 @@ export default function createMediaProcessor() {
     if (!updatedDocumentPaths || updatedDocumentPaths.length === 0) {
       return;
     }
-    console.log('[Media Processor] 🔍 [UPDATE] Starting cleanup for updated documents:', {
-      updatedCount: updatedDocumentPaths.length,
-      updatedPaths: updatedDocumentPaths,
-    });
     const mediaData = await getMediaData();
     if (!Array.isArray(mediaData) || mediaData.length === 0) {
       console.log('[Media Processor] 🔍 [UPDATE] No media data found');
@@ -918,8 +897,9 @@ export default function createMediaProcessor() {
         return false;
       }
       const remainingPaths = usedInPaths.filter((path) => !updatedDocumentPaths.includes(path));
-      const remainingOccurrences = mediaEntry.occurrences.filter((occurrence) =>
-        !updatedDocumentPaths.includes(occurrence.pagePath));
+      const remainingOccurrences = mediaEntry.occurrences.filter(
+        (occurrence) => !updatedDocumentPaths.includes(occurrence.pagePath),
+      );
       mediaEntry.usedIn = remainingPaths.join(',');
       mediaEntry.occurrences = remainingOccurrences;
       console.log('[Media Processor] 🔍 [UPDATE] Updated media entry:', {

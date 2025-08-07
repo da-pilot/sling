@@ -49,6 +49,9 @@ export async function loadSheetFile(url, token) {
   const response = await fetch(url, { headers });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
     throw new Error(`Failed to load sheet: ${response.status} ${response.statusText}`);
   }
 
@@ -60,7 +63,22 @@ export async function loadSheetFile(url, token) {
  */
 export async function loadData(url, token) {
   const rawData = await loadSheetFile(url, token);
+  if (rawData === null) {
+    return { data: [] };
+  }
   return parseSheet(rawData);
+}
+
+/**
+ * Load data safely - returns empty data structure for missing files
+ */
+export async function loadDataSafe(url, token) {
+  try {
+    return await loadData(url, token);
+  } catch (error) {
+    console.warn(`[Sheet Utils] Failed to load data from ${url}:`, error.message);
+    return { data: [] };
+  }
 }
 
 /**

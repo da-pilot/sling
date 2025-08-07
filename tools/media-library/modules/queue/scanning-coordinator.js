@@ -41,81 +41,126 @@ export default function createScanningCoordinator() {
         discoveryFiles,
         forceRescan,
       );
-
-      if (documentsToScan.length > 0) {
-        // Initialize scanning checkpoint
-        if (state.processingStateManager) {
-          const initialCheckpoint = {
-            totalPages: documentsToScan.length,
-            scannedPages: 0,
-            pendingPages: documentsToScan.length,
-            failedPages: 0,
-            totalMedia: 0,
-            status: 'running',
-            lastUpdated: Date.now(),
-          };
-          await state.processingStateManager.saveScanningCheckpointFile(initialCheckpoint);
-          
-          console.log('[Scanning Coordinator] 📊 Initialized scanning checkpoint:', {
-            totalPages: documentsToScan.length,
-            status: 'running',
-          });
+      if (state.processingStateManager) {
+        let discoveryType = 'full';
+        try {
+          const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
+          discoveryType = discoveryCheckpoint.discoveryType || 'full';
+        } catch (error) {
+          console.warn('[Scanning Coordinator] Could not load discovery checkpoint for type:', error.message);
         }
-
+        const initialCheckpoint = {
+          totalPages: documentsToScan.length,
+          scannedPages: 0,
+          pendingPages: documentsToScan.length,
+          failedPages: 0,
+          totalMedia: 0,
+          status: documentsToScan.length > 0 ? 'running' : 'completed',
+          scanningStartTime: Date.now(),
+          discoveryType,
+          lastUpdated: Date.now(),
+        };
+        await state.processingStateManager.saveScanningCheckpointFile(initialCheckpoint);
+      }
+      if (documentsToScan.length > 0) {
         const worker = await state.workerManager.getDefaultWorker();
         if (worker) {
-          const session = state.sessionManager.getCurrentSession();
-
+          console.log('[Scanning Coordinator] ✅ Worker created, starting processing with', documentsToScan.length, 'documents');
           worker.postMessage({
             type: 'startQueueProcessing',
             data: {
-              sessionId: session?.sessionId,
-              userId: session?.userId,
-              browserId: session?.browserId,
               documentsToScan,
-              batchSize: 10,
+              sessionId: state.sessionManager?.getCurrentSession()?.sessionId,
             },
           });
-
-          return new Promise((resolve, reject) => {
-            const handleWorkerMessage = (event) => {
-              const { type, data } = event.data;
-
-              if (type === 'queueProcessingStopped') {
-                worker.removeEventListener('message', handleWorkerMessage);
-                if (data.reason === 'completed') {
-                  resolve({ success: true, documentsScanned: data.processedCount });
-                } else {
-                  reject(new Error(data.error || 'Worker processing failed'));
-                }
-              } else if (type === 'error') {
-                worker.removeEventListener('message', handleWorkerMessage);
-                reject(new Error(data.error || 'Worker error'));
-              }
-            };
-            worker.addEventListener('message', handleWorkerMessage);
-          });
+          return { success: true, documentsScanned: documentsToScan.length };
         }
-        eventEmitter.emit('scanningStopped', {
-          status: 'failed',
-          error: 'No worker available for processing',
-        });
-        return { success: false, error: 'No worker available for processing' };
+        console.error('[Scanning Coordinator] ❌ No worker available');
+        return { success: false, error: 'No worker available' };
       }
-      const totalDocuments = discoveryFiles.reduce(
-        (total, file) => total + (file.documents ? file.documents.length : 0),
-        0,
-      );
-      eventEmitter.emit('scanningStopped', {
-        status: 'completed',
-        reason: 'no_documents',
-        totalDocuments,
-      });
       return { success: true, documentsScanned: 0 };
     } catch (error) {
-      eventEmitter.emit('batchProcessingFailed', { error: error.message });
-      eventEmitter.emit('scanningStopped', { status: 'failed', error: error.message });
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Stop scanning phase
+   * @returns {Promise<void>}
+   */
+  async function stopScanningPhase() {
+    try {
+      if (state.workerManager) {
+        await state.workerManager.cleanup();
+      }
+    } catch (error) {
+      console.error('[Scanning Coordinator] ❌ Failed to stop scanning phase:', error);
+    }
+  }
+
+  /**
+   * Get scanning progress
+   * @returns {Promise<Object>} Scanning progress
+   */
+  async function getScanningProgress() {
+    try {
+      if (state.processingStateManager) {
+        return await state.processingStateManager.loadScanningCheckpoint();
+      }
+      return null;
+    } catch (error) {
+      console.error('[Scanning Coordinator] ❌ Failed to get scanning progress:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update scanning checkpoint for audit purposes when there are no changes
+   * @param {Object} processingStateManager - Processing state manager
+   * @param {Object} sessionManager - Session manager
+   * @param {Object} discoveryCoordinator - Discovery coordinator
+   * @param {Object} mediaProcessor - Media processor
+   * @param {Object} documentProcessor - Document processor
+   * @param {Object} deltaProcessor - Delta processor
+   * @param {Object} persistenceManager - Persistence manager
+   * @returns {Promise<void>}
+   */
+  async function updateScanningCheckpoint(
+    processingStateManager,
+    sessionManager,
+    discoveryCoordinator,
+    mediaProcessor,
+    documentProcessor,
+    deltaProcessor,
+    persistenceManager,
+  ) {
+    try {
+      if (!processingStateManager) {
+        return;
+      }
+      let discoveryType = 'full';
+      try {
+        const discoveryCheckpoint = await processingStateManager.loadDiscoveryCheckpoint();
+        discoveryType = discoveryCheckpoint.discoveryType || 'full';
+      } catch (error) {
+        console.warn('[Scanning Coordinator] Could not load discovery checkpoint for type:', error.message);
+      }
+      const currentTime = Date.now();
+      const auditCheckpoint = {
+        totalPages: 0,
+        scannedPages: 0,
+        pendingPages: 0,
+        failedPages: 0,
+        totalMedia: 0,
+        status: 'completed',
+        scanningStartTime: currentTime,
+        scanningEndTime: currentTime,
+        discoveryType,
+        lastUpdated: currentTime,
+      };
+      await processingStateManager.saveScanningCheckpointFile(auditCheckpoint);
+    } catch (error) {
+      console.error('[Scanning Coordinator] ❌ Failed to update scanning checkpoint for audit:', error);
     }
   }
 
@@ -149,6 +194,9 @@ export default function createScanningCoordinator() {
   return {
     init,
     startScanningPhase,
+    stopScanningPhase,
+    getScanningProgress,
+    updateScanningCheckpoint,
     on,
     off,
     emit,

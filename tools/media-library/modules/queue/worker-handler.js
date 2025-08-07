@@ -2,7 +2,6 @@
  * Worker Handler - Handles worker event coordination and message processing
  */
 import createEventEmitter from '../../shared/event-emitter.js';
-import createScanCompletionHandler from '../scan-completion-handler.js';
 
 export default function createWorkerHandler() {
   const eventEmitter = createEventEmitter('Worker Handler');
@@ -34,6 +33,7 @@ export default function createWorkerHandler() {
     sessionManager,
     processingStateManager,
     persistenceManager,
+    scanCompletionHandler,
   ) {
     state.workerManager = workerManager;
     state.discoveryCoordinator = discoveryCoordinator;
@@ -42,12 +42,7 @@ export default function createWorkerHandler() {
     state.sessionManager = sessionManager;
     state.processingStateManager = processingStateManager;
     state.persistenceManager = persistenceManager;
-    state.scanCompletionHandler = createScanCompletionHandler();
-    await state.scanCompletionHandler.init(
-      discoveryCoordinator.getConfig(),
-      discoveryCoordinator.getDaApi(),
-      processingStateManager,
-    );
+    state.scanCompletionHandler = scanCompletionHandler;
   }
 
   /**
@@ -59,6 +54,7 @@ export default function createWorkerHandler() {
   async function processMediaImmediately(media, sessionId) {
     try {
       if (!state.mediaProcessor) {
+        console.warn('[Worker Handler] ⚠️ No media processor available');
         return;
       }
       if (sessionId && state.sessionManager) {
@@ -73,6 +69,7 @@ export default function createWorkerHandler() {
       }
       await state.mediaProcessor.queueMediaForBatchProcessing(media);
     } catch (error) {
+      console.error('[Worker Handler] ❌ Error in processMediaImmediately:', error);
       eventEmitter.emit('error', { error: error.message });
     }
   }
@@ -82,52 +79,15 @@ export default function createWorkerHandler() {
    * @param {number} processedCount - Number of processed documents
    * @returns {Promise<void>}
    */
-  async function handleScanningCompletion(processedCount) {
+  async function handleScanningCompletion(processedCount = 0) {
     try {
-      const session = state.sessionManager.getCurrentSession();
-      const currentCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
-      const totalPages = currentCheckpoint?.totalPages || processedCount;
-      let updatedDiscoveryFiles = null;
-      if (state.discoveryCoordinator) {
-        updatedDiscoveryFiles = await state.scanCompletionHandler
-          .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
-      }
-      if (!updatedDiscoveryFiles || updatedDiscoveryFiles.length === 0) {
-        const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
-        updatedDiscoveryFiles = discoveryFiles;
-      }
-      const totalMediaCount = updatedDiscoveryFiles?.reduce((sum, file) => {
-        const fileSum = file.documents?.reduce(
-          (docSum, doc) => docSum + (doc.mediaCount || 0),
-          0,
-        ) || 0;
-        return sum + fileSum;
-      }, 0) || 0;
-      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
-        totalPages,
-        totalMediaCount,
-      );
-      await state.scanCompletionHandler.updateAllDiscoveryFiles(
-        updatedDiscoveryFiles,
-      );
-      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
-        updatedDiscoveryFiles,
-      );
-
-      // Cleanup old session files after scanning is complete
-      if (state.sessionManager && typeof state.sessionManager.cleanupOldSessionFiles === 'function') {
-        await state.sessionManager.cleanupOldSessionFiles();
-      }
-
-      eventEmitter.emit('scanningCompletionHandled', {
-        processedCount,
-        totalPages,
-        totalMedia: totalMediaCount,
-        sessionId: session?.sessionId,
-        timestamp: new Date().toISOString(),
-      });
+      console.log('[Worker Handler] 🔄 Worker scanning completed with processedCount:', processedCount);
+      // Worker completion is now handled by Queue Orchestrator
+      // Scan completion methods are called by Queue Orchestrator after discovery phase
+      return true;
     } catch (error) {
-      eventEmitter.emit('error', { error: error.message });
+      console.error('[Worker Handler] ❌ Error in handleScanningCompletion:', error);
+      return false;
     }
   }
 
@@ -167,7 +127,7 @@ export default function createWorkerHandler() {
           if (state.mediaProcessor) {
             await state.mediaProcessor.cleanupMediaForUpdatedDocuments([data.page]);
           }
-          
+
           const updateData = {
             fileName: data.sourceFile,
             pagePath: data.page,
@@ -182,7 +142,7 @@ export default function createWorkerHandler() {
             updateData.mediaCount,
             updateData.error,
           );
-          
+
           // Save to IndexedDB for sync process
           if (state.persistenceManager) {
             await state.persistenceManager.savePageScanStatus({
@@ -208,6 +168,8 @@ export default function createWorkerHandler() {
             pendingPages: Math.max(0, totalPages - newScannedPages),
             totalMedia: (currentProgress.totalMedia || 0) + (data?.totalMedia || 0),
             status: isScanningComplete ? 'completed' : 'running',
+            scanningStartTime: currentProgress.scanningStartTime || Date.now(),
+            discoveryType: currentProgress.discoveryType || 'full',
             lastUpdated: Date.now(),
           };
           await state.processingStateManager.saveScanningCheckpointFile(updatedProgress);
@@ -233,7 +195,9 @@ export default function createWorkerHandler() {
         }
       },
       onQueueProcessingStopped: async (data) => {
+        console.log('[Worker Handler] 📡 Received queueProcessingStopped:', data);
         if (data.reason === 'completed') {
+          console.log('[Worker Handler] 🔄 Calling handleScanningCompletion with processedCount:', data.processedCount);
           await handleScanningCompletion(data.processedCount || 0);
         }
         eventEmitter.emit('queueProcessingStopped', data);
@@ -252,7 +216,6 @@ export default function createWorkerHandler() {
         handler(data);
       }
     });
-    state.workerManager.setupWorkerHandlers(handlers);
   }
 
   /**
