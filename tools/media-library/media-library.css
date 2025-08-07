@@ -595,6 +595,19 @@ body {
   }
 }
 
+
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+@keyframes placeholder-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1121,8 +1134,6 @@ body {
   color: var(--color-badge-text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-
-  /* Info pills - subtle, non-interactive appearance */
   opacity: 0.8;
   border: 1px solid transparent;
 }
@@ -1145,6 +1156,11 @@ body {
 .badge.document {
   background: #fff3e0;
   color: #f57c00;
+}
+
+.badge.ext {
+  background: #fff3e0;
+  color: #e65100;
 }
 
 .media-pills {
@@ -1244,11 +1260,6 @@ body {
   background: #e55a2b;
   color: white;
   border-color: #e55a2b;
-}
-
-.badge.ext {
-  background: #fff3e0;
-  color: #e65100;
 }
 
 /* Modal */
@@ -1920,12 +1931,6 @@ body {
   height: 24px;
   background: var(--media-placeholder-action-bg);
   border-radius: 4px;
-}
-
-@keyframes placeholder-pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
 }
 
 @keyframes shimmer {
