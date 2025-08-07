@@ -74,6 +74,7 @@ export default function createQueueOrchestrator() {
         daApi,
         processingStateManager,
         state.discoveryCoordinator,
+        sessionManager,
       );
     } else {
       state.scanCompletionHandler = scanCompletionHandler;
@@ -647,15 +648,7 @@ export default function createQueueOrchestrator() {
   async function updateScanningCheckpointForAudit() {
     console.log('[Queue Orchestrator] 🔄 Updating scanning checkpoint for audit (no changes)');
     try {
-      await state.scanningCoordinator.updateScanningCheckpoint(
-        state.processingStateManager,
-        state.sessionManager,
-        state.discoveryCoordinator,
-        state.mediaProcessor,
-        state.documentProcessor,
-        state.deltaProcessor,
-        state.persistenceManager,
-      );
+      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(0, 0);
       console.log('[Queue Orchestrator] ✅ Scanning checkpoint updated for audit.');
     } catch (error) {
       console.error('[Queue Orchestrator] ❌ Failed to update scanning checkpoint for audit:', error);

@@ -28,6 +28,7 @@ export const DA_STORAGE = {
     SESSION_HISTORY: 'session-history.json',
     STRUCTURE_BASELINE: 'structure-baseline.json',
     SITE_STRUCTURE: 'site-structure.json',
+    AUDIT_LOG: 'media-scan-audit.json',
   },
 };
 
@@ -51,6 +52,7 @@ export const DA_PATHS = {
   getSessionHistoryFile: (org, repo, sessionId) => `/${org}/${repo}/${DA_STORAGE.SESSIONS_DIR}/session-history-${sessionId}.json`,
   getStructureBaselineFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.STRUCTURE_BASELINE}`,
   getSiteStructureFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.DIR}/${DA_STORAGE.FILES.SITE_STRUCTURE}`,
+  getAuditLogFile: (org, repo) => `/${org}/${repo}/${DA_STORAGE.PROCESSING_DIR}/${DA_STORAGE.FILES.AUDIT_LOG}`,
 };
 
 // Scan Configuration

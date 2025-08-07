@@ -3,6 +3,7 @@ import createSiteAggregator from './discovery/site-aggregator.js';
 import createPersistenceManager from '../services/persistence-manager.js';
 import createDiscoveryFileManager from './queue/discovery-file-manager.js';
 import createEventEmitter from '../shared/event-emitter.js';
+import createAuditLogManager from '../services/audit-log-manager.js';
 
 export default function createScanCompletionHandler() {
   const eventEmitter = createEventEmitter('Scan Completion Handler');
@@ -13,17 +14,21 @@ export default function createScanCompletionHandler() {
     config: null,
     daApi: null,
     processingStateManager: null,
+    auditLogManager: null,
   };
 
-  async function init(config, daApi, processingStateManager, discoveryCoordinator) {
+  async function init(config, daApi, processingStateManager, discoveryCoordinator, sessionManager) {
     state.config = config;
     state.daApi = daApi;
     state.processingStateManager = processingStateManager;
     state.discoveryCoordinator = discoveryCoordinator;
+    state.sessionManager = sessionManager;
     state.scanStatusUpdater = createScanStatusUpdater();
     state.siteAggregator = createSiteAggregator();
     state.persistenceManager = createPersistenceManager();
+    state.auditLogManager = createAuditLogManager();
     await state.persistenceManager.init();
+    state.auditLogManager.init(config, daApi);
     state.siteAggregator.init(config);
     state.siteAggregator.setDaApi(daApi);
   }
@@ -93,6 +98,15 @@ export default function createScanCompletionHandler() {
         lastUpdated: Date.now(),
       };
       await state.processingStateManager.saveScanningCheckpointFile(updatedCheckpoint);
+      const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
+      if (discoveryCheckpoint && state.auditLogManager) {
+        const sessionId = state.sessionManager?.getCurrentSession()?.sessionId || 'unknown';
+        await state.auditLogManager.createAuditEntry(
+          discoveryCheckpoint,
+          updatedCheckpoint,
+          sessionId,
+        );
+      }
       eventEmitter.emit('scanningCheckpointCompleted', {
         totalPages: updatedCheckpoint.totalPages,
         scannedPages: updatedCheckpoint.scannedPages,
@@ -101,7 +115,7 @@ export default function createScanCompletionHandler() {
       });
       return updatedCheckpoint;
     } catch (error) {
-      return null;
+      throw new Error(`Failed to update scanning checkpoint as completed: ${error.message}`);
     }
   }
 
@@ -294,6 +308,8 @@ export default function createScanCompletionHandler() {
     processRemainingMedia,
     syncDiscoveryFilesCacheWithIndexedDB,
     updateScanningCheckpointAsCompleted,
+    loadAuditLog: state.auditLogManager?.loadAuditLog.bind(state.auditLogManager),
+    cleanupOldEntries: state.auditLogManager?.cleanupOldEntries.bind(state.auditLogManager),
     on,
     off,
     emit,
