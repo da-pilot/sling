@@ -46,24 +46,18 @@ import {
 // =============================================================================
 
 const { POLLING_INTERVAL } = SCAN_CONFIG;
-const HOURS_IN_DAY = 24;
 const useQueueBasedScanning = true;
 
 // Polling control variables
 let pollingIntervalId = null;
-let lastMediaCount = 0;
-let lastMediaUpdateTime = null;
-let consecutiveUnchangedCount = 0;
 let spinnerTimeoutId = null;
-const MAX_UNCHANGED_COUNT = 1; // Stop polling after 1 consecutive unchanged count
-const STABLE_PERIOD_MS = 30000; // 30 seconds of no changes before stopping
-const SPINNER_TIMEOUT_MS = 10000; // 10 seconds of inactivity before hiding spinner
+const SPINNER_TIMEOUT_MS = 10000;
+const MEDIA_LASTMOD_KEY = 'mediaJsonLastModified';
 
 // =============================================================================
 // GLOBAL STATE VARIABLES
 // =============================================================================
 
-let isScanning = false;
 let daContext = null;
 let daActions = null;
 let docAuthoringService = null;
@@ -553,17 +547,17 @@ async function initializeScanning() {
   }
 
   try {
-    await checkScanStatus();
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn('Failed to check scan status, continuing:', error);
-  }
+    // Check if it's safe to start a scan (multi-user coordination)
+    const canStartScan = await checkInitialScanStatus();
 
-  try {
-    await startFullScan(false);
+    if (canStartScan) {
+      await startFullScan(false);
+    } else {
+      // Another user is scanning - set as active but don't start new scan
+      showScanProgress();
+    }
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn('Failed to start full scan, continuing:', error);
+    console.warn('Failed to initialize scanning, continuing:', error);
   }
 }
 
@@ -671,41 +665,45 @@ async function initializeQueueOrchestrator() {
 // =============================================================================
 
 /**
- * Check current scan status
+ * Check scan status (local only - no checkpoint polling)
  */
 async function checkScanStatus() {
-  if (!useQueueBasedScanning || !queueOrchestrator) return;
+  if (!useQueueBasedScanning || !queueOrchestrator) return false;
 
   try {
-    const [isActive, persistentStats] = await Promise.all([
-      /* eslint-disable-next-line no-use-before-define */
-      queueOrchestrator.isScanActive(),
-      /* eslint-disable-next-line no-use-before-define */
-      queueOrchestrator.getPersistentStats(),
-    ]);
-
-    if (isActive && !persistentStats?.currentSession) {
-      updateLoadingText('Scan in progress by another user. Please wait...');
-
-      if (persistentStats?.lastScanTime) {
-        const lastScanDate = new Date(persistentStats.lastScanTime).toLocaleString();
-        updateLoadingText(`Last scan: ${lastScanDate}. Another user is scanning...`);
-      }
-      return;
-    }
-
-    if (persistentStats?.lastScanTime) {
-      const lastScanDate = new Date(persistentStats.lastScanTime).toLocaleString();
-      const timeSinceLastScan = Date.now() - persistentStats.lastScanTime;
-      const hoursSinceLastScan = Math.floor(timeSinceLastScan / (1000 * 60 * 60));
-
-      if (hoursSinceLastScan < HOURS_IN_DAY) {
-        updateLoadingText(`Last scan: ${lastScanDate} (${hoursSinceLastScan}h ago)`);
-      }
-    }
+    // Only check local worker state - no checkpoint polling
+    const isActive = queueOrchestrator.isScanActive();
+    return isActive;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('Failed to check scan status:', error);
+    return false;
+  }
+}
+
+/**
+ * Check initial scan status by verifying discovery and scanning checkpoints
+ * @returns {Promise<boolean>} True if safe to start scan, false if another scan is running
+ */
+async function checkInitialScanStatus() {
+  try {
+    const [discoveryCheckpoint, scanningCheckpoint] = await Promise.all([
+      processingStateManager.loadDiscoveryCheckpoint(),
+      processingStateManager.loadScanningCheckpoint(),
+    ]);
+    console.log('[Media Library] 📊 Checkpoint Status:', {
+      discovery: discoveryCheckpoint.status,
+      scanning: scanningCheckpoint.status,
+      lastUpdate: new Date(scanningCheckpoint.lastUpdated).toLocaleString(),
+    });
+    const isActive = discoveryCheckpoint.status === 'running' || scanningCheckpoint.status === 'running';
+    if (isActive) {
+      updateLoadingText('Scan in progress. Please wait...');
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[Media Library] ❌ Failed to check scan status:', error);
+    return true;
   }
 }
 
@@ -714,13 +712,13 @@ async function checkScanStatus() {
  */
 async function startFullScan(forceRescan = false) {
   try {
-    isScanning = true;
+    showScanProgress();
+    updateLoadingText('Starting V2 full content scan...');
+    resetPollingState();
 
-    // Create session for scanning
-    let sessionId = null;
     if (sessionManager && currentUserId && currentBrowserId) {
       try {
-        sessionId = await sessionManager.createSession(currentUserId, currentBrowserId, forceRescan ? 'force' : 'incremental');
+        const sessionId = await sessionManager.createSession(currentUserId, currentBrowserId, forceRescan ? 'force' : 'incremental');
         currentSessionId = sessionId;
         if (mediaProcessor) {
           mediaProcessor.setCurrentSession(sessionId, currentUserId, currentBrowserId);
@@ -730,14 +728,10 @@ async function startFullScan(forceRescan = false) {
       }
     }
 
-    showScanProgress();
-    updateLoadingText('Starting V2 full content scan...');
-    resetPollingState();
-
-    if (sessionId) {
+    if (sessionManager && currentSessionId) {
       await queueOrchestrator.startQueueScanning(
         forceRescan,
-        sessionId,
+        currentSessionId,
         currentUserId,
         currentBrowserId,
       );
@@ -747,69 +741,57 @@ async function startFullScan(forceRescan = false) {
   } catch (error) {
     console.error('V2 full scan failed:', error);
     showError('V2 full scan failed', error);
-    isScanning = false;
     hideScanProgress();
   }
 }
 
 /**
- * Check scan status and start polling
+ * Check media.json last modified time and update if changed
  */
 async function checkScanAndStartPolling() {
   try {
-    isScanning = await checkScanStatus();
-    if (isScanning) {
-      consecutiveUnchangedCount = 0;
-      // Restart polling if scanning is active but polling was stopped
+    const localScanActive = checkScanStatus();
+
+    if (localScanActive) {
       if (!pollingIntervalId) {
         startPolling();
       }
       return;
     }
 
-    // If not scanning and no polling, hide scan progress
-    if (!isScanning && !pollingIntervalId) {
+    if (!localScanActive && !pollingIntervalId) {
       hideScanProgress();
     }
 
-    const mediaData = await loadMediaFromMediaJson();
-    const currentMediaCount = mediaData.media?.length || 0;
-    const currentTime = Date.now();
+    // Get media.json file info
+    const mediaJsonPath = DA_PATHS.getMediaDataFile(daContext.org, daContext.repo);
+    const mediaJsonInfo = await docAuthoringService.getFileInfo(mediaJsonPath);
+    if (!mediaJsonInfo) {
+      console.log('[Media Library] media.json not found');
+      return;
+    }
 
-    // Check if media count has changed
-    if (currentMediaCount !== lastMediaCount) {
-      lastMediaCount = currentMediaCount;
-      lastMediaUpdateTime = currentTime;
-      consecutiveUnchangedCount = 0;
+    const storedLastMod = localStorage.getItem(MEDIA_LASTMOD_KEY);
+    const currentLastMod = mediaJsonInfo.lastModified;
 
-      // Reset spinner timeout on activity
+    // First time or lastModified changed
+    if (!storedLastMod || storedLastMod !== currentLastMod) {
+      // Update stored lastModified
+      localStorage.setItem(MEDIA_LASTMOD_KEY, currentLastMod);
+
+      // Fetch and render new media data
+      const mediaData = await loadMediaFromMediaJson();
+      if (mediaData.mediaJsonExists && mediaData.media.length > 0) {
+        renderMedia(mediaData.media);
+      }
+
+      // Reset spinner timeout
       if (spinnerTimeoutId) {
         clearTimeout(spinnerTimeoutId);
         spinnerTimeoutId = setTimeout(() => {
           hideScanProgress();
           console.log('[Media Library] Hiding spinner due to inactivity timeout');
         }, SPINNER_TIMEOUT_MS);
-      }
-
-      // Only refresh UI when count actually changes
-      if (mediaData.mediaJsonExists && mediaData.media.length > 0) {
-        renderMedia(mediaData.media);
-      }
-    } else {
-      consecutiveUnchangedCount += 1;
-
-      // Stop polling if count hasn't changed for multiple consecutive checks
-      if (consecutiveUnchangedCount >= MAX_UNCHANGED_COUNT) {
-        stopPolling();
-        hideScanProgress();
-        console.log('[Media Library] Stopping polling - no media updates detected');
-      }
-
-      // Stop polling if no changes for stable period
-      if (lastMediaUpdateTime && (currentTime - lastMediaUpdateTime) > STABLE_PERIOD_MS) {
-        stopPolling();
-        hideScanProgress();
-        console.log('[Media Library] Stopping polling - stable period reached');
       }
     }
   } catch (error) {
@@ -838,29 +820,11 @@ function startPolling() {
 }
 
 /**
- * Stop polling for media updates
- */
-function stopPolling() {
-  if (pollingIntervalId) {
-    clearInterval(pollingIntervalId);
-    pollingIntervalId = null;
-    console.log('[Media Library] Stopped polling for media updates');
-  }
-
-  // Clear spinner timeout
-  if (spinnerTimeoutId) {
-    clearTimeout(spinnerTimeoutId);
-    spinnerTimeoutId = null;
-  }
-}
-
-/**
  * Reset polling state when new scan starts
  */
 function resetPollingState() {
-  lastMediaCount = 0;
-  lastMediaUpdateTime = null;
-  consecutiveUnchangedCount = 0;
+  // Clear stored lastModified to force refresh
+  localStorage.removeItem(MEDIA_LASTMOD_KEY);
 
   // Clear spinner timeout when resetting
   if (spinnerTimeoutId) {

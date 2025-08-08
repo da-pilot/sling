@@ -8,7 +8,7 @@ export default function createPersistenceManager() {
   const state = {
     db: null,
     dbName: 'MediaLibraryDB',
-    dbVersion: 3,
+    dbVersion: 4,
     stores: {
       media: 'media',
       scanProgress: 'scanProgress',
