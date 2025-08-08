@@ -49,6 +49,10 @@ export default function createDiscoveryPersistenceManager() {
             completedFolders: 0,
             totalDocuments: 0,
             status: 'idle',
+            discoveryStartTime: null,
+            discoveryEndTime: null,
+            discoveryType: 'full',
+            lastUpdated: null,
           },
         };
       }
@@ -69,6 +73,10 @@ export default function createDiscoveryPersistenceManager() {
           completedFolders: 0,
           totalDocuments: 0,
           status: 'idle',
+          discoveryStartTime: null,
+          discoveryEndTime: null,
+          discoveryType: 'full',
+          lastUpdated: null,
         },
       };
     }

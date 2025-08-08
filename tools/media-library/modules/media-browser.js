@@ -24,7 +24,96 @@ export default function createMediaBrowser(container, context = null) {
     isInitialLoad: true,
     context: context || {},
     eventListeners: {},
+    // Virtual scrolling state
+    virtualScroll: {
+      itemsPerPage: 50,
+      currentPage: 0,
+      totalPages: 0,
+      visibleItems: [],
+      observer: null,
+      isLoading: false,
+      hasMoreItems: true,
+    },
   };
+
+  // Virtual scrolling helper functions
+  function calculateVirtualScrollState() {
+    const totalItems = state.filteredMedia.length;
+    state.virtualScroll.totalPages = Math.ceil(totalItems / state.virtualScroll.itemsPerPage);
+    state.virtualScroll.hasMoreItems = state.virtualScroll.currentPage
+      < state.virtualScroll.totalPages;
+  }
+
+  function getVisibleItems() {
+    const startIndex = state.virtualScroll.currentPage * state.virtualScroll.itemsPerPage;
+    const endIndex = startIndex + state.virtualScroll.itemsPerPage;
+    return state.filteredMedia.slice(startIndex, endIndex);
+  }
+
+  function setupIntersectionObserver() {
+    if (state.virtualScroll.observer) {
+      state.virtualScroll.observer.disconnect();
+    }
+
+    const observerCallback = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !state.virtualScroll.isLoading
+            && state.virtualScroll.hasMoreItems) {
+          loadMoreItems();
+        }
+      });
+    };
+
+    state.virtualScroll.observer = new IntersectionObserver(observerCallback, {
+      rootMargin: '100px',
+      threshold: 0.1,
+    });
+
+    // Observe the last item for infinite scroll
+    const lastItem = state.container?.querySelector('.media-item:last-child');
+    if (lastItem) {
+      state.virtualScroll.observer.observe(lastItem);
+    }
+  }
+
+  function loadMoreItems() {
+    if (state.virtualScroll.isLoading || !state.virtualScroll.hasMoreItems) return;
+
+    state.virtualScroll.isLoading = true;
+    state.virtualScroll.currentPage += 1;
+
+    const newItems = getVisibleItems();
+    state.virtualScroll.visibleItems = [...state.virtualScroll.visibleItems, ...newItems];
+
+    renderVisibleItems(newItems, true);
+    calculateVirtualScrollState();
+
+    state.virtualScroll.isLoading = false;
+  }
+
+  function renderVisibleItems(items, append = false) {
+    if (!state.container) return;
+
+    const fragment = document.createDocumentFragment();
+
+    items.forEach((media) => {
+      const mediaElement = createMediaElement(media);
+      mediaElement.setAttribute('data-media-id', media.id);
+      fragment.appendChild(mediaElement);
+    });
+
+    if (append) {
+      state.container.appendChild(fragment);
+    } else {
+      state.container.innerHTML = '';
+      state.container.appendChild(fragment);
+    }
+
+    // Setup observer for the last item
+    setTimeout(() => {
+      setupIntersectionObserver();
+    }, 100);
+  }
 
   const api = {
     on,
@@ -37,6 +126,7 @@ export default function createMediaBrowser(container, context = null) {
     getSelectedMedia,
     clearSelection,
     markInitialLoadComplete,
+    cleanup,
   };
 
   function on(event, callback) {
@@ -58,6 +148,11 @@ export default function createMediaBrowser(container, context = null) {
     if (state.isInitialLoad && media && media.length > 0) {
       state.isInitialLoad = false;
     }
+
+    // Reset virtual scroll state when media changes
+    state.virtualScroll.currentPage = 0;
+    state.virtualScroll.visibleItems = [];
+    state.virtualScroll.hasMoreItems = true;
 
     applyFiltersAndSort();
     render();
@@ -293,7 +388,12 @@ export default function createMediaBrowser(container, context = null) {
     } else {
       state.container.classList.remove('list-view');
     }
-    const newContent = document.createDocumentFragment();
+
+    // Reset virtual scroll state
+    state.virtualScroll.currentPage = 0;
+    state.virtualScroll.visibleItems = [];
+    calculateVirtualScrollState();
+
     if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
       const emptyDiv = document.createElement('div');
       emptyDiv.className = 'empty-state';
@@ -303,8 +403,10 @@ export default function createMediaBrowser(container, context = null) {
           <p>Try adjusting your filters or scanning for media.</p>
         </div>
       `;
-      newContent.appendChild(emptyDiv);
+      state.container.innerHTML = '';
+      state.container.appendChild(emptyDiv);
     } else {
+      // Add list header if needed
       if (state.currentView === 'list') {
         const header = document.createElement('div');
         header.className = 'list-header';
@@ -314,16 +416,17 @@ export default function createMediaBrowser(container, context = null) {
           <div class="list-header-cell">Type</div>
           <div class="list-header-cell">Actions</div>
         `;
-        newContent.appendChild(header);
+        state.container.innerHTML = '';
+        state.container.appendChild(header);
+      } else {
+        state.container.innerHTML = '';
       }
-      state.filteredMedia.forEach((media) => {
-        const mediaElement = createMediaElement(media);
-        mediaElement.setAttribute('data-media-id', media.id);
-        newContent.appendChild(mediaElement);
-      });
+
+      // Render only the first batch of items
+      const initialItems = getVisibleItems();
+      state.virtualScroll.visibleItems = initialItems;
+      renderVisibleItems(initialItems, false);
     }
-    state.container.innerHTML = '';
-    state.container.appendChild(newContent);
   }
 
   function createMediaElement(media) {
@@ -419,8 +522,11 @@ export default function createMediaBrowser(container, context = null) {
 
   function createMediaPreviewElement(media) {
     switch (media.type) {
-      case 'image':
-        return `<img src="${media.src}" alt="${media.alt}" loading="lazy" data-action="insert" style="cursor: pointer;">`;
+      case 'image': {
+        // Use optimized thumbnail URL for better performance
+        const thumbnailUrl = getOptimizedImageUrl(media.src);
+        return `<img src="${thumbnailUrl}" alt="${media.alt}" loading="lazy" data-action="insert" style="cursor: pointer;">`;
+      }
 
       case 'video':
         return `
@@ -472,6 +578,15 @@ export default function createMediaBrowser(container, context = null) {
           </div>
         `;
     }
+  }
+
+  function getOptimizedImageUrl(originalUrl) {
+    // If URL already has parameters, add to existing ones
+    if (originalUrl.includes('?')) {
+      return `${originalUrl}&width=200&format=webply&optimize=medium`;
+    }
+    // Otherwise add new parameters
+    return `${originalUrl}?width=200&format=webply&optimize=medium`;
   }
   function getDisplayedName(name) {
     if (name.length <= 40) return name;
@@ -593,6 +708,13 @@ export default function createMediaBrowser(container, context = null) {
 
   function markInitialLoadComplete() {
     state.isInitialLoad = false;
+  }
+
+  function cleanup() {
+    if (state.virtualScroll.observer) {
+      state.virtualScroll.observer.disconnect();
+      state.virtualScroll.observer = null;
+    }
   }
 
   return api;

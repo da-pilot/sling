@@ -208,8 +208,10 @@ export default function createDiscoveryEngine() {
         statsTracker.resetProgress();
       }
 
+      const { folders, files } = await documentScanner.getTopLevelItems();
+      const totalWork = folders.length + (files.length > 0 ? 1 : 0);
       const initialCheckpoint = {
-        totalFolders: 0,
+        totalFolders: totalWork,
         completedFolders: 0,
         totalDocuments: 0,
         status: 'running',
@@ -218,8 +220,6 @@ export default function createDiscoveryEngine() {
         lastUpdated: Date.now(),
       };
       await persistenceManager.saveDiscoveryCheckpointFile(initialCheckpoint);
-      const { folders, files } = await documentScanner.getTopLevelItems();
-      const totalWork = folders.length + (files.length > 0 ? 1 : 0);
       if (discoveryType === 'incremental') {
         const existingFiles = await persistenceManager.loadAllDiscoveryFiles();
         const allExistingFolderNames = existingFiles.map((file) => file.name.replace('.json', ''));

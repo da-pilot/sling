@@ -28,9 +28,9 @@ export default function createStatsTracker() {
       if (stored) {
         const data = JSON.parse(stored);
         return {
-          totalFolders: data.totalfolders || 0,
-          completedFolders: data.completedfolders || 0,
-          totalDocuments: data.totaldocuments || 0,
+          totalFolders: data.totalFolders || data.totalfolders || 0,
+          completedFolders: data.completedFolders || data.completedfolders || 0,
+          totalDocuments: data.totalDocuments || data.totaldocuments || 0,
           errors: data.errors || 0,
         };
       }

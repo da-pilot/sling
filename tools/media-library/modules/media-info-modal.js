@@ -2,25 +2,59 @@ import { CLOUDFLARE_AI_CONFIG, getCloudflareAIUrl, validateCloudflareConfig } fr
 
 let currentModalData = null;
 
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    const toast = document.createElement('div');
-    toast.className = 'toast-notification';
-    toast.textContent = 'Copied to clipboard!';
-    document.body.appendChild(toast);
-    setTimeout(() => {
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `toast-notification ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentNode) {
       document.body.removeChild(toast);
-    }, 2000);
-  }).catch(() => {
-    const toast = document.createElement('div');
-    toast.className = 'toast-notification error';
-    toast.textContent = 'Failed to copy to clipboard';
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      document.body.removeChild(toast);
-    }, 2000);
-  });
+    }
+  }, 2000);
 }
+
+function fallbackCopyToClipboard(text) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-999999px';
+  textArea.style.top = '-999999px';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      showToast('Copied to clipboard!', 'success');
+    } else {
+      showToast('Failed to copy to clipboard', 'error');
+    }
+  } catch (err) {
+    showToast('Failed to copy to clipboard', 'error');
+  }
+
+  document.body.removeChild(textArea);
+}
+
+function copyToClipboard(text) {
+  // Try modern Clipboard API first
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Copied to clipboard!', 'success');
+    }).catch(() => {
+      // Fallback to older method
+      fallbackCopyToClipboard(text);
+    });
+  } else {
+    // Fallback for older browsers
+    fallbackCopyToClipboard(text);
+  }
+}
+
+// Make copyToClipboard available globally
+window.copyToClipboard = copyToClipboard;
 
 async function generateAltTextWithCloudflare(imageUrl, imageName) {
   try {
@@ -276,7 +310,7 @@ export function showMediaInfoModal(media) {
                   ${!o.hasAltText ? `
                     <div class="occurrence-context">
                       "${o.contextualText || 'No context available'}"
-                      ${o.contextualText ? `<button class="copy-context-btn" onclick="copyToClipboard('${o.contextualText}')" title="Copy to clipboard">📋</button>` : ''}
+                      ${o.contextualText ? `<button class="copy-context-btn" data-context="${o.contextualText.replace(/"/g, '&quot;')}" title="Copy to clipboard">📋</button>` : ''}
                     </div>
                     <div class="occurrence-status-text">
                       No ${isLinkMedia ? 'title' : 'alt text'}
@@ -375,6 +409,16 @@ export function showMediaInfoModal(media) {
       }
     });
   }
+  // Add event listener for copy context buttons
+  modal.addEventListener('click', (e) => {
+    if (e.target.classList.contains('copy-context-btn')) {
+      const contextText = e.target.getAttribute('data-context');
+      if (contextText) {
+        copyToClipboard(contextText);
+      }
+    }
+  });
+
   window.generateAIAltText = function generateAIAltText(mediaId, occurrenceId) {
     const button = window.event.target.closest('.generate-ai-alt-btn');
     const btnText = button.querySelector('.ai-btn-text');
@@ -412,15 +456,7 @@ export function showMediaInfoModal(media) {
       .catch(() => {
         btnText.textContent = 'Retry';
         btnIcon.textContent = '🔄';
-        const toast = document.createElement('div');
-        toast.className = 'toast-notification error';
-        toast.textContent = 'AI generation failed. Please try again.';
-        document.body.appendChild(toast);
-        setTimeout(() => {
-          if (toast.parentNode) {
-            document.body.removeChild(toast);
-          }
-        }, 3000);
+        showToast('AI generation failed. Please try again.', 'error');
       })
       .finally(() => {
         setTimeout(() => {
