@@ -143,7 +143,6 @@ export default function createMediaInsertion() {
     try {
       const usageKey = 'da_media_basic_usage';
       const existingUsage = JSON.parse(localStorage.getItem(usageKey) || '[]');
-
       const usageEntry = {
         mediaId: media.id,
         mediaName: media.name,

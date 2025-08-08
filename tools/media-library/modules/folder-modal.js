@@ -1,3 +1,4 @@
+/* eslint-disable no-use-before-define */
 /**
  * Folder Modal Component
  * Displays site structure hierarchy and allows filtering media by folders/files
@@ -168,47 +169,6 @@ export default function createFolderModal() {
   }
 
   /**
-   * Render folder children
-   * @param {HTMLElement} container - Container element
-   * @param {Object} folderData - Folder data object
-   * @param {number} level - Nesting level
-   */
-  function renderFolderChildren(container, folderData, level) {
-    const childItems = [];
-    if (folderData.files) {
-      folderData.files.forEach((file) => {
-        childItems.push({
-          type: 'file',
-          name: file.path.split('/').pop() || `${file.name}.${file.ext}`,
-          data: file,
-          level,
-        });
-      });
-    }
-    if (folderData.subfolders) {
-      Object.entries(folderData.subfolders).forEach(([subFolderName, subFolder]) => {
-        childItems.push({
-          type: 'folder',
-          name: subFolderName,
-          data: subFolder,
-          level,
-        });
-      });
-    }
-    childItems.sort((a, b) => a.name.localeCompare(b.name));
-    let html = '';
-    childItems.forEach((item) => {
-      if (item.type === 'file') {
-        html += createFileNode(item.data, item.level);
-      } else {
-        html += createFolderNode(item.name, item.data, item.level);
-      }
-    });
-    container.innerHTML = html;
-    addFolderTreeEventListeners();
-  }
-
-  /**
    * Toggle folder expand/collapse
    * @param {HTMLElement} folderItem - Folder item element
    */
@@ -280,22 +240,6 @@ export default function createFolderModal() {
   }
 
   /**
-   * Filter folders based on search term
-   * @param {string} searchTerm - Search term
-   */
-  function filterFolders(searchTerm) {
-    const treeContainer = state.modal?.querySelector('#folderTree');
-    if (!treeContainer) return;
-    const items = treeContainer.querySelectorAll('.folder-tree-item');
-    const term = searchTerm.toLowerCase();
-    items.forEach((item) => {
-      const name = item.querySelector('.folder-tree-name')?.textContent || '';
-      const matches = name.toLowerCase().includes(term);
-      item.style.display = matches ? 'block' : 'none';
-    });
-  }
-
-  /**
    * Apply the selected folder filter
    */
   function applyFolderFilter() {
@@ -318,35 +262,6 @@ export default function createFolderModal() {
         timestamp: new Date().toISOString(),
       });
     }
-  }
-
-  /**
-   * Clear the current folder filter
-   */
-  function clearFilter() {
-    // Clear any selected items
-    state.modal?.querySelectorAll('.folder-tree-item').forEach((el) => {
-      el.classList.remove('selected');
-    });
-
-    // Emit clear filter event
-    if (state.eventEmitter) {
-      state.eventEmitter.emit('folderFilterCleared', {
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
-
-  function renderEmptyState() {
-    const treeContainer = state.modal?.querySelector('#folderTree');
-    if (!treeContainer) return;
-    console.log('[Folder Modal] 📝 Rendering empty state');
-    treeContainer.innerHTML = `
-      <div class="folder-empty-state">
-        <p>No folders or files found.</p>
-        <p>Run a discovery scan to build the folder hierarchy.</p>
-      </div>
-    `;
   }
 
   /**
@@ -425,6 +340,51 @@ export default function createFolderModal() {
     });
     container.innerHTML = html;
     addFolderTreeEventListeners();
+  }
+
+  /**
+   * Filter folders based on search term
+   * @param {string} searchTerm - Search term
+   */
+  function filterFolders(searchTerm) {
+    const treeContainer = state.modal?.querySelector('#folderTree');
+    if (!treeContainer) return;
+    const items = treeContainer.querySelectorAll('.folder-tree-item');
+    const term = searchTerm.toLowerCase();
+    items.forEach((item) => {
+      const name = item.querySelector('.folder-tree-name')?.textContent || '';
+      const matches = name.toLowerCase().includes(term);
+      item.style.display = matches ? 'block' : 'none';
+    });
+  }
+
+  /**
+   * Clear the current folder filter
+   */
+  function clearFilter() {
+    // Clear any selected items
+    state.modal?.querySelectorAll('.folder-tree-item').forEach((el) => {
+      el.classList.remove('selected');
+    });
+
+    // Emit clear filter event
+    if (state.eventEmitter) {
+      state.eventEmitter.emit('folderFilterCleared', {
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  function renderEmptyState() {
+    const treeContainer = state.modal?.querySelector('#folderTree');
+    if (!treeContainer) return;
+    console.log('[Folder Modal] 📝 Rendering empty state');
+    treeContainer.innerHTML = `
+      <div class="folder-empty-state">
+        <p>No folders or files found.</p>
+        <p>Run a discovery scan to build the folder hierarchy.</p>
+      </div>
+    `;
   }
 
   /**

@@ -113,7 +113,7 @@ export default function createQueueWorkerManager() {
         );
         await initializeWorker(worker, 'media-scan', state.config);
         state.workers.set('media-scan', worker);
-        
+
         // Set up message listener for the new worker
         if (state.currentHandlers) {
           worker.addEventListener('message', (event) => {
@@ -124,39 +124,13 @@ export default function createQueueWorkerManager() {
             }
           });
         }
-        
+
         return worker;
       } catch (error) {
         return null;
       }
     }
     return mediaScanWorker;
-  }
-
-  /**
-   * Create and initialize a new worker
-   * @param {string} workerType - Type of worker
-   * @param {Object} apiConfig - API configuration
-   * @returns {Promise<Worker|null>}
-   */
-  async function createWorker(workerType, apiConfig) {
-    try {
-      let workerPath;
-      switch (workerType) {
-        case 'media-scan':
-          workerPath = '../../workers/media-scan-worker.js';
-          break;
-        default:
-          throw new Error(`Unknown worker type: ${workerType}`);
-      }
-
-      const worker = new Worker(new URL(workerPath, import.meta.url), { type: 'module' });
-      await initializeWorker(worker, workerType, apiConfig);
-      state.workers.set(workerType, worker);
-      return worker;
-    } catch (error) {
-      return null;
-    }
   }
 
   /**
@@ -231,7 +205,6 @@ export default function createQueueWorkerManager() {
     unregisterWorker,
     getWorker,
     getDefaultWorker,
-    createWorker,
     getAllWorkers,
     cleanup,
     hasActiveWorkers,

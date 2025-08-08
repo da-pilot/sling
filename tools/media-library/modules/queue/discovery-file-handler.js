@@ -64,6 +64,7 @@ export default function createDiscoveryFileManager() {
       return [];
     }
   }
+
   /**
    * Clear discovery files from .pages folder
    * @param {Object} config - Configuration object
@@ -99,6 +100,7 @@ export default function createDiscoveryFileManager() {
       // Error clearing discovery files
     }
   }
+
   /**
    * Load discovery files with change detection
    * @param {Object} config - Configuration object
@@ -111,6 +113,7 @@ export default function createDiscoveryFileManager() {
     await detectChangedDocuments(discoveryFiles);
     return discoveryFiles;
   }
+
   return {
     loadDiscoveryFiles,
     clearDiscoveryFiles,

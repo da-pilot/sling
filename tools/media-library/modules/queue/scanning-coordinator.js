@@ -21,7 +21,13 @@ export default function createScanningCoordinator() {
    * @param {Object} discoveryCoordinator - Discovery coordinator instance
    * @param {Object} processingStateManager - Processing state manager instance
    */
-  async function init(workerManager, sessionManager, documentProcessor, discoveryCoordinator, processingStateManager = null) {
+  async function init(
+    workerManager,
+    sessionManager,
+    documentProcessor,
+    discoveryCoordinator,
+    processingStateManager = null,
+  ) {
     state.workerManager = workerManager;
     state.sessionManager = sessionManager;
     state.documentProcessor = documentProcessor;
@@ -49,6 +55,7 @@ export default function createScanningCoordinator() {
         } catch (error) {
           console.warn('[Scanning Coordinator] Could not load discovery checkpoint for type:', error.message);
         }
+
         const initialCheckpoint = {
           totalPages: documentsToScan.length,
           scannedPages: 0,
@@ -117,27 +124,16 @@ export default function createScanningCoordinator() {
   /**
    * Update scanning checkpoint for audit purposes when there are no changes
    * @param {Object} processingStateManager - Processing state manager
-   * @param {Object} sessionManager - Session manager
-   * @param {Object} discoveryCoordinator - Discovery coordinator
-   * @param {Object} mediaProcessor - Media processor
-   * @param {Object} documentProcessor - Document processor
-   * @param {Object} deltaProcessor - Delta processor
-   * @param {Object} persistenceManager - Persistence manager
    * @returns {Promise<void>}
    */
   async function updateScanningCheckpoint(
     processingStateManager,
-    sessionManager,
-    discoveryCoordinator,
-    mediaProcessor,
-    documentProcessor,
-    deltaProcessor,
-    persistenceManager,
   ) {
     try {
       if (!processingStateManager) {
         return;
       }
+
       let discoveryType = 'full';
       try {
         const discoveryCheckpoint = await processingStateManager.loadDiscoveryCheckpoint();
@@ -145,6 +141,7 @@ export default function createScanningCoordinator() {
       } catch (error) {
         console.warn('[Scanning Coordinator] Could not load discovery checkpoint for type:', error.message);
       }
+
       const currentTime = Date.now();
       const auditCheckpoint = {
         totalPages: 0,

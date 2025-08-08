@@ -228,7 +228,6 @@ export function showMediaInfoModal(media) {
           <tbody>
             ${usedInPages.map((pagePath) => {
     const occurrences = pageOccurrences[pagePath] || [];
-    const totalOccurrences = occurrences.length || 1;
     let displayPath = pagePath;
     if (displayPath.includes('index.html')) {
       displayPath = '/';

@@ -220,6 +220,7 @@ export default function createDiscoveryCoordinator() {
     } else if (status === 'failed') {
       entryStatus = 'failed';
     }
+
     file.documents[documentIndex] = {
       ...currentDoc,
       scanStatus: status,

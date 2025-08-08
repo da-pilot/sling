@@ -1,10 +1,12 @@
 /* eslint-disable no-use-before-define */
+
 /**
  * Media Scan Worker - Processes pages from queue to extract media media
  * Works with document discovery worker for queue-based scanning
  */
 
 import { createWorkerDaApi } from '../services/worker-utils.js';
+
 import {
   isValidAltText,
   isValidMediaSrc,
@@ -19,10 +21,10 @@ import { MEDIA_PROCESSING } from '../constants.js';
 const HTML_PATTERNS = {
   IMG_TAG: /<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi,
   PICTURE_TAG: /<picture[^>]*>.*?<\/picture>/gis,
-  VIDEO_TAG: /<video[^>]*>([\s\S]*?)<\/video>/gi,
+  VIDEO_TAG: /<video[^>]*>([\s\s]*?)<\/video>/gi,
   SOURCE_TAG: /<source[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/gi,
   LINK_TAG: /<a[^>]+href\s*=\s*["']([^"']+)["'][^>]*>/gi,
-  STYLE_TAG: /<style[^>]*>([\s\S]*?)<\/style>/gi,
+  STYLE_TAG: /<style[^>]*>([\s\s]*?)<\/style>/gi,
 };
 
 const ATTRIBUTE_PATTERNS = {
@@ -663,8 +665,8 @@ async function discoverFolderRecursive(folderPath, allDocuments) {
     const subfolders = items.filter((item) => !item.ext);
 
     allDocuments.push(...htmlFiles);
-
-    const subfolderPromises = subfolders.map((subfolder) => discoverFolderRecursive(subfolder.path, allDocuments));
+    const mapSubfolder = (subfolder) => discoverFolderRecursive(subfolder.path, allDocuments);
+    const subfolderPromises = subfolders.map(mapSubfolder);
     await Promise.all(subfolderPromises);
   } catch (error) {
     console.error('[Media Scan Worker] ❌ Error in recursive discovery:', {

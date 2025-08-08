@@ -18,7 +18,6 @@ export default function createDiscoveryEngine() {
   const parallelProcessor = createParallelProcessor();
   const documentScanner = createDocumentScanner();
   const siteAggregator = createSiteAggregator();
-
   const state = {
     isRunning: false,
     discoveryStartTime: null,
@@ -150,6 +149,7 @@ export default function createDiscoveryEngine() {
       console.error('[Discovery Engine] ❌ Failed to complete discovery:', error);
     }
   }
+
   /**
    * Reset discovery state
    * @returns {Promise<void>}
@@ -189,6 +189,7 @@ export default function createDiscoveryEngine() {
     await Promise.all(promises);
     await triggerDiscoveryComplete();
   }
+
   /**
    * Start discovery with session
    * @param {string} sessionId - Session ID
@@ -206,6 +207,7 @@ export default function createDiscoveryEngine() {
         parallelProcessor.cleanupAll();
         statsTracker.resetProgress();
       }
+
       const initialCheckpoint = {
         totalFolders: 0,
         completedFolders: 0,

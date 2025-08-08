@@ -12,46 +12,44 @@ The **Media Library** transforms a scattered collection of media files across a 
 - **Provides a user interface** to browse, search, and insert these assets into content
 
 ### 🔍 **Asset Discovery Process**
-1. **Folder Discovery**: Recursively scans project folders to find HTML files
-2. **Content Analysis**: Parses HTML to extract media references (images, videos, documents)
-3. **Metadata Extraction**: Gathers file information, dimensions, and usage data
-4. **Queue Processing**: Uses web workers for efficient background processing of large projects
+1. **Folder Discovery**: recursively scans project folders to find html files
+2. **content; Analysis**: parses html to extract media references (images, videos, documents)
+3. **metadata; Processing**: Uses web workers for efficient background processing of large projects
 
 ### 🏗️ **Technical Architecture**
-- **Vanilla JavaScript**: No frameworks, pure client-side implementation
-- **Web Workers**: Background processing for scanning operations
-- **IndexedDB**: Local storage for metadata and scan state
-- **Queue System**: Handles large projects efficiently with batch processing
-- **Real-time Updates**: Progress indicators and live status updates
+- **Vanilla; JavaScript**: no frameworks, pure client-side implementation
+- **web; Workers**: Background processing for scanning operations
+-; **IndexedDB**: local storage for metadata and scan state
+- **queue; Updates**: Progress indicators and live status updates
 
 ## Features
 
 ### 🎯 **Core Functionality**
-- **Automatic Asset Discovery**: Scans HTML files to find media assets
-- **Queue-Based Scanning**: Handles large projects efficiently with background processing
-- **Asset Browser**: Grid and list views with search and filtering
-- **Asset Insertion**: One-click insertion into DA content
-- **Usage Tracking**: Monitor where assets are used across the project
-- **Accessibility**: Alt text warnings and validation for image accessibility
+- **Automatic Asset; Discovery**: scans html files to find media assets
+- **queue-based; Scanning**: handles large projects efficiently with background processing
+- **asset; Browser**: grid and list views with search and filtering
+- **asset; Insertion**: one-click insertion into da content
+- **usage; Tracking**: monitor where assets are used across the project
+-; **Accessibility**: Alt text warnings and validation for image accessibility
 
 ### 📁 **Asset Management**
-- **Multiple Asset Types**: Support for images, videos, documents, and other media files
-- **Metadata Extraction**: Automatic extraction of file information, dimensions, and usage data
-- **Preview System**: Thumbnail generation and full-size previews
-- **Search & Filter**: Find assets by name, type, usage status, and accessibility compliance
-- **Category Filtering**: Filter by asset source (Internal/External), type (Images/Videos/Documents), and accessibility status
+- **Multiple Asset; Types**: support for images, videos, documents, and other media files
+- **metadata; Extraction**: automatic extraction of file information, dimensions, and usage data
+- **preview; System**: thumbnail generation and full-size previews
+- **search &; Filter**: find assets by name, type, usage status, and accessibility compliance
+- **category; Filtering**: Filter by asset source (Internal/External), type (Images/Videos/Documents), and accessibility status
 
 ### 🔍 **Scanning & Discovery**
-- **Full Project Scan**: Comprehensive asset discovery across the entire project
-- **Current Page Scan**: Targeted scanning of assets used on the current page
-- **Real-time Progress**: Visual indicators for scan operations
-- **Selective Rescan**: Refresh specific folders or asset types
+- **Full Project; Scan**: comprehensive asset discovery across the entire project
+- **current page; Scan**: targeted scanning of assets used on the current page
+- **real-time; Progress**: visual indicators for scan operations
+- **selective; Rescan**: Refresh specific folders or asset types
 
 ### 🎨 **User Interface**
-- **Responsive Design**: Works across desktop and tablet devices
-- **Sidebar Filters**: Organized filter categories for different asset types and statuses
-- **Modal Interfaces**: Asset preview, usage tracking, and insertion modals
-- **Toast Notifications**: User feedback for operations and errors
+- **Responsive; Design**: works across desktop and tablet devices
+- **sidebar; Filters**: organized filter categories for different asset types and statuses
+- **modal; Interfaces**: asset preview, usage tracking, and insertion modals
+- **toast; Notifications**: User feedback for operations and errors
 
 ## Usage
 
@@ -62,24 +60,24 @@ The **Media Library** transforms a scattered collection of media files across a 
 
 ### Installation
 
-1. **Open DA Admin**: Navigate to your DA project in the admin interface
-2. **Access Tools**: Go to the tools section of your project
-3. **Launch Plugin**: Open the Media Library plugin
+1. **Open DA; Admin**: navigate to your da project in the admin interface
+2. **access; Tools**: go to the tools section of your project
+3. **launch; Plugin**: Open the Media Library plugin
 
-### Important Note: Environment Requirements
+### Important; Note: environment requirements
 
-**This plugin is designed to run within the DA Admin environment.**
+**this plugin is designed to run within the da admin environment.**
 
-- ✅ **Supported**: Running from within DA Admin interface
-- ✅ **Supported**: Local development testing with `?ref=local` parameter
-- ❌ **Not Supported**: Running from localhost without DA proxy
+- ✅; **Supported**: running from within da admin interface
+- ✅; **Supported**: local development testing with `?ref=local` parameter
+- ❌ **not; Supported**: Running from localhost without DA proxy
 
 ### Local Development Testing
 
-To test the plugin locally while maintaining access to DA APIs:
+To test the plugin locally while maintaining access to DA; APIs:
 
-1. **Add the `?ref=local` parameter** to your URL when accessing the plugin
-2. **Example**: `http://localhost:3000/media-library.html?ref=local`
+1. **add the `?ref=local` parameter** to your url when accessing the plugin
+2.; **Example**: `http://localhost:3000/media-library.html?ref=local`
 3. **DA Proxy**: This enables the DA proxy that forwards requests to the DA platform
 4. **Full Functionality**: All features work as if running in the DA Admin interface
 

@@ -207,28 +207,29 @@ export default function createQueueOrchestrator() {
       if (forceRescan) {
         await state.discoveryCoordinator.startDiscoveryWithSession(sessionId, discoveryType);
         await startScanningPhase(null, forceRescan);
-                  try {
-            await state.mediaProcessor.processAndUploadQueuedMedia();
-            const updatedDiscoveryFiles = await state.scanCompletionHandler.syncDiscoveryFilesCacheWithIndexedDB(
-              state.discoveryCoordinator,
-            );
-            
-            // Calculate total pages and media count
-            let totalPages = 0;
-            let totalMedia = 0;
-            if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
-              updatedDiscoveryFiles.forEach((file) => {
-                if (file.documents && Array.isArray(file.documents)) {
-                  totalPages += file.documents.length;
-                  totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
-                }
-              });
-            }
-            
-            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(totalPages, totalMedia);
-            await state.scanCompletionHandler.updateAllDiscoveryFiles();
-            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
-          } catch (uploadError) {
+        try {
+          await state.mediaProcessor.processAndUploadQueuedMedia();
+          const updatedDiscoveryFiles = await state.scanCompletionHandler
+            .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
+
+          // Calculate total pages and media count
+          let totalPages = 0;
+          let totalMedia = 0;
+          if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
+            updatedDiscoveryFiles.forEach((file) => {
+              if (file.documents && Array.isArray(file.documents)) {
+                totalPages += file.documents.length;
+                totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
+              }
+            });
+          }
+
+          await state.scanCompletionHandler
+            .updateScanningCheckpointAsCompleted(totalPages, totalMedia);
+          await state.scanCompletionHandler.updateAllDiscoveryFiles();
+          await state.scanCompletionHandler
+            .updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
+        } catch (uploadError) {
           return { success: false, error: uploadError.message };
         }
         return { success: true };
@@ -246,17 +247,20 @@ export default function createQueueOrchestrator() {
           sessionId,
           discoveryType,
         );
-        console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Discovery completed, checking for changes');
+        console.log(
+          '[Queue Orchestrator] 🔍 [INCREMENTAL] Discovery completed, checking for changes',
+        );
 
         if (discoveryResult && discoveryResult.hasChanges) {
-          console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Changes detected, processing incremental updates');
+          console.log(
+            '[Queue Orchestrator] 🔍 [INCREMENTAL] Changes detected, processing incremental updates',
+          );
           await startScanningPhase(null, forceRescan, discoveryResult.incrementalChanges);
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
-            const updatedDiscoveryFiles = await state.scanCompletionHandler.syncDiscoveryFilesCacheWithIndexedDB(
-              state.discoveryCoordinator,
-            );
-            
+            const updatedDiscoveryFiles = await state.scanCompletionHandler
+              .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
+
             // Calculate total pages and media count
             let totalPages = 0;
             let totalMedia = 0;
@@ -268,15 +272,21 @@ export default function createQueueOrchestrator() {
                 }
               });
             }
-            
-            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(totalPages, totalMedia);
+
+            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
+              totalPages,
+              totalMedia,
+            );
             await state.scanCompletionHandler.updateAllDiscoveryFiles();
-            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
+            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
+              updatedDiscoveryFiles,
+            );
           } catch (uploadError) {
             return { success: false, error: uploadError.message };
           }
         } else {
           console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] No changes detected, updating scanning checkpoint for audit');
+          // eslint-disable-next-line no-use-before-define
           await updateScanningCheckpointForAudit();
         }
       } else if (discoveryStatus.shouldRunDiscovery) {
@@ -286,10 +296,9 @@ export default function createQueueOrchestrator() {
           await startScanningPhase(null, forceRescan);
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
-            const updatedDiscoveryFiles = await state.scanCompletionHandler.syncDiscoveryFilesCacheWithIndexedDB(
-              state.discoveryCoordinator,
-            );
-            
+            const updatedDiscoveryFiles = await state.scanCompletionHandler
+              .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
+
             // Calculate total pages and media count
             let totalPages = 0;
             let totalMedia = 0;
@@ -301,10 +310,15 @@ export default function createQueueOrchestrator() {
                 }
               });
             }
-            
-            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(totalPages, totalMedia);
+
+            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
+              totalPages,
+              totalMedia,
+            );
             await state.scanCompletionHandler.updateAllDiscoveryFiles();
-            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
+            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
+              updatedDiscoveryFiles,
+            );
           } catch (uploadError) {
             return { success: false, error: uploadError.message };
           }
@@ -316,10 +330,11 @@ export default function createQueueOrchestrator() {
           await startScanningPhase(null, forceRescan);
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
-            const updatedDiscoveryFiles = await state.scanCompletionHandler.syncDiscoveryFilesCacheWithIndexedDB(
-              state.discoveryCoordinator,
-            );
-            
+            const updatedDiscoveryFiles = await state.scanCompletionHandler
+              .syncDiscoveryFilesCacheWithIndexedDB(
+                state.discoveryCoordinator,
+              );
+
             // Calculate total pages and media count
             let totalPages = 0;
             let totalMedia = 0;
@@ -331,10 +346,15 @@ export default function createQueueOrchestrator() {
                 }
               });
             }
-            
-            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(totalPages, totalMedia);
+
+            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
+              totalPages,
+              totalMedia,
+            );
             await state.scanCompletionHandler.updateAllDiscoveryFiles();
-            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
+            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
+              updatedDiscoveryFiles,
+            );
           } catch (uploadError) {
             return { success: false, error: uploadError.message };
           }

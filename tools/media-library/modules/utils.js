@@ -32,6 +32,7 @@ export function getOrgRepo(context) {
   if (context?.org && context?.repo) {
     return { org: context.org, repo: context.repo };
   }
+
   try {
     const { hostname } = window.location;
     if (hostname.includes('aem.page') || hostname.includes('aem.live')) {

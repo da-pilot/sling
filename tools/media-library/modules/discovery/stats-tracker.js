@@ -13,7 +13,6 @@ export default function createStatsTracker() {
     totalDocuments: 0,
     errors: 0,
   });
-
   const state = {
     processingStateManager: null,
     currentSessionId: null,
@@ -29,15 +28,16 @@ export default function createStatsTracker() {
       if (stored) {
         const data = JSON.parse(stored);
         return {
-          totalFolders: data.totalFolders || 0,
-          completedFolders: data.completedFolders || 0,
-          totalDocuments: data.totalDocuments || 0,
+          totalFolders: data.totalfolders || 0,
+          completedFolders: data.completedfolders || 0,
+          totalDocuments: data.totaldocuments || 0,
           errors: data.errors || 0,
         };
       }
     } catch (error) {
       console.warn('[Stats Tracker] Failed to load from localStorage:', error);
     }
+
     return {
       totalFolders: 0,
       completedFolders: 0,

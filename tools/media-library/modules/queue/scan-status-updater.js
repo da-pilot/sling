@@ -80,7 +80,10 @@ export default function createScanStatusUpdater() {
         mediaCount,
       });
     } catch (updateError) {
-      console.error('[Scan Status Updater] Failed to update site structure media count:', updateError);
+      console.error(
+        '[Scan Status Updater] Failed to update site structure media count:',
+        updateError,
+      );
     }
   }
 
@@ -161,7 +164,10 @@ export default function createScanStatusUpdater() {
 
       return successCount;
     } catch (updateError) {
-      console.error('[Scan Status Updater] Failed to update discovery files in cache:', updateError);
+      console.error(
+        '[Scan Status Updater] Failed to update discovery files in cache:',
+        updateError,
+      );
       return 0;
     }
   }
@@ -215,7 +221,8 @@ export default function createScanStatusUpdater() {
               // This is a simplified approach - ideally we'd track individual document paths
               scanStatus = 'completed';
               scanComplete = true;
-              // Use the mediaCount from the synced cache data (should be updated by syncDiscoveryFilesCacheWithIndexedDB)
+              // Use the mediaCount from the synced cache data
+              // (should be updated by syncDiscoveryFilesCacheWithIndexedDB)
               // Don't override mediaCount if it's already been updated by the sync process
             }
 
@@ -261,7 +268,11 @@ export default function createScanStatusUpdater() {
             totalMediaCount,
           };
         } catch (error) {
-          console.error('[Scan Status Updater] Failed to update file:', file.fileName, error);
+          console.error(
+            '[Scan Status Updater] Failed to update file:',
+            file.fileName,
+            error,
+          );
           return {
             fileName: file.fileName,
             success: false,
@@ -298,7 +309,10 @@ export default function createScanStatusUpdater() {
         totalCompletedDocuments,
       };
     } catch (error) {
-      console.error('[Scan Status Updater] Failed to update discovery files in parallel:', error);
+      console.error(
+        '[Scan Status Updater] Failed to update discovery files in parallel:',
+        error,
+      );
       return { success: false, error: error.message };
     }
   }

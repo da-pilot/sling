@@ -78,6 +78,7 @@ export function extractFilenameFromUrl(url) {
   if (!url || typeof url !== 'string') {
     return MEDIA_PROCESSING.UNTITLED_MEDIA;
   }
+
   try {
     const cleanUrl = url.split('?')[0].split('#')[0];
     let pathname;
@@ -151,7 +152,9 @@ export function getContextualText(html, index) {
       });
 
     if (meaningfulMatches.length > 0) {
-      const bestMatch = meaningfulMatches.reduce((longest, current) => (current.length > longest.length ? current : longest));
+      const bestMatch = meaningfulMatches.reduce(
+        (longest, current) => (current.length > longest.length ? current : longest),
+      );
       const cleanText = bestMatch
         .replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT)
         .trim();

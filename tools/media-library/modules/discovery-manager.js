@@ -7,7 +7,6 @@ import { createDiscoveryEngine } from './discovery/index.js';
 
 function createDiscoveryManager() {
   const engine = createDiscoveryEngine();
-
   /**
    * Initialize the discovery manager
    * @param {Object} docAuthoringService - Document authoring service
@@ -103,6 +102,7 @@ function createDiscoveryManager() {
   function getProgressSummary() {
     return engine.getProgressSummary();
   }
+
   /**
    * Build site structure from discovery files
    * @returns {Object} Site structure
@@ -110,6 +110,7 @@ function createDiscoveryManager() {
   async function buildSiteStructureFromDiscoveryFiles() {
     return engine.buildSiteStructureFromDiscoveryFiles();
   }
+
   /**
    * Clear queue
    */

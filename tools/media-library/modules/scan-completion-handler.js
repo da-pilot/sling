@@ -81,6 +81,7 @@ export default function createScanCompletionHandler() {
       if (!state.processingStateManager) {
         return null;
       }
+
       const currentCheckpoint = await state.processingStateManager.loadScanningCheckpoint();
       const currentTotalPages = totalPages || currentCheckpoint?.totalPages || 0;
       const currentScannedPages = totalPages || currentCheckpoint?.scannedPages || 0;
@@ -218,10 +219,8 @@ export default function createScanCompletionHandler() {
           totalFiles: siteStructure.stats.totalFiles,
           totalMediaItems: siteStructure.stats.totalMediaItems,
         });
-
         await state.processingStateManager.saveSiteStructureFile(siteStructure);
         console.log('[Scan Completion Handler] ✅ Site structure file saved');
-
         const eventData = {
           totalFolders: siteStructure.stats.totalFolders,
           totalFiles: siteStructure.stats.totalFiles,

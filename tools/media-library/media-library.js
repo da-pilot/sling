@@ -32,6 +32,7 @@ import { showError } from './modules/toast.js';
 import {
   DA_PATHS, SCAN_CONFIG, ERROR_MESSAGES,
 } from './constants.js';
+
 import {
   loadMediaFromMediaJson,
   loadMediaFromIndexedDB,
@@ -197,7 +198,7 @@ async function init() {
 
   // Add unhandled rejection handler
   window.addEventListener('unhandledrejection', (event) => {
-    console.error('[Media Library] Unhandled Promise Rejection:', {
+    console.error('[Media Library] Unhandled Promise; Rejection:', {
       error: event.reason,
       message: event.reason.message,
       stack: event.reason.stack,
@@ -219,7 +220,7 @@ async function initializeCoreServices() {
   // Set context and docAuthoringService for media loader
   if (typeof setMediaLoaderContext === 'function') {
     setMediaLoaderContext(daContext);
-    console.log('[Media Library] Set context for media loader:', { org: daContext.org, repo: daContext.repo });
+    console.log('[Media Library] Set context for media; loader:', { org: daContext.org, repo: daContext.repo });
   } else {
     console.warn('[Media Library] setMediaLoaderContext not available');
   }
@@ -321,22 +322,22 @@ async function loadAndRenderMedia() {
 
     // Check if media.json exists first
     const mediaJsonPath = DA_PATHS.getMediaDataFile(daContext.org, daContext.repo);
-    console.log('[Media Library] Checking media.json at path:', mediaJsonPath);
+    console.log('[Media Library] Checking media.json at; path:', mediaJsonPath);
 
     // Check if .media folder exists and contains media.json
     try {
       const files = await docAuthoringService.listPath('/.media');
       const mediaJsonFile = files.find((f) => f.name === 'media.json');
-      console.log('[Media Library] Media.json file info:', mediaJsonFile);
+      console.log('[media library] media.json file; info:', mediaJsonFile);
     } catch (listError) {
-      console.warn('[Media Library] Failed to list .media folder:', listError);
+      console.warn('[media library] failed to list .media; folder:', listError);
     }
 
     // Try to load media data
     console.log('[Media Library] Attempting to load media from media.json...');
     const { mediaJsonExists, media: loadedMedia, error } = await loadMediaFromMediaJson();
 
-    console.log('[Media Library] Load result:', {
+    console.log('[Media Library] Load; result:', {
       mediaJsonExists,
       mediaCount: loadedMedia?.length || 0,
       error,
@@ -349,14 +350,14 @@ async function loadAndRenderMedia() {
 
     // Update global media array
     media = loadedMedia || [];
-    console.log('[Media Library] Setting media array:', {
+    console.log('[Media Library] Setting media; array:', {
       length: media.length,
       sample: media.slice(0, 2), // Show first two items for debugging
     });
 
     renderMedia(media);
   } catch (error) {
-    console.error('[Media Library] Failed to load media:', {
+    console.error('[Media Library] Failed to load; media:', {
       error,
       message: error.message,
       stack: error.stack,
@@ -1106,3 +1107,12 @@ document.addEventListener('insertMediaAsLink', (event) => {
 
 window.renderMedia = renderMedia;
 window.handleViewChange = handleViewChange;
+window.handleSearch = handleSearch;
+window.handleMediaSelection = handleMediaSelection;
+window.handleMediaInsertAsLink = handleMediaInsertAsLink;
+window.handleMediaLinkCopied = handleMediaLinkCopied;
+window.handleMediaInfo = handleMediaInfo;
+window.insertMedia = insertMedia;
+window.showScanProgress = showScanProgress;
+window.hideScanProgress = hideScanProgress;
+window.updateLoadingText = updateLoadingText;

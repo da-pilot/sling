@@ -25,6 +25,7 @@ export default function createQueueBatchProcessor() {
     mediaProcessor: null,
     currentSessionId: null,
   };
+
   /**
    * Initialize batch processor
    * @param {Object} mediaProcessor - Media processor instance
@@ -40,6 +41,7 @@ export default function createQueueBatchProcessor() {
   function setCurrentSession(sessionId) {
     state.currentSessionId = sessionId;
   }
+
   /**
    * Start batch processing phase
    * @returns {Promise<void>}
@@ -56,6 +58,7 @@ export default function createQueueBatchProcessor() {
       endTime: null,
     };
   }
+
   /**
    * Upload batch sequentially
    * @param {Array} batch - Batch of media items
@@ -70,6 +73,7 @@ export default function createQueueBatchProcessor() {
     });
     await Promise.all(mediaPromises);
   }
+
   /**
    * Process and upload batches
    * @param {Array} batches - Array of batches to process
@@ -84,8 +88,6 @@ export default function createQueueBatchProcessor() {
       (total, batch) => total + batch.length,
       0,
     );
-
-    console.log(`===== Batch Processing Started: ${batches.length} batches, ${state.batchProcessingPhase.totalMedia} media items ======`);
 
     const batchPromises = batches.map(async (batch, index) => {
       try {
@@ -108,10 +110,6 @@ export default function createQueueBatchProcessor() {
     await Promise.all(batchPromises);
 
     state.batchProcessingPhase.endTime = Date.now();
-    const processingDuration = state.batchProcessingPhase.endTime - state.batchProcessingPhase.startTime;
-    const durationMs = processingDuration;
-
-    console.log(`===== Batch Processing Completed: ${state.batchProcessingPhase.processedBatches}/${state.batchProcessingPhase.totalBatches} batches, ${state.batchProcessingPhase.totalMedia} media items, took ${durationMs} ms ======`);
 
     return {
       success: state.batchProcessingPhase.failedBatches === 0,
@@ -120,9 +118,9 @@ export default function createQueueBatchProcessor() {
       uploadedBatches: state.batchProcessingPhase.uploadedBatches,
       failedBatches: state.batchProcessingPhase.failedBatches,
       totalMedia: state.batchProcessingPhase.totalMedia,
-      processingDuration,
     };
   }
+
   /**
    * Configure batch processing
    * @param {Object} batchConfig - Batch configuration
@@ -130,6 +128,7 @@ export default function createQueueBatchProcessor() {
   function configureBatchProcessing(batchConfig) {
     state.batchProcessingConfig = { ...state.batchProcessingConfig, ...batchConfig };
   }
+
   /**
    * Get batch processing configuration
    * @returns {Object}
@@ -137,6 +136,7 @@ export default function createQueueBatchProcessor() {
   function getBatchProcessingConfig() {
     return { ...state.batchProcessingConfig };
   }
+
   /**
    * Get batch processing phase status
    * @returns {Object}
@@ -144,6 +144,7 @@ export default function createQueueBatchProcessor() {
   function getBatchProcessingPhase() {
     return { ...state.batchProcessingPhase };
   }
+
   /**
    * Reset batch processing phase
    */
@@ -168,6 +169,7 @@ export default function createQueueBatchProcessor() {
   function on(event, callback) {
     eventEmitter.on(event, callback);
   }
+
   /**
    * Remove event listener
    * @param {string} event - Event name
@@ -176,6 +178,7 @@ export default function createQueueBatchProcessor() {
   function off(event, callback) {
     eventEmitter.off(event, callback);
   }
+
   /**
    * Emit event
    * @param {string} event - Event name
@@ -184,6 +187,7 @@ export default function createQueueBatchProcessor() {
   function emit(event, data) {
     eventEmitter.emit(event, data);
   }
+
   return {
     init,
     setCurrentSession,

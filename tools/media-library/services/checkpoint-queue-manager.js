@@ -39,6 +39,7 @@ export default function createCheckpointQueueManager() {
     }
     return false;
   }
+
   return {
     enqueueUpdate,
     enqueueFolderDiscovery,
