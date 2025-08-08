@@ -54,6 +54,14 @@ export async function ensureMediaJsonSync() {
  */
 export async function loadMediaFromMediaJson() {
   try {
+    console.log('[Media Loader] Starting media load process...');
+    console.log('[Media Loader] Context state:', {
+      hasContext: !!contextRef,
+      hasDocService: !!docAuthoringServiceRef,
+      contextOrg: contextRef?.org,
+      contextRepo: contextRef?.repo,
+    });
+
     if (!contextRef) {
       throw new Error('Context not set. Call setContext() first.');
     }
@@ -64,13 +72,39 @@ export async function loadMediaFromMediaJson() {
 
     console.log('[Media Loader] Loading media from media.json...');
 
-    const metadataManager = createMetadataManager(docAuthoringServiceRef, '/.media/media.json');
+    // First check if .media folder and media.json exist
+    try {
+      const files = await docAuthoringServiceRef.listPath('/.media');
+      const mediaJsonFile = files.find((f) => f.name === 'media.json');
+      console.log('[Media Loader] Media.json status:', {
+        exists: !!mediaJsonFile,
+        lastModified: mediaJsonFile?.lastModified,
+        path: '/.media/media.json',
+      });
+    } catch (listError) {
+      console.warn('[Media Loader] Failed to check media.json existence:', listError);
+    }
+
+    const mediaJsonPath = '/.media/media.json';
+    console.log('[Media Loader] Creating metadata manager with path:', mediaJsonPath);
+
+    const metadataManager = createMetadataManager(docAuthoringServiceRef, mediaJsonPath);
+    console.log('[Media Loader] Initializing metadata manager with context:', {
+      org: contextRef.org,
+      repo: contextRef.repo,
+      path: contextRef.path,
+    });
+
     await metadataManager.init(contextRef);
 
     const metadata = await metadataManager.getMetadata();
+    console.log('[Media Loader] Metadata load result:', {
+      hasMetadata: !!metadata,
+      itemCount: metadata?.length || 0,
+    });
 
     if (metadata && metadata.length > 0) {
-      console.log('[Media Loader] Loaded', metadata.length, 'media from media.json');
+      console.log('[Media Loader] Successfully loaded media from media.json');
       return {
         mediaJsonExists: true,
         media: metadata,
@@ -83,6 +117,7 @@ export async function loadMediaFromMediaJson() {
       console.log('[Media Loader] Empty media.json created successfully');
     } catch (createError) {
       console.error('[Media Loader] Failed to create media.json:', createError);
+      throw createError; // Re-throw to be caught by outer catch
     }
 
     return {
@@ -90,7 +125,11 @@ export async function loadMediaFromMediaJson() {
       media: [],
     };
   } catch (error) {
-    console.error('[Media Loader] Error loading media:', error);
+    console.error('[Media Loader] Error loading media:', {
+      error,
+      message: error.message,
+      stack: error.stack,
+    });
     return {
       mediaJsonExists: false,
       media: [],

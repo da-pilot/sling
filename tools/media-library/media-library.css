@@ -290,7 +290,7 @@ body {
   margin-bottom: 1rem;
 }
 
-.scan-indicator svg {
+.scan-indicator img {
   width: 24px;
   height: 24px;
   transform: rotate(-90deg);
@@ -345,27 +345,35 @@ body {
 }
 
 .folder-browser-btn {
-  color: var(--color-secondary);
-  transition: all 0.2s ease;
+  padding: var(--spacing-sm);
   background: none;
-  border: none;
-  padding: 8px;
-  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-small);
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--font-size-base);
+  transition: all var(--transition-fast);
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-secondary);
 }
 
 .folder-browser-btn:hover {
-  color: var(--color-accent);
   background: var(--color-hover);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .folder-browser-btn.active {
-  color: var(--color-accent);
-  background: var(--color-hover);
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.folder-browser-btn.active svg {
+  fill: white;
 }
 
 /* Search */
@@ -381,7 +389,7 @@ body {
 
 .search-container {
   flex: 0 0 auto;
-  max-width: 600px;
+  max-width: 700px;
   width: 100%;
   position: relative;
   display: flex;
@@ -392,14 +400,26 @@ body {
 
 .search-input {
   width: 100%;
-  padding: 12px var(--spacing-md);
+  padding: 16px var(--spacing-md) 16px 48px;
   border: 1px solid #c0c0c0;
   border-radius: var(--border-radius);
-  font-size: var(--font-size-large);
+  font-size: var(--font-size-xl);
   background: #f8f8f8;
   transition: all var(--transition-fast);
   color: var(--color-primary);
   text-align: center;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .search-input:focus {
@@ -669,13 +689,26 @@ body {
 }
 
 .btn-primary {
-  background: var(--primary-color);
-  color: white;
+  background: none;
+  border: 2px solid #333;
+  color: #333;
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+  line-height: 18px;
+  text-align: center;
+  text-decoration: none;
+  outline-offset: 0;
 }
 
 .btn-primary:hover {
-  background: var(--primary-color-dark);
-  transform: translateY(-1px);
+  background-color: rgb(228 240 255);
+  color: #333;
 }
 
 .btn-secondary {
@@ -1807,10 +1840,16 @@ body {
 
 .folder-item .folder-icon {
   margin-right: var(--spacing-sm);
-  font-size: var(--font-size-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  vertical-align: middle;
+  fill: currentcolor;
+}
+
+.folder-item[data-filter="missing-alt"] .folder-icon,
+.folder-item[data-filter="used-missing-alt"] .folder-icon {
+  fill: #d63384;
 }
 
 .folder-item .media-count {
@@ -2032,6 +2071,9 @@ body {
 .scan-indicator .sync-spinner {
   animation: scan-spin 2s linear infinite;
   display: block;
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
 }
 
 @keyframes scan-spin {
@@ -2289,46 +2331,40 @@ body {
 }
 
 .page-action-btn {
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  background: none;
+  border: 2px solid #333;
+  color: #333;
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+  line-height: 18px;
+  text-align: center;
   text-decoration: none;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
+  outline-offset: 0;
+  display: inline-block;
 }
 
-.page-action-btn.edit-btn {
-  background: #e3f2fd;
-  color: #1976d2;
-  border-color: #bbdefb;
+.page-action-btn:link,
+.page-action-btn:visited {
+  color: #333;
+  text-decoration: none;
 }
 
-.page-action-btn.edit-btn:hover {
-  background: #bbdefb;
-  color: #1565c0;
+.page-action-btn:hover {
+  background-color: rgb(228 240 255);
+  color: #333;
 }
 
-.page-action-btn.preview-btn {
-  background: #fff3e0;
-  color: #f57c00;
-  border-color: #ffcc02;
-}
-
-.page-action-btn.preview-btn:hover {
-  background: #ffcc02;
-  color: #e65100;
-}
-
-.page-action-btn.live-btn {
-  background: #e8f5e8;
-  color: #2e7d32;
-  border-color: #c8e6c9;
-}
-
-.page-action-btn.live-btn:hover {
-  background: #c8e6c9;
-  color: #1b5e20;
+.page-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #666;
+  color: #666;
 }
 
 .occurrence-summary {

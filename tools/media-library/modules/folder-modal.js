@@ -110,9 +110,11 @@ export default function createFolderModal() {
     const mediaCount = file.mediaCount || 0;
     const indent = level * 20;
     const fileName = file.path.split('/').pop() || `${file.name}.${file.ext}`;
+    const isHtmlFile = fileName.toLowerCase().endsWith('.html');
+    const iconPath = isHtmlFile ? '/tools/media-library/icons/Smock_FileHTML_18_N.svg' : '/tools/media-library/icons/Smock_Document_18_N.svg';
     return `
       <div class="folder-tree-item file-item" data-path="${file.path}" data-type="file" style="padding-left: ${indent}px;">
-        <span class="folder-tree-icon">📄</span>
+        <img src="${iconPath}" class="folder-tree-icon" alt="Document">
         <span class="folder-tree-name">${fileName}</span>
         <span class="folder-tree-count">(${mediaCount})</span>
       </div>
@@ -120,11 +122,11 @@ export default function createFolderModal() {
   }
 
   /**
-   * Create a folder node HTML
-   * @param {string} folderName - Folder name
-   * @param {Object} folder - Folder data
-   * @param {number} level - Indentation level
-   * @returns {string} HTML string
+   * Create folder node HTML
+   * @param {string} folderName - Name of the folder
+   * @param {Object} folder - Folder data object
+   * @param {number} level - Nesting level
+   * @returns {string} HTML string for folder node
    */
   function createFolderNode(folderName, folder, level = 0) {
     const totalMedia = calculateFolderMediaCount(folder);
@@ -133,34 +135,77 @@ export default function createFolderModal() {
     const hasChildren = hasSubfolders || hasFiles;
     const indent = level * 20;
     let html = `
-      <div class="folder-tree-item folder-item" data-path="${folder.path}" data-type="folder" style="padding-left: ${indent}px;">
-        <span class="folder-tree-toggle">${hasChildren ? '▼' : ''}</span>
-        <span class="folder-tree-icon">📁</span>
-        <span class="folder-tree-name">${folderName}</span>
-        <span class="folder-tree-count">(${totalMedia})</span>
-      </div>
-    `;
+    <div class="folder-tree-item folder-item" data-path="${folder.path}" data-type="folder" data-level="${level}" style="padding-left: ${indent}px;">
+      <span class="folder-tree-toggle">${hasChildren ? '<img src="/tools/media-library/icons/chevron-right.svg" class="chevron-icon" alt="Expand">' : ''}</span>
+      <img src="/tools/media-library/icons/Smock_Folder_18_N.svg" class="folder-tree-icon" alt="Folder">
+      <span class="folder-tree-name">${folderName}</span>
+      <span class="folder-tree-count">(${totalMedia})</span>
+    </div>
+  `;
     if (hasChildren) {
-      const isRoot = folderName === 'Root';
-      const isFiles = folderName === 'Files';
-      const displayStyle = (isRoot || isFiles) ? 'block' : 'none';
-      const toggleIcon = (isRoot || isFiles) ? '▼' : '▶';
-      html = html.replace('▼', toggleIcon);
-      html += `<div class="folder-tree-children" style="display: ${displayStyle};">`;
-      if (folder.files) {
-        folder.files.forEach((file) => {
-          html += createFileNode(file, level + 1);
-        });
-      }
-      if (folder.subfolders) {
-        Object.entries(folder.subfolders).forEach(([subFolderName, subFolder]) => {
-          html += createFolderNode(subFolderName, subFolder, level + 1);
-        });
-      }
-      html += '</div>';
+      html += '<div class="folder-tree-children" style="display: none;"></div>';
     }
     html += '</div>';
     return html;
+  }
+
+  /**
+   * Find folder data by path
+   * @param {string} path - Folder path
+   * @returns {Object|null} Folder data object or null
+   */
+  function findFolderData(path) {
+    if (!state.siteStructure?.structure?.root) return null;
+    const pathParts = path.split('/').filter(Boolean);
+    let current = state.siteStructure.structure.root;
+    return pathParts.every((part) => {
+      if (current.subfolders && current.subfolders[part]) {
+        current = current.subfolders[part];
+        return true;
+      }
+      return false;
+    }) ? current : null;
+  }
+
+  /**
+   * Render folder children
+   * @param {HTMLElement} container - Container element
+   * @param {Object} folderData - Folder data object
+   * @param {number} level - Nesting level
+   */
+  function renderFolderChildren(container, folderData, level) {
+    const childItems = [];
+    if (folderData.files) {
+      folderData.files.forEach((file) => {
+        childItems.push({
+          type: 'file',
+          name: file.path.split('/').pop() || `${file.name}.${file.ext}`,
+          data: file,
+          level,
+        });
+      });
+    }
+    if (folderData.subfolders) {
+      Object.entries(folderData.subfolders).forEach(([subFolderName, subFolder]) => {
+        childItems.push({
+          type: 'folder',
+          name: subFolderName,
+          data: subFolder,
+          level,
+        });
+      });
+    }
+    childItems.sort((a, b) => a.name.localeCompare(b.name));
+    let html = '';
+    childItems.forEach((item) => {
+      if (item.type === 'file') {
+        html += createFileNode(item.data, item.level);
+      } else {
+        html += createFolderNode(item.name, item.data, item.level);
+      }
+    });
+    container.innerHTML = html;
+    addFolderTreeEventListeners();
   }
 
   /**
@@ -170,11 +215,15 @@ export default function createFolderModal() {
   function toggleFolder(folderItem) {
     const children = folderItem.nextElementSibling;
     const toggleIcon = folderItem.querySelector('.folder-tree-toggle');
-    if (children && children.classList.contains('folder-tree-children') && toggleIcon && toggleIcon.textContent.trim()) {
+    const folderIcon = folderItem.querySelector('.folder-tree-icon');
+    if (children && children.classList.contains('folder-tree-children') && toggleIcon && toggleIcon.innerHTML.trim()) {
       const isExpanded = children.style.display !== 'none';
       if (isExpanded) {
         children.style.display = 'none';
-        toggleIcon.textContent = '▶';
+        toggleIcon.innerHTML = '<img src="/tools/media-library/icons/chevron-right.svg" class="chevron-icon" alt="Expand">';
+        if (folderIcon) {
+          folderIcon.src = '/tools/media-library/icons/Smock_Folder_18_N.svg';
+        }
       } else {
         const treeContainer = state.modal?.querySelector('#folderTree');
         if (treeContainer) {
@@ -185,18 +234,32 @@ export default function createFolderModal() {
               if (sibling !== folderItem) {
                 const siblingChildren = sibling.nextElementSibling;
                 const siblingToggle = sibling.querySelector('.folder-tree-toggle');
+                const siblingFolderIcon = sibling.querySelector('.folder-tree-icon');
                 if (siblingChildren && siblingChildren.classList.contains('folder-tree-children')) {
                   siblingChildren.style.display = 'none';
-                  if (siblingToggle && siblingToggle.textContent.trim()) {
-                    siblingToggle.textContent = '▶';
+                  if (siblingToggle && siblingToggle.innerHTML.trim()) {
+                    siblingToggle.innerHTML = '<img src="/tools/media-library/icons/chevron-right.svg" class="chevron-icon" alt="Expand">';
+                  }
+                  if (siblingFolderIcon) {
+                    siblingFolderIcon.src = '/tools/media-library/icons/Smock_Folder_18_N.svg';
                   }
                 }
               }
             });
           }
         }
-        children.style.display = 'block';
-        toggleIcon.textContent = '▼';
+      }
+      if (children.children.length === 0) {
+        const folderPath = folderItem.dataset.path;
+        const folderData = findFolderData(folderPath);
+        if (folderData) {
+          renderFolderChildren(children, folderData, parseInt(folderItem.dataset.level || '0', 10) + 1);
+        }
+      }
+      children.style.display = 'block';
+      toggleIcon.innerHTML = '<img src="/tools/media-library/icons/chevron-down.svg" class="chevron-icon" alt="Collapse">';
+      if (folderIcon) {
+        folderIcon.src = '/tools/media-library/icons/Smock_FolderOpen_18_N.svg';
       }
     }
   }
@@ -240,11 +303,6 @@ export default function createFolderModal() {
     if (!selectedItem) return;
     const { path, type } = selectedItem.dataset;
     let fullPath = path;
-
-    // Handle special case for "Files" folder - it represents root-level files
-    if (path === '/files') {
-      fullPath = '/'; // Use root path for filtering root-level files
-    }
 
     if (state.config && state.config.org && state.config.repo) {
       if (type === 'folder') {
@@ -299,7 +357,7 @@ export default function createFolderModal() {
     if (!treeContainer) return;
     treeContainer.querySelectorAll('.folder-item').forEach((item) => {
       const toggleIcon = item.querySelector('.folder-tree-toggle');
-      if (toggleIcon && toggleIcon.textContent && toggleIcon.textContent.trim()) {
+      if (toggleIcon && toggleIcon.innerHTML && toggleIcon.innerHTML.trim()) {
         toggleIcon.addEventListener('click', (e) => {
           e.stopPropagation();
           toggleFolder(item);
@@ -309,7 +367,7 @@ export default function createFolderModal() {
         if (e.target === toggleIcon) return;
         e.stopPropagation();
         selectItem(item);
-        if (toggleIcon && toggleIcon.textContent && toggleIcon.textContent.trim()) {
+        if (toggleIcon && toggleIcon.innerHTML && toggleIcon.innerHTML.trim()) {
           toggleFolder(item);
         }
         setTimeout(() => {
@@ -329,6 +387,47 @@ export default function createFolderModal() {
   }
 
   /**
+   * Render folder children
+   * @param {HTMLElement} container - Container element
+   * @param {Object} folderData - Folder data object
+   * @param {number} level - Nesting level
+   */
+  function renderFolderChildren(container, folderData, level) {
+    const childItems = [];
+    if (folderData.files) {
+      folderData.files.forEach((file) => {
+        childItems.push({
+          type: 'file',
+          name: file.path.split('/').pop() || `${file.name}.${file.ext}`,
+          data: file,
+          level,
+        });
+      });
+    }
+    if (folderData.subfolders) {
+      Object.entries(folderData.subfolders).forEach(([subFolderName, subFolder]) => {
+        childItems.push({
+          type: 'folder',
+          name: subFolderName,
+          data: subFolder,
+          level,
+        });
+      });
+    }
+    childItems.sort((a, b) => a.name.localeCompare(b.name));
+    let html = '';
+    childItems.forEach((item) => {
+      if (item.type === 'file') {
+        html += createFileNode(item.data, item.level);
+      } else {
+        html += createFolderNode(item.name, item.data, item.level);
+      }
+    });
+    container.innerHTML = html;
+    addFolderTreeEventListeners();
+  }
+
+  /**
    * Render the folder tree
    */
   function renderFolderTree() {
@@ -342,29 +441,46 @@ export default function createFolderModal() {
 
     let html = '';
 
-    // Create root folder structure with reorganized hierarchy
-    const rootFolder = {
-      path: '/',
-      files: [], // Move files to separate "Files" element
-      subfolders: structure.subfolders || {},
-    };
+    const allItems = [];
 
-    // Create the Root folder (without files)
-    html += createFolderNode('Root', rootFolder, 0);
-
-    // Create separate "Files" element for root-level files
+    // Add root-level files
     if (structure.files && structure.files.length > 0) {
-      const filesFolder = {
-        path: '/files',
-        files: structure.files,
-        subfolders: {},
-      };
-      html += createFolderNode('Files', filesFolder, 1);
+      structure.files.forEach((file) => {
+        allItems.push({
+          type: 'file',
+          name: file.path.split('/').pop() || `${file.name}.${file.ext}`,
+          data: file,
+          level: 0,
+        });
+      });
     }
 
-    const hasNoFiles = !structure.files?.length;
-    const hasNoSubfolders = !structure.subfolders || Object.keys(structure.subfolders).length === 0;
-    if (hasNoFiles && hasNoSubfolders) {
+    // Add root-level folders
+    if (structure.subfolders) {
+      Object.entries(structure.subfolders).forEach(([folderName, folder]) => {
+        allItems.push({
+          type: 'folder',
+          name: folderName,
+          data: folder,
+          level: 0,
+        });
+      });
+    }
+
+    // Sort all items alphabetically
+    allItems.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Render all items
+    allItems.forEach((item) => {
+      if (item.type === 'file') {
+        html += createFileNode(item.data, item.level);
+      } else {
+        html += createFolderNode(item.name, item.data, item.level);
+      }
+    });
+
+    const hasNoItems = allItems.length === 0;
+    if (hasNoItems) {
       renderEmptyState();
       return;
     }
@@ -451,7 +567,7 @@ export default function createFolderModal() {
     modal.innerHTML = `
       <div class="folder-modal-content">
         <div class="folder-modal-header">
-          <h3>📁 Folder Browser</h3>
+          <h3>Page Hierarchy</h3>
           <div class="folder-modal-actions">
             <button class="folder-modal-action-btn" id="showAllBtn" title="Show all assets">Show All</button>
             <button class="folder-modal-close" id="folderModalClose">&times;</button>
@@ -459,7 +575,7 @@ export default function createFolderModal() {
         </div>
         <div class="folder-modal-body">
           <div class="folder-search-container">
-            <input type="text" class="folder-search-input" placeholder="Search folders..." id="folderSearchInput">
+            <input type="text" class="folder-search-input" placeholder="Search Folders & Files" id="folderSearchInput">
           </div>
           <div class="folder-tree-container">
             <div class="folder-tree" id="folderTree"></div>

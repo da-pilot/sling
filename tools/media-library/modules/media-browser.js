@@ -205,7 +205,6 @@ export default function createMediaBrowser(container, context = null) {
 
     // Apply folder path filter (for folder-based filtering)
     if (state.currentFilter.folderPath) {
-      console.log('[Media Browser] Applying folder filter:', state.currentFilter.folderPath);
       filtered = filtered.filter((media) => {
         if (!media.usedIn) return false;
         let usedInPages = [];
@@ -222,12 +221,10 @@ export default function createMediaBrowser(container, context = null) {
         });
         return matches;
       });
-      console.log('[Media Browser] Folder filter result:', filtered.length, 'items');
     }
 
     // Apply page path filter (for file-based filtering)
     if (state.currentFilter.pagePath) {
-      console.log('[Media Browser] Applying page filter:', state.currentFilter.pagePath);
       filtered = filtered.filter((media) => {
         if (!media.usedIn) return false;
         let usedInPages = [];
@@ -243,7 +240,6 @@ export default function createMediaBrowser(container, context = null) {
         });
         return matches;
       });
-      console.log('[Media Browser] Page filter result:', filtered.length, 'items');
     }
 
     if (state.currentFilter.search) {

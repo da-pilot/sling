@@ -196,7 +196,19 @@ export function showMediaInfoModal(media) {
       ${hasMissingAltText ? `
         <div class="usage-alt-warning">
           <div class="usage-alt-warning-header">
-            <span class="usage-alt-warning-icon">⚠️</span>
+            <span class="usage-alt-warning-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 0 18 18" width="18">
+                <defs>
+                  <style>
+                    .fill {
+                      fill: #464646;
+                    }
+                  </style>
+                </defs>
+                <title>S Alert 18 N</title>
+                <rect id="Canvas" fill="#ff13dc" opacity="0" width="18" height="18" /><path class="fill" d="M8.5635,1.2895.2,16.256A.5.5,0,0,0,.636,17H17.364a.5.5,0,0,0,.436-.744L9.4365,1.2895a.5.5,0,0,0-.873,0ZM10,14.75a.25.25,0,0,1-.25.25H8.25A.25.25,0,0,1,8,14.75v-1.5A.25.25,0,0,1,8.25,13h1.5a.25.25,0,0,1,.25.25Zm0-3a.25.25,0,0,1-.25.25H8.25A.25.25,0,0,1,8,11.75v-6a.25.25,0,0,1,.25-.25h1.5a.25.25,0,0,1,.25.25Z" />
+              </svg>
+            </span>
             <span class="usage-alt-warning-text">${warningText}</span>
           </div>
           <div class="usage-alt-warning-content">
@@ -210,7 +222,7 @@ export function showMediaInfoModal(media) {
           <thead>
             <tr>
               <th class="page-column">Page</th>
-              <th class="occurrences-column">Occurrences</th>
+              <th class="occurrences-column">Usage</th>
             </tr>
           </thead>
           <tbody>
@@ -238,7 +250,6 @@ export function showMediaInfoModal(media) {
         </td>
         <td class="occurrences-column">
           <div class="occurrence-summary">
-            <span class="occurrence-count">${totalOccurrences} occurrence${totalOccurrences !== 1 ? 's' : ''}</span>
           </div>
           ${occurrences.length > 0 ? `
             <div class="occurrence-details">
@@ -248,7 +259,19 @@ export function showMediaInfoModal(media) {
                     <span class="occurrence-number">#${index + 1}</span>
                     <span class="occurrence-type">${o.occurrenceType || 'Image'}</span>
                     <span class="occurrence-status ${o.hasAltText ? 'has-alt' : 'missing-alt'}">
-                      ${o.hasAltText ? '✓' : '⚠'}
+                      ${o.hasAltText ? '✓' : `
+                        <svg xmlns="http://www.w3.org/2000/svg" height="14" viewBox="0 0 18 18" width="14">
+                          <defs>
+                            <style>
+                              .fill {
+                                fill: #464646;
+                              }
+                            </style>
+                          </defs>
+                          <title>S Alert 18 N</title>
+                          <rect id="Canvas" fill="#ff13dc" opacity="0" width="18" height="18" /><path class="fill" d="M8.5635,1.2895.2,16.256A.5.5,0,0,0,.636,17H17.364a.5.5,0,0,0,.436-.744L9.4365,1.2895a.5.5,0,0,0-.873,0ZM10,14.75a.25.25,0,0,1-.25.25H8.25A.25.25,0,0,1,8,14.75v-1.5A.25.25,0,0,1,8.25,13h1.5a.25.25,0,0,1,.25.25Zm0-3a.25.25,0,0,1-.25.25H8.25A.25.25,0,0,1,8,11.75v-6a.25.25,0,0,1,.25-.25h1.5a.25.25,0,0,1,.25.25Z" />
+                        </svg>
+                      `}
                     </span>
                   </div>
                   ${!o.hasAltText ? `

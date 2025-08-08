@@ -165,11 +165,17 @@ async function init() {
     const modeInfo = detectMode();
     window.mediaLibraryMode = modeInfo; // Make it globally accessible
 
+    console.log('[Media Library] Starting core services initialization...');
     await initializeCoreServices();
+    console.log('[Media Library] Core services initialized');
 
+    console.log('[Media Library] Starting media load and render...');
     await loadAndRenderMedia();
+    console.log('[Media Library] Media load and render complete');
 
+    console.log('[Media Library] Starting scanning initialization...');
     await initializeScanning();
+    console.log('[Media Library] Scanning initialization complete');
 
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
@@ -178,11 +184,25 @@ async function init() {
     // eslint-disable-next-line no-console
     console.log('🔧 [INIT] Media Library initialization complete!');
   } catch (error) {
-    console.error('Failed to initialize:', error);
+    console.error('[Media Library] Initialization failed:', {
+      error,
+      message: error.message,
+      stack: error.stack,
+      phase: 'initialization',
+    });
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
     showError(ERROR_MESSAGES.INITIALIZATION_FAILED, error);
   }
+
+  // Add unhandled rejection handler
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('[Media Library] Unhandled Promise Rejection:', {
+      error: event.reason,
+      message: event.reason.message,
+      stack: event.reason.stack,
+    });
+  });
 }
 
 // =============================================================================
@@ -196,12 +216,19 @@ async function initializeCoreServices() {
   docAuthoringService = createDocAuthoringService();
   await docAuthoringService.init(daContext);
 
+  // Set context and docAuthoringService for media loader
   if (typeof setMediaLoaderContext === 'function') {
     setMediaLoaderContext(daContext);
+    console.log('[Media Library] Set context for media loader:', { org: daContext.org, repo: daContext.repo });
+  } else {
+    console.warn('[Media Library] setMediaLoaderContext not available');
   }
 
   if (typeof setMediaLoaderDocAuthoringService === 'function') {
     setMediaLoaderDocAuthoringService(docAuthoringService);
+    console.log('[Media Library] Set docAuthoringService for media loader');
+  } else {
+    console.warn('[Media Library] setMediaLoaderDocAuthoringService not available');
   }
 
   const metadataPath = DA_PATHS.getMediaDataFile(daContext.org, daContext.repo);
@@ -290,7 +317,31 @@ function setupMediaUpdateHandler() {
  */
 async function loadAndRenderMedia() {
   try {
-    const { mediaJsonExists, media: loadedMedia } = await loadMediaFromMediaJson();
+    console.log('[Media Library] Starting media load process...');
+
+    // Check if media.json exists first
+    const mediaJsonPath = DA_PATHS.getMediaDataFile(daContext.org, daContext.repo);
+    console.log('[Media Library] Checking media.json at path:', mediaJsonPath);
+
+    // Check if .media folder exists and contains media.json
+    try {
+      const files = await docAuthoringService.listPath('/.media');
+      const mediaJsonFile = files.find((f) => f.name === 'media.json');
+      console.log('[Media Library] Media.json file info:', mediaJsonFile);
+    } catch (listError) {
+      console.warn('[Media Library] Failed to list .media folder:', listError);
+    }
+
+    // Try to load media data
+    console.log('[Media Library] Attempting to load media from media.json...');
+    const { mediaJsonExists, media: loadedMedia, error } = await loadMediaFromMediaJson();
+
+    console.log('[Media Library] Load result:', {
+      mediaJsonExists,
+      mediaCount: loadedMedia?.length || 0,
+      error,
+      path: mediaJsonPath,
+    });
 
     if (mediaJsonExists) {
       showPlaceholderCards();
@@ -298,10 +349,18 @@ async function loadAndRenderMedia() {
 
     // Update global media array
     media = loadedMedia || [];
+    console.log('[Media Library] Setting media array:', {
+      length: media.length,
+      sample: media.slice(0, 2), // Show first two items for debugging
+    });
+
     renderMedia(media);
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn('Failed to load media:', error);
+    console.error('[Media Library] Failed to load media:', {
+      error,
+      message: error.message,
+      stack: error.stack,
+    });
     media = [];
     renderMedia(media);
   }
@@ -984,6 +1043,7 @@ function updateLoadingText(text) {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('[Media Library] DOMContentLoaded event fired');
   document.body.style.opacity = '1';
   document.body.classList.add('loaded');
   showPlaceholderCards();
@@ -994,10 +1054,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       import('./modules/scan-indicator.js').then((mod) => mod.showScanIndicator());
     } catch (e) {
-      // Intentionally empty: scan indicator is non-critical
+      console.warn('[Media Library] Failed to load scan indicator:', e);
     }
   }
 
+  console.log('[Media Library] Starting initialization...');
   init().catch((error) => {
     console.error('Initialization failed:', error);
 

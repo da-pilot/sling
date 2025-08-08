@@ -26,22 +26,22 @@
         <div class="section-header" id="all-media-header">All Media</div>
         <div class="folder-tree" id="folderTree" role="list">
           <div class="folder-item active" data-filter="all" role="listitem" tabindex="0" aria-selected="true">
-            <span class="folder-icon" aria-hidden="true">📁</span>
+            <img src="/tools/media-library/icons/Smock_Asset_18_N.svg" class="folder-icon" alt="All Media">
             <span class="folder-name">All Media</span>
             <span class="media-count" id="totalCount" aria-label="Total media count">0</span>
           </div>
           <div class="folder-item" data-filter="internal" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">🏠</span>
+            <img src="/tools/media-library/icons/Smock_FileHTML_18_N.svg" class="folder-icon" alt="Internal">
             <span class="folder-name">Internal</span>
             <span class="media-count" id="internalCount" aria-label="Internal media count">0</span>
           </div>
           <div class="folder-item" data-filter="external" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">🌐</span>
+            <img src="/tools/media-library/icons/Smock_LinkGlobe_18_N.svg" class="folder-icon" alt="External">
             <span class="folder-name">External</span>
             <span class="media-count" id="externalCount" aria-label="External media count">0</span>
           </div>
           <div class="folder-item" data-filter="missing-alt" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">⚠️</span>
+            <img src="/tools/media-library/icons/Smock_Alert_18_N.svg" class="folder-icon" alt="Missing Alt Text">
             <span class="folder-name">Missing Alt Text</span>
             <span class="media-count" id="missingAltCount" aria-label="Media missing alt text">0</span>
           </div>
@@ -51,17 +51,17 @@
         <div class="section-header">Media Types</div>
         <div class="folder-tree" role="list">
           <div class="folder-item" data-filter="image" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">🖼️</span>
+            <img src="/tools/media-library/icons/Smock_Image_18_N.svg" class="folder-icon" alt="Images">
             <span class="folder-name">Images</span>
             <span class="media-count" id="imageCount" aria-label="Image count">0</span>
           </div>
           <div class="folder-item" data-filter="video" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">🎬</span>
+            <img src="/tools/media-library/icons/Smock_VideoFilled_18_N.svg" class="folder-icon" alt="Videos">
             <span class="folder-name">Videos</span>
             <span class="media-count" id="videoCount" aria-label="Video count">0</span>
           </div>
           <div class="folder-item" data-filter="document" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">📄</span>
+            <img src="/tools/media-library/icons/Smock_Document_18_N.svg" class="folder-icon" alt="Documents">
             <span class="folder-name">Documents</span>
             <span class="media-count" id="documentCount" aria-label="Document count">0</span>
           </div>
@@ -71,22 +71,22 @@
         <div class="section-header" id="used-on-page-header">Used on This Page</div>
         <div class="folder-tree" role="list">
           <div class="folder-item" data-filter="used-on-page" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">📋</span>
+            <img src="/tools/media-library/icons/Smock_Asset_18_N.svg" class="folder-icon" alt="All Used">
             <span class="folder-name">All Used</span>
             <span class="media-count" id="usedOnPageCount" aria-label="Media used on current page">0</span>
           </div>
           <div class="folder-item" data-filter="used-internal" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">🏠</span>
+            <img src="/tools/media-library/icons/Smock_FileHTML_18_N.svg" class="folder-icon" alt="Internal Used">
             <span class="folder-name">Internal Used</span>
             <span class="media-count" id="usedInternalCount" aria-label="Internal media used on current page">0</span>
           </div>
           <div class="folder-item" data-filter="used-external" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">🌐</span>
+            <img src="/tools/media-library/icons/Smock_LinkGlobe_18_N.svg" class="folder-icon" alt="External Used">
             <span class="folder-name">External Used</span>
             <span class="media-count" id="usedExternalCount" aria-label="External media used on current page">0</span>
           </div>
           <div class="folder-item" data-filter="used-missing-alt" role="listitem" tabindex="0">
-            <span class="folder-icon" aria-hidden="true">⚠️</span>
+            <img src="/tools/media-library/icons/Smock_Alert_18_N.svg" class="folder-icon" alt="Missing Alt on Page">
             <span class="folder-name">Missing Alt on Page</span>
             <span class="media-count" id="usedMissingAltCount" aria-label="Images used on this page missing alt text">0</span>
           </div>
@@ -98,6 +98,7 @@
       <!-- Top Bar -->
       <div class="top-bar">
         <div class="search-container">
+          <img src="/tools/media-library/icons/Smock_ImageSearch_18_N.svg" class="search-icon" alt="Search">
           <input type="text" class="search-input" placeholder="Search media..." id="searchInput" aria-label="Search media" autocomplete="off">
           <div class="search-suggestions" id="searchSuggestions" role="listbox" aria-hidden="true"></div>
           <div class="quick-search-labels" id="quickSearchLabels" role="list" aria-label="Quick search options"></div>
@@ -105,17 +106,13 @@
         <div class="top-controls">
           <!-- Scan progress removed - no longer needed -->
           <div class="scan-indicator" id="scanIndicator" aria-label="Scan progress" title="Scanning media" style="display: none;">
-            <svg class="sync-spinner" width="20" height="20" viewBox="0 0 512 512" fill="currentColor" style="vertical-align: middle;">
-              <path d="M370.9 133.3C346.6 110.1 311.7 96 272 96c-79.5 0-144 64.5-144 144h48l-80 80-80-80h48c0-114.9 93.1-208 208-208 54.5 0 104.1 20.9 142.1 55.1l-53.2 53.2zM464 256c0 79.5-64.5 144-144 144-39.7 0-74.6-14.1-98.9-37.3l53.2-53.2C217.9 401.1 272 416 320 416c79.5 0 144-64.5 144-144h-48l80-80 80 80h-48z"/>
-            </svg>
+            <img src="/tools/media-library/icons/Smock_Refresh_18_N.svg" class="sync-spinner" alt="Scanning">
           </div>
+          <button id="folderBrowserBtn" class="folder-browser-btn" title="Folder Browser" aria-pressed="false">
+            <img src="/tools/media-library/icons/Smock_Folder_18_N.svg" alt="Folder" width="16" height="16">
+          </button>
           <button class="view-btn active" id="gridViewBtn" data-view="grid" title="Grid View" aria-pressed="true">⊞</button>
           <button class="view-btn" id="listViewBtn" data-view="list" title="List View" aria-pressed="false">☰</button>
-          <button id="folderBrowserBtn" class="folder-browser-btn" title="Folder Browser" aria-pressed="false">
-            <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 24 24" width="16" fill="currentColor">
-              <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"/>
-            </svg>
-          </button>
         </div>
       </div>
       <!-- Breadcrumb -->
