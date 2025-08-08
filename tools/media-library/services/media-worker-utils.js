@@ -134,36 +134,25 @@ export function getContextualText(html, index) {
   const start = Math.max(0, index - searchRadius);
   const end = Math.min(html.length, index + searchRadius);
   const nearbyHtml = html.substring(start, end);
-
-  const contentMatches = nearbyHtml.match(/>([^<]{30,})</g);
+  const contentMatches = nearbyHtml.match(/>([^<]{20,})</g);
   if (contentMatches && contentMatches.length > 0) {
     const meaningfulMatches = contentMatches
       .map((match) => match.replace(/^>/, '').replace(/<$/, ''))
       .filter((text) => {
-        const cleanText = text
-          .replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT)
-          .trim();
-        return cleanText.length > 20
-          && !cleanText.includes('src=')
-          && !cleanText.includes('alt=')
-          && !cleanText.includes('media=')
-          && !cleanText.includes('http')
-          && !cleanText.includes('www');
+        const cleanText = text.replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT).trim();
+        const lower = cleanText.toLowerCase();
+        const containsUrl = lower.includes('http://') || lower.includes('https://') || lower.includes('www.');
+        const containsQueryParams = lower.includes('?width=') || lower.includes('&width=') || lower.includes('&format=') || lower.includes('&optimize=');
+        const containsAttrs = lower.includes('src=') || lower.includes('alt=') || lower.includes('media=') || lower.includes('width=') || lower.includes('height=') || lower.includes('loading=') || lower.includes('type=') || lower.includes('format=') || lower.includes('optimize=');
+        return cleanText.length > 15 && !containsUrl && !containsQueryParams && !containsAttrs;
       });
-
     if (meaningfulMatches.length > 0) {
-      const bestMatch = meaningfulMatches.reduce(
-        (longest, current) => (current.length > longest.length ? current : longest),
-      );
-      const cleanText = bestMatch
-        .replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT)
-        .trim();
-
+      const bestMatch = meaningfulMatches.reduce((longest, current) => (current.length > longest.length ? current : longest));
+      const cleanText = bestMatch.replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT).trim();
       if (cleanText.length > 10) {
-        return cleanText.substring(0, 120);
+        return cleanText.substring(0, 150);
       }
     }
   }
-
   return MEDIA_PROCESSING.NO_CONTEXT_AVAILABLE;
 }

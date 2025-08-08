@@ -364,6 +364,7 @@ export const MEDIA_PROCESSING = {
   NO_CONTEXT_AVAILABLE: 'No context available',
   IMG_CONTEXT_PREFIX: 'img-',
   PICTURE_CONTEXT_PREFIX: 'picture-',
+  PICTURE_SOURCE_CONTEXT_PREFIX: 'picture-source-',
   VIDEO_CONTEXT_PREFIX: 'video-',
   LINK_CONTEXT_PREFIX: 'link-',
   CSS_BACKGROUND_CONTEXT_PREFIX: 'css-bg-',

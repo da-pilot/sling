@@ -2,18 +2,18 @@ module.exports = {
   env: {
     browser: true,
     es2022: true,
-    node: true
+    node: true,
   },
   extends: [],
   parserOptions: {
     ecmaVersion: 2022,
-    sourceType: 'module'
+    sourceType: 'module',
   },
   rules: {
-    'no-unused-vars': ['error', { 
-      'argsIgnorePattern': '^_',
-      'varsIgnorePattern': '^_',
-      'caughtErrorsIgnorePattern': '^_'
+    'no-unused-vars': ['error', {
+      argsIgnorePattern: '^_',
+      varsIgnorePattern: '^_',
+      caughtErrorsIgnorePattern: '^_',
     }],
     'no-unreachable': 'error',
     'no-unreachable-loop': 'error',
@@ -22,17 +22,17 @@ module.exports = {
     'no-duplicate-imports': 'error',
     'no-useless-rename': 'error',
     'no-sequences': 'error',
-    'no-unused-private-class-members': 'error'
+    'no-unused-private-class-members': 'error',
   },
   overrides: [
     {
       files: ['**/*.js'],
       rules: {
-        'no-unused-vars': ['error', { 
-          'argsIgnorePattern': '^_',
-          'varsIgnorePattern': '^_'
-        }]
-      }
-    }
-  ]
+        'no-unused-vars': ['error', {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        }],
+      },
+    },
+  ],
 };

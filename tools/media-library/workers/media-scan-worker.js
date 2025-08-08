@@ -73,6 +73,11 @@ const state = {
 let config = null;
 let daApi = null;
 
+/**
+ * Initializes the media scan worker with configuration
+ * @param {Object} workerConfig - Worker configuration object
+ * @returns {Promise<boolean>} Initialization success status
+ */
 async function init(workerConfig) {
   config = workerConfig;
   daApi = createWorkerDaApi();
@@ -82,6 +87,11 @@ async function init(workerConfig) {
   return true;
 }
 
+/**
+ * Starts queue processing for media scanning
+ * @param {Object} sessionData - Session data object
+ * @returns {Promise<void>}
+ */
 async function startQueueProcessing(sessionData = null) {
   state.isRunning = true;
   if (sessionData) {
@@ -216,31 +226,42 @@ async function getPageContent(path) {
   return response;
 }
 
+/**
+ * Extracts all media from HTML content
+ * @param {string} html - HTML content to scan
+ * @param {string} sourcePath - Source path for the HTML
+ * @returns {Promise<Array>} Array of media entries
+ */
 async function extractMediaFromHTML(html, sourcePath) {
   const mediaMap = new Map();
-  const processedSrcs = new Set();
-  await extractImgTags(html, mediaMap, sourcePath, processedSrcs);
-  await extractPictureImages(html, mediaMap, sourcePath, processedSrcs);
-  extractBackgroundImages(html, mediaMap, sourcePath, processedSrcs);
-  extractVideoSources(html, mediaMap, sourcePath, processedSrcs);
-  await extractMediaLinks(html, mediaMap, sourcePath, processedSrcs);
-  extractCSSBackgrounds(html, mediaMap, sourcePath, processedSrcs);
+  const pictureCanonicalSrcs = new Set();
+  await extractPictureImages(html, mediaMap, sourcePath, pictureCanonicalSrcs);
+  await extractImgTags(html, mediaMap, sourcePath, pictureCanonicalSrcs);
+  extractBackgroundImages(html, mediaMap, sourcePath);
+  extractVideoSources(html, mediaMap, sourcePath);
+  await extractMediaLinks(html, mediaMap, sourcePath);
+  extractCSSBackgrounds(html, mediaMap, sourcePath);
   const mediaArray = Array.from(mediaMap.values());
   return mediaArray;
 }
 
-async function extractImgTags(html, mediaMap, sourcePath, processedSrcs) {
+/**
+ * Extracts media from img tags in HTML, skipping images already handled by picture processing
+ * @param {string} html - HTML content to scan
+ * @param {Map} mediaMap - Map to store media entries
+ * @param {string} sourcePath - Source path for the HTML
+ * @param {Set<string>} pictureCanonicalSrcs - Set of srcs already captured from picture elements
+ * @returns {Promise<void>}
+ */
+async function extractImgTags(html, mediaMap, sourcePath, pictureCanonicalSrcs) {
   let occurrenceIndex = 0;
   const matches = Array.from(html.matchAll(HTML_PATTERNS.IMG_TAG));
   await Promise.all(matches.map(async (match) => {
     const src = match[1];
-    if (src && isValidMediaSrc(src) && !processedSrcs.has(src)) {
-      processedSrcs.add(src);
+    if (src && isValidMediaSrc(src) && !(pictureCanonicalSrcs && pictureCanonicalSrcs.has(src))) {
       const imgTag = match[0];
       const altMatch = imgTag.match(ATTRIBUTE_PATTERNS.ALT);
       const titleMatch = imgTag.match(ATTRIBUTE_PATTERNS.TITLE);
-      const widthMatch = imgTag.match(ATTRIBUTE_PATTERNS.WIDTH);
-      const heightMatch = imgTag.match(ATTRIBUTE_PATTERNS.HEIGHT);
       const altText = altMatch ? altMatch[1] : '';
       const titleText = titleMatch ? titleMatch[1] : '';
       const hasAltText = isValidAltText(altText);
@@ -266,10 +287,7 @@ async function extractImgTags(html, mediaMap, sourcePath, processedSrcs) {
           title: titleText,
           type: determineMediaType(src),
           usedIn: [sourcePath],
-          dimensions: {
-            width: widthMatch ? parseInt(widthMatch[1], 10) : null,
-            height: heightMatch ? parseInt(heightMatch[1], 10) : null,
-          },
+          dimensions: { width: null, height: null },
           context: 'img-tag',
           occurrences: [occurrence],
           isExternal,
@@ -280,59 +298,83 @@ async function extractImgTags(html, mediaMap, sourcePath, processedSrcs) {
   }));
 }
 
-async function extractPictureImages(html, mediaMap, sourcePath, processedSrcs) {
+/**
+ * Extracts media from picture tags, emitting a single canonical URL per picture
+ * @param {string} html - HTML content to scan
+ * @param {Map} mediaMap - Map to store media entries
+ * @param {string} sourcePath - Source path for the HTML
+ * @param {Set<string>} pictureCanonicalSrcs - Set to collect canonical srcs from picture elements
+ * @returns {Promise<void>}
+ */
+async function extractPictureImages(html, mediaMap, sourcePath, pictureCanonicalSrcs) {
   let occurrenceIndex = 0;
   const pictureMatches = Array.from(html.matchAll(HTML_PATTERNS.PICTURE_TAG));
   await Promise.all(pictureMatches.map(async (match) => {
     const pictureTag = match[0];
     const imgMatch = pictureTag.match(/<img[^>]+src\s*=\s*["']([^"']+)["'][^>]*>/i);
+    const sourceTagMatches = Array.from(pictureTag.matchAll(/<source[^>]*>/gi));
+    const candidatesSet = new Set();
     if (imgMatch) {
-      const src = imgMatch[1];
-      if (src && isValidMediaSrc(src) && !processedSrcs.has(src)) {
-        processedSrcs.add(src);
-        const altMatch = pictureTag.match(ATTRIBUTE_PATTERNS.ALT);
-        const titleMatch = pictureTag.match(ATTRIBUTE_PATTERNS.TITLE);
-        const altText = altMatch ? altMatch[1] : '';
-        const titleText = titleMatch ? titleMatch[1] : '';
-        const hasAltText = isValidAltText(altText);
-        const occurrenceId = await generateOccurrenceId(sourcePath, src, `${MEDIA_PROCESSING.PICTURE_CONTEXT_PREFIX}${occurrenceIndex}`);
-        const isExternal = isExternalMedia(src, config.org, config.repo);
-        const occurrence = {
-          occurrenceId,
-          pagePath: sourcePath,
-          altText,
-          hasAltText,
-          occurrenceType: 'image',
-          contextualText: getContextualText(html, match.index),
+      const [, imgSrc] = imgMatch;
+      if (imgSrc) candidatesSet.add(imgSrc);
+    }
+    sourceTagMatches.forEach((sourceTagMatch) => {
+      const sourceTag = sourceTagMatch[0];
+      const srcAttrMatch = sourceTag.match(/src\s*=\s*["']([^"']+)["']/i);
+      const srcsetMatch = sourceTag.match(ATTRIBUTE_PATTERNS.SRCSET);
+      if (srcAttrMatch && srcAttrMatch[1]) candidatesSet.add(srcAttrMatch[1]);
+      if (srcsetMatch && srcsetMatch[1]) srcsetMatch[1].split(',').forEach((part) => { const url = part.trim().split(/\s+/)[0]; if (url) candidatesSet.add(url); });
+    });
+    let canonicalSrc = null;
+    if (imgMatch) {
+      const [, imgSrc] = imgMatch;
+      canonicalSrc = imgSrc;
+    }
+    if (!canonicalSrc) {
+      const [canonicalCandidate] = Array.from(candidatesSet);
+      canonicalSrc = canonicalCandidate || null;
+    }
+    if (canonicalSrc && isValidMediaSrc(canonicalSrc)) {
+      const altMatch = pictureTag.match(ATTRIBUTE_PATTERNS.ALT);
+      const titleMatch = pictureTag.match(ATTRIBUTE_PATTERNS.TITLE);
+      const altText = altMatch ? altMatch[1] : '';
+      const titleText = titleMatch ? titleMatch[1] : '';
+      const hasAltText = isValidAltText(altText);
+      const occurrenceId = await generateOccurrenceId(sourcePath, canonicalSrc, `${MEDIA_PROCESSING.PICTURE_CONTEXT_PREFIX}${occurrenceIndex}`);
+      const isExternal = isExternalMedia(canonicalSrc, config.org, config.repo);
+      const occurrence = {
+        occurrenceId,
+        pagePath: sourcePath,
+        altText,
+        hasAltText,
+        occurrenceType: 'image',
+        contextualText: getContextualText(html, match.index),
+        context: 'picture',
+      };
+      if (mediaMap.has(canonicalSrc)) {
+        const existing = mediaMap.get(canonicalSrc);
+        existing.occurrences.push(occurrence);
+        existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
+      } else {
+        mediaMap.set(canonicalSrc, {
+          src: canonicalSrc,
+          alt: altText,
+          title: titleText,
+          type: determineMediaType(canonicalSrc),
+          usedIn: [sourcePath],
+          dimensions: { width: null, height: null },
           context: 'picture',
-        };
-        if (mediaMap.has(src)) {
-          const existing = mediaMap.get(src);
-          existing.occurrences.push(occurrence);
-          existing.usedIn = [...new Set([...existing.usedIn, sourcePath])];
-        } else {
-          mediaMap.set(src, {
-            src,
-            alt: altText,
-            title: titleText,
-            type: determineMediaType(src),
-            usedIn: [sourcePath],
-            dimensions: {
-              width: null,
-              height: null,
-            },
-            context: 'picture',
-            occurrences: [occurrence],
-            isExternal,
-          });
-        }
-        occurrenceIndex += 1;
+          occurrences: [occurrence],
+          isExternal,
+        });
       }
+      if (pictureCanonicalSrcs) pictureCanonicalSrcs.add(canonicalSrc);
+      occurrenceIndex += 1;
     }
   }));
 }
 
-function extractBackgroundImages(html, mediaMap, sourcePath, processedSrcs) {
+function extractBackgroundImages(html, mediaMap, sourcePath) {
   const styleMatches = [];
   let styleMatch;
   styleMatch = HTML_PATTERNS.STYLE_TAG.exec(html);
@@ -342,7 +384,7 @@ function extractBackgroundImages(html, mediaMap, sourcePath, processedSrcs) {
   }
   styleMatches.forEach((match) => {
     const styleContent = match[1];
-    extractBgImagesFromStyle(styleContent, mediaMap, sourcePath, processedSrcs);
+    extractBgImagesFromStyle(styleContent, mediaMap, sourcePath);
   });
   const inlineMatches = [];
   let inlineMatch;
@@ -353,11 +395,11 @@ function extractBackgroundImages(html, mediaMap, sourcePath, processedSrcs) {
   }
   inlineMatches.forEach((match) => {
     const inlineStyle = match[1];
-    extractBgImagesFromStyle(inlineStyle, mediaMap, sourcePath, processedSrcs);
+    extractBgImagesFromStyle(inlineStyle, mediaMap, sourcePath);
   });
 }
 
-function extractVideoSources(html, mediaMap, sourcePath, processedSrcs) {
+function extractVideoSources(html, mediaMap, sourcePath) {
   let videoMatch;
   let occurrenceIndex = 0;
   videoMatch = HTML_PATTERNS.VIDEO_TAG.exec(html);
@@ -367,8 +409,7 @@ function extractVideoSources(html, mediaMap, sourcePath, processedSrcs) {
     sourceMatch = HTML_PATTERNS.SOURCE_TAG.exec(videoContent);
     while (sourceMatch !== null) {
       const src = sourceMatch[1];
-      if (src && isValidMediaSrc(src) && !processedSrcs.has(src)) {
-        processedSrcs.add(src);
+      if (src && isValidMediaSrc(src)) {
         const sourceTag = sourceMatch[0];
         const typeMatch = sourceTag.match(ATTRIBUTE_PATTERNS.TYPE);
         const mediaMatch = sourceTag.match(ATTRIBUTE_PATTERNS.MEDIA);
@@ -413,13 +454,12 @@ function extractVideoSources(html, mediaMap, sourcePath, processedSrcs) {
   }
 }
 
-async function extractMediaLinks(html, mediaMap, sourcePath, processedSrcs) {
+async function extractMediaLinks(html, mediaMap, sourcePath) {
   let occurrenceIndex = 0;
   const matches = Array.from(html.matchAll(HTML_PATTERNS.LINK_TAG));
   await Promise.all(matches.map(async (match) => {
     const href = match[1];
-    if (href && isMediaFile(href) && !processedSrcs.has(href)) {
-      processedSrcs.add(href);
+    if (href && isMediaFile(href)) {
       const linkTag = match[0];
       const titleMatch = linkTag.match(ATTRIBUTE_PATTERNS.TITLE);
       const ariaLabelMatch = linkTag.match(ATTRIBUTE_PATTERNS.ARIA_LABEL);
@@ -463,7 +503,7 @@ async function extractMediaLinks(html, mediaMap, sourcePath, processedSrcs) {
   }));
 }
 
-async function extractCSSBackgrounds(html, mediaMap, sourcePath, processedSrcs) {
+async function extractCSSBackgrounds(html, mediaMap, sourcePath) {
   let occurrenceIndex = 0;
   const styleMatches = Array.from(html.matchAll(CSS_PATTERNS.INLINE_STYLE));
   await Promise.all(styleMatches.map(async (match) => {
@@ -471,8 +511,7 @@ async function extractCSSBackgrounds(html, mediaMap, sourcePath, processedSrcs) 
     const urlMatches = Array.from(styleContent.matchAll(CSS_PATTERNS.URL_FUNCTION));
     await Promise.all(urlMatches.map(async (urlMatch) => {
       const url = urlMatch[1];
-      if (url && isMediaFile(url) && !processedSrcs.has(url)) {
-        processedSrcs.add(url);
+      if (url && isMediaFile(url)) {
         const occurrenceId = generateOccurrenceId(sourcePath, url, `${MEDIA_PROCESSING.CSS_BACKGROUND_CONTEXT_PREFIX}${occurrenceIndex}`);
         const occurrence = {
           occurrenceId,
@@ -510,8 +549,7 @@ async function extractCSSBackgrounds(html, mediaMap, sourcePath, processedSrcs) 
   const backgroundMatches = Array.from(html.matchAll(CSS_PATTERNS.BACKGROUND_IMAGE));
   await Promise.all(backgroundMatches.map(async (match) => {
     const url = match[1];
-    if (url && isMediaFile(url) && !processedSrcs.has(url)) {
-      processedSrcs.add(url);
+    if (url && isMediaFile(url)) {
       const occurrenceId = generateOccurrenceId(sourcePath, url, `${MEDIA_PROCESSING.CSS_BACKGROUND_CONTEXT_PREFIX}${occurrenceIndex}`);
       const occurrence = {
         occurrenceId,
@@ -547,14 +585,13 @@ async function extractCSSBackgrounds(html, mediaMap, sourcePath, processedSrcs) 
   }));
 }
 
-function extractBgImagesFromStyle(style, mediaMap, sourcePath, processedSrcs) {
+function extractBgImagesFromStyle(style, mediaMap, sourcePath) {
   let bgMatch;
   let occurrenceIndex = 0;
   bgMatch = CSS_PATTERNS.BACKGROUND_IMAGE.exec(style);
   while (bgMatch !== null) {
     const url = bgMatch[1];
-    if (url && isMediaFile(url) && !processedSrcs.has(url)) {
-      processedSrcs.add(url);
+    if (url && isMediaFile(url)) {
       const occurrenceId = generateOccurrenceId(sourcePath, url, `${MEDIA_PROCESSING.CSS_BACKGROUND_CONTEXT_PREFIX}${occurrenceIndex}`);
       const occurrence = {
         occurrenceId,
