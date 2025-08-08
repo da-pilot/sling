@@ -1,0 +1,17 @@
+{
+  "name": "media-library-eslint",
+  "version": "1.0.0",
+  "description": "ESLint configuration for media-library",
+  "scripts": {
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "dead-code": "eslint . --ext .js --rule 'no-unused-vars: error'",
+    "factory-check": "eslint . --ext .js --rule 'no-unused-expressions: error'"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=8.0.0"
+  }
+}
