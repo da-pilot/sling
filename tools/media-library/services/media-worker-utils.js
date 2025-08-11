@@ -82,30 +82,59 @@ export function extractFilenameFromUrl(url) {
   try {
     const cleanUrl = url.split('?')[0].split('#')[0];
     let pathname;
+    let isExternal = false;
+
     if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
       const urlObj = new URL(cleanUrl);
       pathname = urlObj.pathname;
+      isExternal = true;
     } else {
       pathname = cleanUrl;
     }
+
     if (MEDIA_PROCESSING.GOOGLE_URLS.some((googleUrl) => url.includes(googleUrl))) {
       return MEDIA_PROCESSING.GOOGLE_DOCS_IMAGE;
     }
+
     const filename = pathname.split('/').pop();
     if (!filename) {
       return MEDIA_PROCESSING.UNTITLED_MEDIA;
     }
+
     if (MEDIA_PROCESSING.HASH_PATTERN.test(filename)) {
       return MEDIA_PROCESSING.SLING_LOGO_DEFAULT;
     }
+
     const nameWithoutExtension = filename.split('.')[0];
     const cleanName = nameWithoutExtension.replace(
       MEDIA_PROCESSING.UNDERSCORE_DASH_PATTERN,
       MEDIA_PROCESSING.SPACE_REPLACEMENT,
     );
+
     if (cleanName.startsWith(MEDIA_PROCESSING.MEDIA_PREFIX)) {
       return MEDIA_PROCESSING.UNTITLED_MEDIA;
     }
+
+    // For external URLs, try to extract a more meaningful name from the path
+    if (isExternal && cleanName) {
+      // Try to get a meaningful segment from the path
+      const pathSegments = pathname.split('/').filter((segment) => segment && segment !== filename);
+      const meaningfulSegments = pathSegments.filter((segment) => segment.length > 2
+        && !segment.match(/^\d+$/)
+        && !segment.match(/^[a-f0-9]{8,}$/i)
+        && !segment.includes('.'));
+
+      if (meaningfulSegments.length > 0) {
+        // Use the last meaningful segment as a prefix
+        const lastMeaningfulSegment = meaningfulSegments[meaningfulSegments.length - 1];
+        const cleanSegment = lastMeaningfulSegment.replace(
+          MEDIA_PROCESSING.UNDERSCORE_DASH_PATTERN,
+          MEDIA_PROCESSING.SPACE_REPLACEMENT,
+        );
+        return `${cleanSegment} ${cleanName}`;
+      }
+    }
+
     return cleanName || MEDIA_PROCESSING.UNTITLED_MEDIA;
   } catch (error) {
     return MEDIA_PROCESSING.UNTITLED_MEDIA;
@@ -139,16 +168,28 @@ export function getContextualText(html, index) {
     const meaningfulMatches = contentMatches
       .map((match) => match.replace(/^>/, '').replace(/<$/, ''))
       .filter((text) => {
-        const cleanText = text.replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT).trim();
+        const cleanText = text.replace(
+          MEDIA_PROCESSING.WHITESPACE_PATTERN,
+          MEDIA_PROCESSING.SPACE_REPLACEMENT,
+        ).trim();
         const lower = cleanText.toLowerCase();
-        const containsUrl = lower.includes('http://') || lower.includes('https://') || lower.includes('www.');
-        const containsQueryParams = lower.includes('?width=') || lower.includes('&width=') || lower.includes('&format=') || lower.includes('&optimize=');
-        const containsAttrs = lower.includes('src=') || lower.includes('alt=') || lower.includes('media=') || lower.includes('width=') || lower.includes('height=') || lower.includes('loading=') || lower.includes('type=') || lower.includes('format=') || lower.includes('optimize=');
+        const containsUrl = lower.includes('http://') || lower.includes('https://')
+          || lower.includes('www.');
+        const containsQueryParams = lower.includes('?width=') || lower.includes('&width=')
+          || lower.includes('&format=') || lower.includes('&optimize=');
+        const containsAttrs = lower.includes('src=') || lower.includes('alt=') || lower.includes('media=')
+          || lower.includes('width=') || lower.includes('height=') || lower.includes('loading=')
+          || lower.includes('type=') || lower.includes('format=') || lower.includes('optimize=');
         return cleanText.length > 15 && !containsUrl && !containsQueryParams && !containsAttrs;
       });
     if (meaningfulMatches.length > 0) {
-      const bestMatch = meaningfulMatches.reduce((longest, current) => (current.length > longest.length ? current : longest));
-      const cleanText = bestMatch.replace(MEDIA_PROCESSING.WHITESPACE_PATTERN, MEDIA_PROCESSING.SPACE_REPLACEMENT).trim();
+      const bestMatch = meaningfulMatches.reduce(
+        (longest, current) => (current.length > longest.length ? current : longest),
+      );
+      const cleanText = bestMatch.replace(
+        MEDIA_PROCESSING.WHITESPACE_PATTERN,
+        MEDIA_PROCESSING.SPACE_REPLACEMENT,
+      ).trim();
       if (cleanText.length > 10) {
         return cleanText.substring(0, 150);
       }

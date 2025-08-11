@@ -373,11 +373,9 @@ async function loadAndRenderMedia() {
 function showPlaceholderCards() {
   const grid = document.getElementById('mediaGrid');
   const loadingMsg = document.getElementById('mediaLoadingMessage');
-
   if (grid) {
     grid.style.display = '';
     grid.innerHTML = '';
-
     const placeholderTemplate = `
       <div class="media-placeholder">
         <div class="placeholder-preview"></div>
@@ -395,7 +393,6 @@ function showPlaceholderCards() {
         </div>
       </div>
     `;
-
     Array.from({ length: 12 }, () => {
       const placeholder = document.createElement('div');
       placeholder.className = 'media-placeholder';
@@ -404,9 +401,7 @@ function showPlaceholderCards() {
       return placeholder;
     });
   }
-
   if (loadingMsg) loadingMsg.style.display = 'none';
-
   if (mediaBrowser && typeof mediaBrowser.markInitialLoadComplete === 'function') {
     mediaBrowser.markInitialLoadComplete();
   }
@@ -531,30 +526,82 @@ function setupUIEventHandlers() {
       el.classList.add('active');
     });
   });
+
+  const minPagesSlider = document.getElementById('minPagesSlider');
+  const minPagesValue = document.getElementById('minPagesValue');
+  const minOccurrencesSlider = document.getElementById('minOccurrencesSlider');
+  const minOccurrencesValue = document.getElementById('minOccurrencesValue');
+  if (minPagesSlider && minPagesValue) {
+    minPagesSlider.addEventListener('input', (e) => {
+      const { value } = e.target;
+      minPagesValue.textContent = value;
+      handleUsageFilterChange();
+    });
+  }
+  if (minOccurrencesSlider && minOccurrencesValue) {
+    minOccurrencesSlider.addEventListener('input', (e) => {
+      const { value } = e.target;
+      minOccurrencesValue.textContent = value;
+      handleUsageFilterChange();
+    });
+  }
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.top-media-item')) {
+      const topMediaItem = e.target.closest('.top-media-item');
+      const mediaId = topMediaItem.getAttribute('data-media-id');
+      const mediaName = topMediaItem.getAttribute('data-media-name');
+      if (mediaId && mediaBrowser) {
+        const foundMedia = mediaBrowser.getSelectedMedia().find((m) => m.id === mediaId)
+          || window.media?.find((m) => m.id === mediaId);
+        if (foundMedia) {
+          handleMediaInfo(foundMedia);
+        }
+        if (mediaName) {
+          const searchInput = document.getElementById('searchInput');
+          if (searchInput) {
+            searchInput.value = mediaName;
+            handleSearch(mediaName);
+            if (mediaBrowser && mediaBrowser.setCurrentFilter) {
+              mediaBrowser.setCurrentFilter(mediaName);
+            }
+          }
+        }
+      }
+    }
+    if (e.target.closest('.accordion-header')) {
+      const accordionHeader = e.target.closest('.accordion-header');
+      const accordionId = accordionHeader.getAttribute('data-accordion');
+      toggleAccordion(accordionId);
+    }
+    if (e.target.closest('.top-media-close')) {
+      e.stopPropagation();
+      clearActiveFilter();
+    }
+  });
 }
 
 /**
  * Render media in the UI
  */
 function renderMedia(mediaToRender = media) {
-  if (mediaBrowser) mediaBrowser.setMedia(mediaToRender);
-
+  if (mediaBrowser) {
+    mediaBrowser.setMedia(mediaToRender);
+  }
   const grid = document.getElementById('mediaGrid');
   const loadingMsg = document.getElementById('mediaLoadingMessage');
-
   if (mediaToRender?.length > 0) {
     if (grid) grid.style.display = '';
     if (loadingMsg) loadingMsg.style.display = 'none';
-
     const placeholders = grid?.querySelectorAll('.media-placeholder');
-    placeholders?.forEach((p) => p.remove());
-
-    const emptyState = grid?.querySelector('.empty-state');
-    if (emptyState) emptyState.remove();
-
+    if (placeholders && placeholders.length > 0) {
+      showRenderingProgress(placeholders.length, mediaToRender.length);
+      waitForMediaElements(grid, placeholders);
+    } else {
+      const emptyState = grid?.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+    }
     return;
   }
-
   if (grid) {
     grid.style.display = '';
     grid.innerHTML = `
@@ -565,17 +612,11 @@ function renderMedia(mediaToRender = media) {
           No media has been discovered yet. The system is scanning your content
           for images, videos, and documents.
         </p>
-        <div class="empty-state-actions">
-          <button class="btn btn-primary" onclick="loadMediaFromMediaJson({ force: true })">
-            Refresh Media
-          </button>
-        </div>
       </div>
     `;
     document.body.classList.add('loaded');
     document.body.style.opacity = '1';
   }
-
   const placeholders = grid?.querySelectorAll('.media-placeholder');
   if (placeholders && placeholders.length > 0) {
     if (loadingMsg) loadingMsg.style.display = 'none';
@@ -583,6 +624,55 @@ function renderMedia(mediaToRender = media) {
     setTimeout(() => {
       if (loadingMsg) loadingMsg.style.display = 'none';
     }, 1000);
+  }
+}
+
+/**
+ * Wait for media elements to be rendered before removing placeholders
+ */
+function waitForMediaElements(grid, placeholders) {
+  const maxAttempts = 50;
+  let attempts = 0;
+  const checkInterval = setInterval(() => {
+    attempts += 1;
+    const mediaItems = grid.querySelectorAll('.media-item');
+    if (mediaItems.length > 0 || attempts >= maxAttempts) {
+      clearInterval(checkInterval);
+      setTimeout(() => {
+        placeholders.forEach((p) => p.remove());
+        const emptyState = grid?.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+        hideRenderingProgress();
+      }, 100);
+    }
+  }, 50);
+}
+/**
+ * Show rendering progress indicator
+ */
+function showRenderingProgress(placeholderCount, mediaCount) {
+  const grid = document.getElementById('mediaGrid');
+  if (!grid) return;
+  const progressIndicator = document.createElement('div');
+  progressIndicator.className = 'rendering-progress';
+  progressIndicator.innerHTML = `
+    <div class="rendering-progress-content">
+      <div class="rendering-spinner"></div>
+      <div class="rendering-text">
+        <h4>Rendering ${mediaCount} media items...</h4>
+        <p>Replacing ${placeholderCount} placeholder cards</p>
+      </div>
+    </div>
+  `;
+  grid.appendChild(progressIndicator);
+}
+/**
+ * Hide rendering progress indicator
+ */
+function hideRenderingProgress() {
+  const progressIndicator = document.querySelector('.rendering-progress');
+  if (progressIndicator) {
+    progressIndicator.remove();
   }
 }
 
@@ -970,6 +1060,46 @@ function handleSearch(query) {
 /**
  * Handle view changes
  */
+function handleUsageFilterChange() {
+  const minOccurrences = document.getElementById('minOccurrencesSlider')?.value;
+  const minPages = document.getElementById('minPagesSlider')?.value;
+  if (mediaBrowser) {
+    mediaBrowser.setFilter({
+      minOccurrences: minOccurrences ? parseInt(minOccurrences, 10) : 1,
+      minPages: minPages ? parseInt(minPages, 10) : 1,
+    });
+  }
+}
+
+function toggleAccordion(accordionId) {
+  const accordionHeader = document.querySelector(`[data-accordion="${accordionId}"]`);
+  const accordionContent = document.getElementById(`${accordionId}Accordion`);
+  const accordionIcon = accordionHeader.querySelector('.accordion-icon');
+  if (accordionContent && accordionHeader) {
+    const isCollapsed = accordionContent.classList.contains('collapsed');
+    if (isCollapsed) {
+      accordionContent.classList.remove('collapsed');
+      accordionHeader.classList.remove('collapsed');
+      accordionIcon.style.transform = 'rotate(0deg)';
+    } else {
+      accordionContent.classList.add('collapsed');
+      accordionHeader.classList.add('collapsed');
+      accordionIcon.style.transform = 'rotate(-90deg)';
+    }
+  }
+}
+
+function clearActiveFilter() {
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.value = '';
+    handleSearch('');
+  }
+  if (mediaBrowser && mediaBrowser.setCurrentFilter) {
+    mediaBrowser.setCurrentFilter(null);
+  }
+}
+
 function handleViewChange(view) {
   const viewBtns = document.querySelectorAll('.view-btn');
   viewBtns.forEach((btn) => btn.classList.remove('active'));

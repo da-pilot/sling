@@ -23,7 +23,7 @@
         <h2>Media</h2>
       </div>
       <div class="sidebar-section">
-        <div class="section-header" id="all-media-header">All Media</div>
+        <div class="section-header">Media & Types</div>
         <div class="folder-tree" id="folderTree" role="list">
           <div class="folder-item active" data-filter="all" role="listitem" tabindex="0" aria-selected="true">
             <img src="/tools/media-library/icons/Smock_Asset_18_N.svg" class="folder-icon" alt="All Media">
@@ -40,16 +40,6 @@
             <span class="folder-name">External</span>
             <span class="media-count" id="externalCount" aria-label="External media count">0</span>
           </div>
-          <div class="folder-item" data-filter="missing-alt" role="listitem" tabindex="0">
-            <img src="/tools/media-library/icons/Smock_Alert_18_N.svg" class="folder-icon" alt="Missing Alt Text">
-            <span class="folder-name">Missing Alt Text</span>
-            <span class="media-count" id="missingAltCount" aria-label="Media missing alt text">0</span>
-          </div>
-        </div>
-      </div>
-      <div class="sidebar-section">
-        <div class="section-header">Media Types</div>
-        <div class="folder-tree" role="list">
           <div class="folder-item" data-filter="image" role="listitem" tabindex="0">
             <img src="/tools/media-library/icons/Smock_Image_18_N.svg" class="folder-icon" alt="Images">
             <span class="folder-name">Images</span>
@@ -65,10 +55,16 @@
             <span class="folder-name">Documents</span>
             <span class="media-count" id="documentCount" aria-label="Document count">0</span>
           </div>
+          <div class="folder-item" data-filter="missing-alt" role="listitem" tabindex="0">
+            <img src="/tools/media-library/icons/Smock_Alert_18_N.svg" class="folder-icon" alt="Missing Alt Text">
+            <span class="folder-name">Missing Alt Text</span>
+            <span class="media-count" id="missingAltCount" aria-label="Media missing alt text">0</span>
+          </div>
+          <div class="media-percentage" id="missingAltPercentage"></div>
         </div>
       </div>
       <div class="sidebar-section">
-        <div class="section-header" id="used-on-page-header">Used on This Page</div>
+        <div class="section-header">Used on This Page</div>
         <div class="folder-tree" role="list">
           <div class="folder-item" data-filter="used-on-page" role="listitem" tabindex="0">
             <img src="/tools/media-library/icons/Smock_Asset_18_N.svg" class="folder-icon" alt="All Used">
@@ -85,11 +81,55 @@
             <span class="folder-name">External Used</span>
             <span class="media-count" id="usedExternalCount" aria-label="External media used on current page">0</span>
           </div>
+          <div class="folder-item" data-filter="used-image" role="listitem" tabindex="0">
+            <img src="/tools/media-library/icons/Smock_Image_18_N.svg" class="folder-icon" alt="Images Used">
+            <span class="folder-name">Images Used</span>
+            <span class="media-count" id="usedImageCount" aria-label="Images used on current page">0</span>
+          </div>
+          <div class="folder-item" data-filter="used-video" role="listitem" tabindex="0">
+            <img src="/tools/media-library/icons/Smock_VideoFilled_18_N.svg" class="folder-icon" alt="Videos Used">
+            <span class="folder-name">Videos Used</span>
+            <span class="media-count" id="usedVideoCount" aria-label="Videos used on current page">0</span>
+          </div>
           <div class="folder-item" data-filter="used-missing-alt" role="listitem" tabindex="0">
             <img src="/tools/media-library/icons/Smock_Alert_18_N.svg" class="folder-icon" alt="Missing Alt on Page">
             <span class="folder-name">Missing Alt on Page</span>
             <span class="media-count" id="usedMissingAltCount" aria-label="Images used on this page missing alt text">0</span>
           </div>
+          <div class="media-percentage" id="usedMissingAltPercentage"></div>
+        </div>
+      </div>
+      <div class="sidebar-section accordion-section">
+        <div class="section-header accordion-header" data-accordion="usage">
+          <span>Usage Filters</span>
+          <img src="/tools/media-library/icons/chevron-down.svg" class="accordion-icon" alt="Expand">
+        </div>
+        <div class="accordion-content collapsed" id="usageAccordion">
+          <div class="usage-filters">
+            <div class="usage-filter-group">
+              <label class="usage-slider-label">Minimum Pages</label>
+              <div class="usage-slider-container">
+                <input type="range" id="minPagesSlider" min="1" max="10" value="1" class="usage-slider">
+                <span class="usage-slider-value" id="minPagesValue">1</span>
+              </div>
+            </div>
+            <div class="usage-filter-group">
+              <label class="usage-slider-label">Minimum Occurrences</label>
+              <div class="usage-slider-container">
+                <input type="range" id="minOccurrencesSlider" min="1" max="100" value="1" class="usage-slider">
+                <span class="usage-slider-value" id="minOccurrencesValue">1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-section accordion-section">
+        <div class="section-header accordion-header" data-accordion="topMedia">
+          <span>Top Media</span>
+          <img src="/tools/media-library/icons/chevron-down.svg" class="accordion-icon" alt="Expand">
+        </div>
+        <div class="accordion-content collapsed" id="topMediaAccordion">
+          <div class="top-media-list" id="topMediaList"></div>
         </div>
       </div>
     </aside>
@@ -103,6 +143,7 @@
           <div class="search-suggestions" id="searchSuggestions" role="listbox" aria-hidden="true"></div>
           <div class="quick-search-labels" id="quickSearchLabels" role="list" aria-label="Quick search options"></div>
         </div>
+
         <div class="top-controls">
           <!-- Scan progress removed - no longer needed -->
           <div class="scan-indicator" id="scanIndicator" aria-label="Scan progress" title="Scanning media" style="display: none;">
@@ -119,8 +160,6 @@
       <nav class="breadcrumb" aria-label="Current location">
         <span class="breadcrumb-item">All Media</span>
       </nav>
-
-      
       <!-- Media Grid -->
       <div class="media-container" id="mediaContainer">
         <div class="media-grid" id="mediaGrid" role="grid" aria-label="Media grid">
@@ -129,13 +168,6 @@
               <div class="loading-spinner"></div>
               <div class="loading-text">
                 <h3>Initializing Media Library...</h3>
-                <p>Scanning your project for images, videos, and documents. This may take a few moments on first launch.</p>
-                <div class="loading-steps">
-                  <div class="loading-step">🔍 Discovering content files...</div>
-                  <div class="loading-step">📁 Scanning for media files...</div>
-                  <div class="loading-step">🔄 Processing external links...</div>
-                  <div class="loading-step">✅ Building media library...</div>
-                </div>
               </div>
             </div>
           </div>
@@ -163,4 +195,5 @@
 
   <script type="module" src="media-library.js"></script>
 </body>
+</html> 
 </html> 

@@ -39,17 +39,32 @@ function fallbackCopyToClipboard(text) {
 }
 
 function copyToClipboard(text) {
-  // Try modern Clipboard API first
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(() => {
       showToast('Copied to clipboard!', 'success');
     }).catch(() => {
-      // Fallback to older method
       fallbackCopyToClipboard(text);
     });
   } else {
-    // Fallback for older browsers
     fallbackCopyToClipboard(text);
+  }
+}
+function formatFileSize(bytes) {
+  if (!bytes) return 'Unknown';
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${Math.round((bytes / (1024 ** i)) * 100) / 100} ${sizes[i]}`;
+}
+async function getContentSize(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    const contentLength = response.headers.get('content-length');
+    if (contentLength) {
+      return parseInt(contentLength, 10);
+    }
+    return null;
+  } catch (error) {
+    return null;
   }
 }
 
@@ -226,7 +241,61 @@ export function showMediaInfoModal(media) {
         </ol>
       </div>
     `;
+    const metadataSummary = `
+      <div class="metadata-section">
+        <h4 class="metadata-header">Metadata</h4>
+        <div class="metadata-table">
+          <table class="metadata-table-inner">
+            <thead>
+              <tr>
+                <th class="metadata-header-cell">Property</th>
+                <th class="metadata-header-cell">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metadata-label">Source</td>
+                <td class="metadata-value">${media.isExternal ? 'External' : 'Internal'}</td>
+              </tr>
+              <tr>
+                <td class="metadata-label">Used</td>
+                <td class="metadata-value">${media.occurrenceCount || 0} times across ${media.pageCount || 0} pages</td>
+              </tr>
+              ${media.missingAltCount > 0 ? `
+              <tr>
+                <td class="metadata-label">Missing ${isLinkMedia ? 'Title' : 'Alt Text'}</td>
+                <td class="metadata-value">${media.missingAltCount} of ${media.occurrenceCount || 0}</td>
+              </tr>
+              ` : ''}
+              ${media.format ? `
+              <tr>
+                <td class="metadata-label">Format</td>
+                <td class="metadata-value">${media.format.toUpperCase()}</td>
+              </tr>
+              ` : ''}
+              ${media.metadata?.width ? `
+              <tr>
+                <td class="metadata-label">Width</td>
+                <td class="metadata-value">${media.metadata.width}px</td>
+              </tr>
+              ` : ''}
+              ${media.metadata?.height ? `
+              <tr>
+                <td class="metadata-label">Height</td>
+                <td class="metadata-value">${media.metadata.height}px</td>
+              </tr>
+              ` : ''}
+              <tr>
+                <td class="metadata-label">File Size</td>
+                <td class="metadata-value" data-size>${media.metadata?.size ? formatFileSize(media.metadata.size) : 'Loading...'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
     usageContent = `
+      ${metadataSummary}
       ${hasMissingAltText ? `
         <div class="usage-alt-warning">
           <div class="usage-alt-warning-header">
@@ -358,12 +427,22 @@ export function showMediaInfoModal(media) {
       </div>
     </div>
     <div class="media-info-modal-footer">
-      ${media.isExternal ? '<button class="btn btn-secondary" id="insertAsLinkBtn">Insert as Link</button>' : ''}
+      ${media.isExternal ? '<button class="btn btn-primary" id="insertAsLinkBtn">Insert as Link</button>' : ''}
       <button class="btn btn-primary" id="insertBtn">Insert</button>
     </div>
   `;
   document.body.appendChild(overlay);
   document.body.appendChild(modal);
+  if (media.type === 'image' && media.src) {
+    getContentSize(media.src).then((size) => {
+      if (size) {
+        const sizeCell = modal.querySelector('.metadata-value[data-size]');
+        if (sizeCell) {
+          sizeCell.textContent = formatFileSize(size);
+        }
+      }
+    });
+  }
   const closeBtn = modal.querySelector('.media-info-close-btn');
   closeBtn.addEventListener('click', () => closeMediaInfoModal());
   overlay.addEventListener('click', (e) => {

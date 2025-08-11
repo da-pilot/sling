@@ -232,9 +232,14 @@ export default function createMediaProcessor() {
     const normalizedMediaPromises = mediaArray.map(async (media, index) => {
       const src = media.src || media.url;
       const isExternal = media.isExternal !== undefined ? media.isExternal : false;
-      const name = media.alt && !isProbablyUrl(media.alt) && isValidAltText(media.alt)
-        ? media.alt
-        : extractFilenameFromUrl(src);
+      let name;
+      if (media.alt && !isProbablyUrl(media.alt) && isValidAltText(media.alt)) {
+        name = media.alt;
+      } else if (media.title && !isProbablyUrl(media.title) && media.title.trim().length > 0) {
+        name = media.title;
+      } else {
+        name = extractFilenameFromUrl(src);
+      }
       const id = await generateHashFromSrc(src);
       const occurrenceId = await generateOccurrenceId(pageUrl, src, index + 1);
       const normalizedMediaItem = {
@@ -376,10 +381,18 @@ export default function createMediaProcessor() {
             || `${cleanOccurrenceData.pagePath}-${cleanOccurrenceData.context}-${cleanOccurrenceData.altText}`;
           occurrenceMap.set(key, cleanOccurrenceData);
         });
+        const mergedOccurrences = Array.from(occurrenceMap.values());
         const merged = {
           ...existing,
           usedIn: mergedUsedIn,
-          occurrences: Array.from(occurrenceMap.values()),
+          occurrences: mergedOccurrences,
+          occurrenceCount: mergedOccurrences.length,
+          pageCount: mergedUsedIn.length,
+          missingAltCount: mergedOccurrences.filter((o) => !o.hasAltText).length,
+          hasMissingAlt: mergedOccurrences.some((o) => !o.hasAltText),
+          isMultiPage: mergedUsedIn.length > 1,
+          isMultiOccurrence: mergedOccurrences.length > 1,
+          usageScore: mergedOccurrences.length * mergedUsedIn.length,
         };
         mediaMap.set(existingId, merged);
       } else {
@@ -403,24 +416,41 @@ export default function createMediaProcessor() {
    * Validate and clean media data structure
    */
   function validateAndCleanMedia(media) {
+    const occurrences = Array.isArray(media.occurrences)
+      ? media.occurrences.map(cleanOccurrence)
+      : [];
+    const usedIn = Array.isArray(media.usedIn) ? media.usedIn : [];
+    const occurrenceCount = occurrences.length;
+    const pageCount = usedIn.length;
+    const missingAltCount = occurrences.filter((o) => !o.hasAltText).length;
+    const format = extractFormatFromUrl(media.src);
+    const filename = extractFilenameFromUrl(media.src);
     return {
       id: media.id || null,
       src: media.src || '',
-      name: media.name || media.alt || extractFilenameFromUrl(media.src),
+      name: media.name || media.alt || filename,
       alt: media.alt || '',
       title: media.title || '',
       type: media.type || determineMediaType(media.src),
       context: media.context || '',
       pageUrl: media.pageUrl || '',
       discoveredAt: media.discoveredAt || new Date().toISOString(),
-      usedIn: Array.isArray(media.usedIn) ? media.usedIn : [],
+      usedIn,
       isExternal: media.isExternal !== undefined ? media.isExternal : false,
-      occurrences: Array.isArray(media.occurrences) ? media.occurrences.map(cleanOccurrence) : [],
+      occurrences,
+      occurrenceCount,
+      pageCount,
+      missingAltCount,
+      hasMissingAlt: missingAltCount > 0,
+      isMultiPage: pageCount > 1,
+      isMultiOccurrence: occurrenceCount > 1,
+      usageScore: occurrenceCount * pageCount,
+      format,
       metadata: {
         width: media.metadata?.width || media.dimensions?.width || null,
         height: media.metadata?.height || media.dimensions?.height || null,
         size: media.metadata?.size || null,
-        format: media.metadata?.format || null,
+        format: media.metadata?.format || format,
       },
     };
   }
@@ -599,6 +629,13 @@ export default function createMediaProcessor() {
   /**
    * Check if URL is a media file
    */
+  function extractFormatFromUrl(url) {
+    if (!url || typeof url !== 'string') {
+      return null;
+    }
+    const match = url.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
+    return match ? match[1].toLowerCase() : null;
+  }
   function isMediaFile(url) {
     if (!url) return false;
     const mediaExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.mp4', '.webm', '.ogg', '.mp3', '.wav'];
