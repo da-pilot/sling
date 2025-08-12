@@ -847,7 +847,6 @@ export default function createMediaProcessor() {
     });
     const mediaData = await getMediaData();
     if (!Array.isArray(mediaData) || mediaData.length === 0) {
-      console.log('[Media Processor] 🔍 [CLEANUP] No media data found');
       return;
     }
     let cleanedEntries = 0;
@@ -892,8 +891,6 @@ export default function createMediaProcessor() {
         removedPaths,
         remainingEntries: updatedMedia.length,
       });
-    } else {
-      console.log('[Media Processor] 🔍 [CLEANUP] No cleanup needed');
     }
   }
 
@@ -911,7 +908,6 @@ export default function createMediaProcessor() {
     }
     const mediaData = await getMediaData();
     if (!Array.isArray(mediaData) || mediaData.length === 0) {
-      console.log('[Media Processor] 🔍 [UPDATE] No media data found');
       return;
     }
     let cleanedEntries = 0;
@@ -956,8 +952,6 @@ export default function createMediaProcessor() {
         removedPaths,
         remainingEntries: updatedMedia.length,
       });
-    } else {
-      console.log('[Media Processor] 🔍 [UPDATE] No cleanup needed');
     }
   }
 

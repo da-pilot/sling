@@ -124,7 +124,7 @@ export default function createWorkerHandler() {
         eventEmitter.emit('pageScanned', data);
         if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
           // Clean up existing media for this updated document first
-          if (state.mediaProcessor) {
+          if (state.mediaProcessor && data?.mediaCount > 0) {
             await state.mediaProcessor.cleanupMediaForUpdatedDocuments([data.page]);
           }
 

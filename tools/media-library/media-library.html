@@ -145,7 +145,13 @@
         </div>
 
         <div class="top-controls">
-          <!-- Scan progress removed - no longer needed -->
+          <div class="scan-progress-container" id="scanProgress" style="display: none;">
+            <div class="scan-progress-text" id="scanProgressText">Starting scan...</div>
+          </div>
+          <div class="media-loading-progress" id="mediaLoadingProgress" style="display: none;">
+            <div class="media-loading-spinner"></div>
+            <div class="media-loading-text" id="mediaLoadingText">Loading media...</div>
+          </div>
           <div class="scan-indicator" id="scanIndicator" aria-label="Scan progress" title="Scanning media" style="display: none;">
             <img src="/tools/media-library/icons/Smock_Refresh_18_N.svg" class="sync-spinner" alt="Scanning">
           </div>
@@ -195,5 +201,4 @@
 
   <script type="module" src="media-library.js"></script>
 </body>
-</html> 
 </html> 

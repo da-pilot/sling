@@ -248,7 +248,11 @@ function createDocAuthoringService() {
   function resolveMediaUrl(src, baseUrl = null) {
     if (!src) return null;
 
-    if (src.startsWith('http://') || src.startsWith('https://')) {
+    if (src.startsWith('http://')) {
+      return src.replace('http://', 'https://');
+    }
+
+    if (src.startsWith('https://')) {
       return src;
     }
 

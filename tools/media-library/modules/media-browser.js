@@ -27,6 +27,8 @@ export default function createMediaBrowser(container, context = null) {
     },
     currentFilterString: null,
     isInitialLoad: true,
+    isScanningInProgress: false,
+    isMediaLoading: false,
     context: context || {},
     eventListeners: {},
     // Virtual scrolling state
@@ -42,6 +44,9 @@ export default function createMediaBrowser(container, context = null) {
   };
 
   // Virtual scrolling helper functions
+  /**
+   * Calculate virtual scroll state based on filtered media
+   */
   function calculateVirtualScrollState() {
     const totalItems = state.filteredMedia.length;
     state.virtualScroll.totalPages = Math.ceil(totalItems / state.virtualScroll.itemsPerPage);
@@ -49,12 +54,19 @@ export default function createMediaBrowser(container, context = null) {
       < state.virtualScroll.totalPages;
   }
 
+  /**
+   * Get visible items for current virtual scroll page
+   * @returns {Array} Array of media items for current page
+   */
   function getVisibleItems() {
     const startIndex = state.virtualScroll.currentPage * state.virtualScroll.itemsPerPage;
     const endIndex = startIndex + state.virtualScroll.itemsPerPage;
     return state.filteredMedia.slice(startIndex, endIndex);
   }
 
+  /**
+   * Setup intersection observer for infinite scroll
+   */
   function setupIntersectionObserver() {
     if (state.virtualScroll.observer) {
       state.virtualScroll.observer.disconnect();
@@ -74,13 +86,15 @@ export default function createMediaBrowser(container, context = null) {
       threshold: 0.1,
     });
 
-    // Observe the last item for infinite scroll
     const lastItem = state.container?.querySelector('.media-item:last-child');
     if (lastItem) {
       state.virtualScroll.observer.observe(lastItem);
     }
   }
 
+  /**
+   * Load more items for virtual scrolling
+   */
   function loadMoreItems() {
     if (state.virtualScroll.isLoading || !state.virtualScroll.hasMoreItems) return;
 
@@ -96,6 +110,11 @@ export default function createMediaBrowser(container, context = null) {
     state.virtualScroll.isLoading = false;
   }
 
+  /**
+   * Render visible items with new media indicators
+   * @param {Array} items - Array of media items to render
+   * @param {boolean} append - Whether to append to existing content
+   */
   function renderVisibleItems(items, append = false) {
     if (!state.container) return;
 
@@ -114,7 +133,41 @@ export default function createMediaBrowser(container, context = null) {
       state.container.appendChild(fragment);
     }
 
-    // Setup observer for the last item
+    setTimeout(() => {
+      setupIntersectionObserver();
+    }, 100);
+  }
+
+  /**
+   * Render visible items with new media indicators
+   * @param {Array} items - Array of media items to render
+   * @param {Array} newMedia - Array of new media items to highlight
+   * @param {boolean} append - Whether to append to existing content
+   */
+  function renderVisibleItemsWithNewMediaIndicators(items, newMedia, append = false) {
+    if (!state.container) return;
+
+    const fragment = document.createDocumentFragment();
+
+    items.forEach((media) => {
+      const mediaElement = createMediaElement(media);
+      mediaElement.setAttribute('data-media-id', media.id);
+      if (newMedia.some((newMediaItem) => newMediaItem.src === media.src)) {
+        mediaElement.classList.add('new-media');
+        setTimeout(() => {
+          mediaElement.classList.remove('new-media');
+        }, 3000);
+      }
+      fragment.appendChild(mediaElement);
+    });
+
+    if (append) {
+      state.container.appendChild(fragment);
+    } else {
+      state.container.innerHTML = '';
+      state.container.appendChild(fragment);
+    }
+
     setTimeout(() => {
       setupIntersectionObserver();
     }, 100);
@@ -131,6 +184,8 @@ export default function createMediaBrowser(container, context = null) {
     getSelectedMedia,
     clearSelection,
     markInitialLoadComplete,
+    setScanningState,
+    setMediaLoadingState,
     cleanup,
     setCurrentFilter,
   };
@@ -165,7 +220,7 @@ export default function createMediaBrowser(container, context = null) {
     updateFilterCounts();
   }
 
-  function addMedia(newMedia, isScanning = false) {
+  function addMedia(newMedia) {
     const existingMediaSrcs = new Set(state.media.map((media) => media.src));
     const uniqueNewMedia = newMedia.filter((media) => !existingMediaSrcs.has(media.src));
 
@@ -174,16 +229,17 @@ export default function createMediaBrowser(container, context = null) {
 
       applyFiltersAndSort();
 
-      if (isScanning) {
-        renderWithNewMediaIndicators(uniqueNewMedia);
-      } else {
-        render();
-      }
+      // Always use virtual scrolling for new media additions to prevent browser crashes
+      renderWithNewMediaIndicators(uniqueNewMedia);
 
       updateFilterCounts();
     }
   }
 
+  /**
+   * Render media with new media indicators using virtual scrolling
+   * @param {Array} newMedia - Array of new media items to highlight
+   */
   function renderWithNewMediaIndicators(newMedia) {
     if (!state.container) return;
     if (state.currentView === 'list') {
@@ -191,43 +247,27 @@ export default function createMediaBrowser(container, context = null) {
     } else {
       state.container.classList.remove('list-view');
     }
-    const newContent = document.createDocumentFragment();
-    if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
-      const emptyDiv = document.createElement('div');
-      emptyDiv.className = 'empty-state';
-      emptyDiv.innerHTML = `
-        <div class="empty-content">
-          <h3>No media found</h3>
-          <p>Try adjusting your filters or scanning for media.</p>
-        </div>
+    state.virtualScroll.currentPage = 0;
+    state.virtualScroll.visibleItems = [];
+    calculateVirtualScrollState();
+    console.log('[Media Browser] renderWithNewMediaIndicators: using virtual scrolling');
+    if (state.currentView === 'list') {
+      const header = document.createElement('div');
+      header.className = 'list-header';
+      header.innerHTML = `
+        <div class="list-header-cell"></div>
+        <div class="list-header-cell">Name</div>
+        <div class="list-header-cell">Type</div>
+        <div class="list-header-cell">Actions</div>
       `;
-      newContent.appendChild(emptyDiv);
+      state.container.innerHTML = '';
+      state.container.appendChild(header);
     } else {
-      if (state.currentView === 'list') {
-        const header = document.createElement('div');
-        header.className = 'list-header';
-        header.innerHTML = `
-          <div class="list-header-cell"></div>
-          <div class="list-header-cell">Name</div>
-          <div class="list-header-cell">Type</div>
-          <div class="list-header-cell">Actions</div>
-        `;
-        newContent.appendChild(header);
-      }
-      state.filteredMedia.forEach((media) => {
-        const mediaElement = createMediaElement(media);
-        mediaElement.setAttribute('data-media-id', media.id);
-        if (newMedia.some((newMediaItem) => newMediaItem.src === media.src)) {
-          mediaElement.classList.add('new-media');
-          setTimeout(() => {
-            mediaElement.classList.remove('new-media');
-          }, 3000);
-        }
-        newContent.appendChild(mediaElement);
-      });
+      state.container.innerHTML = '';
     }
-    state.container.innerHTML = '';
-    state.container.appendChild(newContent);
+    const initialItems = getVisibleItems();
+    state.virtualScroll.visibleItems = initialItems;
+    renderVisibleItemsWithNewMediaIndicators(initialItems, newMedia, false);
   }
 
   function setView(view) {
@@ -405,36 +445,24 @@ export default function createMediaBrowser(container, context = null) {
     state.virtualScroll.currentPage = 0;
     state.virtualScroll.visibleItems = [];
     calculateVirtualScrollState();
-    if (state.filteredMedia.length === 0 && !state.isInitialLoad) {
-      const emptyDiv = document.createElement('div');
-      emptyDiv.className = 'empty-state';
-      emptyDiv.innerHTML = `
-        <div class="empty-content">
-          <h3>No media found</h3>
-          <p>Try adjusting your filters or scanning for media.</p>
-        </div>
+
+    if (state.currentView === 'list') {
+      const header = document.createElement('div');
+      header.className = 'list-header';
+      header.innerHTML = `
+        <div class="list-header-cell"></div>
+        <div class="list-header-cell">Name</div>
+        <div class="list-header-cell">Type</div>
+        <div class="list-header-cell">Actions</div>
       `;
       state.container.innerHTML = '';
-      state.container.appendChild(emptyDiv);
+      state.container.appendChild(header);
     } else {
-      if (state.currentView === 'list') {
-        const header = document.createElement('div');
-        header.className = 'list-header';
-        header.innerHTML = `
-          <div class="list-header-cell"></div>
-          <div class="list-header-cell">Name</div>
-          <div class="list-header-cell">Type</div>
-          <div class="list-header-cell">Actions</div>
-        `;
-        state.container.innerHTML = '';
-        state.container.appendChild(header);
-      } else {
-        state.container.innerHTML = '';
-      }
-      const initialItems = getVisibleItems();
-      state.virtualScroll.visibleItems = initialItems;
-      renderVisibleItems(initialItems, false);
+      state.container.innerHTML = '';
     }
+    const initialItems = getVisibleItems();
+    state.virtualScroll.visibleItems = initialItems;
+    renderVisibleItems(initialItems, false);
   }
 
   function createMediaElement(media) {
@@ -537,11 +565,24 @@ export default function createMediaBrowser(container, context = null) {
     `;
   }
 
+  function ensureHttpsUrl(url) {
+    if (!url || typeof url !== 'string') {
+      return url;
+    }
+    if (url.startsWith('http://')) {
+      return url.replace('http://', 'https://');
+    }
+    if (url.startsWith('//')) {
+      return `https:${url}`;
+    }
+    return url;
+  }
+
   function createMediaPreviewElement(media) {
     switch (media.type) {
       case 'image': {
         // Use optimized thumbnail URL for better performance
-        const thumbnailUrl = getOptimizedImageUrl(media.src);
+        const thumbnailUrl = getOptimizedImageUrl(ensureHttpsUrl(media.src));
         return `<img src="${thumbnailUrl}" alt="${media.alt}" loading="lazy" data-action="insert" style="cursor: pointer;">`;
       }
 
@@ -549,7 +590,7 @@ export default function createMediaBrowser(container, context = null) {
         return `
           <div class="video-preview-container" data-action="insert" style="cursor: pointer;">
             <video 
-              src="${media.src}" 
+              src="${ensureHttpsUrl(media.src)}" 
               preload="metadata" 
               muted 
               class="video-preview"
@@ -598,12 +639,13 @@ export default function createMediaBrowser(container, context = null) {
   }
 
   function getOptimizedImageUrl(originalUrl) {
+    const httpsUrl = ensureHttpsUrl(originalUrl);
     // If URL already has parameters, add to existing ones
-    if (originalUrl.includes('?')) {
-      return `${originalUrl}&width=200&format=webply&optimize=medium`;
+    if (httpsUrl.includes('?')) {
+      return `${httpsUrl}&width=200&format=webply&optimize=medium`;
     }
     // Otherwise add new parameters
-    return `${originalUrl}?width=200&format=webply&optimize=medium`;
+    return `${httpsUrl}?width=200&format=webply&optimize=medium`;
   }
   function getDisplayedName(name) {
     if (name.length <= 40) return name;
@@ -781,6 +823,14 @@ export default function createMediaBrowser(container, context = null) {
 
   function markInitialLoadComplete() {
     state.isInitialLoad = false;
+  }
+
+  function setScanningState(isScanning) {
+    state.isScanningInProgress = isScanning;
+  }
+
+  function setMediaLoadingState(isLoading) {
+    state.isMediaLoading = isLoading;
   }
 
   function cleanup() {

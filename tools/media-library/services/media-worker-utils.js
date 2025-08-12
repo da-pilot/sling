@@ -15,6 +15,19 @@ export function isProbablyUrl(str) {
   return str && typeof str === 'string' && (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('//'));
 }
 
+export function ensureHttpsUrl(url) {
+  if (!url || typeof url !== 'string') {
+    return url;
+  }
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  if (url.startsWith('//')) {
+    return `https:${url}`;
+  }
+  return url;
+}
+
 export function determineMediaType(url, options = {}) {
   const { defaultType = 'image' } = options;
   if (!url || typeof url !== 'string') return defaultType;
@@ -82,12 +95,10 @@ export function extractFilenameFromUrl(url) {
   try {
     const cleanUrl = url.split('?')[0].split('#')[0];
     let pathname;
-    let isExternal = false;
 
     if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
       const urlObj = new URL(cleanUrl);
       pathname = urlObj.pathname;
-      isExternal = true;
     } else {
       pathname = cleanUrl;
     }
@@ -115,25 +126,8 @@ export function extractFilenameFromUrl(url) {
       return MEDIA_PROCESSING.UNTITLED_MEDIA;
     }
 
-    // For external URLs, try to extract a more meaningful name from the path
-    if (isExternal && cleanName) {
-      // Try to get a meaningful segment from the path
-      const pathSegments = pathname.split('/').filter((segment) => segment && segment !== filename);
-      const meaningfulSegments = pathSegments.filter((segment) => segment.length > 2
-        && !segment.match(/^\d+$/)
-        && !segment.match(/^[a-f0-9]{8,}$/i)
-        && !segment.includes('.'));
-
-      if (meaningfulSegments.length > 0) {
-        // Use the last meaningful segment as a prefix
-        const lastMeaningfulSegment = meaningfulSegments[meaningfulSegments.length - 1];
-        const cleanSegment = lastMeaningfulSegment.replace(
-          MEDIA_PROCESSING.UNDERSCORE_DASH_PATTERN,
-          MEDIA_PROCESSING.SPACE_REPLACEMENT,
-        );
-        return `${cleanSegment} ${cleanName}`;
-      }
-    }
+    // For external URLs, use the filename directly without path segments
+    // The filename itself is already descriptive and contains all necessary information
 
     return cleanName || MEDIA_PROCESSING.UNTITLED_MEDIA;
   } catch (error) {
