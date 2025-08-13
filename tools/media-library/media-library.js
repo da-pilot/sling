@@ -21,7 +21,7 @@ import createMediaProcessor from './modules/media-processor.js';
 import createMediaBrowser from './modules/media-browser.js';
 import createMediaInsertion from './modules/media-insert.js';
 import createQueueOrchestrator from './modules/queue/queue-orchestrator.js';
-import { initSelectiveRescan } from './modules/rescan.js';
+import createSelectiveRescan from './modules/selective-rescan.js';
 import initUIEvents from './modules/ui-events.js';
 
 import createFolderModal from './modules/folder-modal.js';
@@ -71,6 +71,7 @@ let processingStateManager = null;
 let persistenceManager = null;
 let mediaProcessor = null;
 let folderModal = null;
+let selectiveRescan = null;
 let currentUserId = null;
 // eslint-disable-next-line no-unused-vars
 let currentSessionId = null;
@@ -287,12 +288,10 @@ async function initializeCoreServices() {
  * Set up media update handler
  */
 function setupMediaUpdateHandler() {
-  if (mediaProcessor && mediaBrowser) {
-    mediaProcessor.setOnMediaUpdated((updatedMedia) => {
-      // Update global media array to keep it in sync
-      media = updatedMedia || [];
-      mediaBrowser.setMedia(updatedMedia);
-    });
+  // Disabled media processor callback to prevent browser crashes during scanning
+  // Media browser will handle updates through its own polling mechanism
+  if (mediaProcessor) {
+    mediaProcessor.setOnMediaUpdated(null);
   }
 }
 
@@ -655,11 +654,17 @@ async function initializeScanning() {
   }
 
   if (queueOrchestrator) {
-    await initSelectiveRescan(
+    console.log('[Media Library] 🔧 Initializing selective rescan...');
+    selectiveRescan = createSelectiveRescan();
+    await selectiveRescan.init(
       docAuthoringService,
       sessionManager,
       processingStateManager,
+      persistenceManager,
+      mediaProcessor,
+      queueOrchestrator,
     );
+    console.log('[Media Library] ✅ Selective rescan initialized successfully');
   }
 
   try {
@@ -779,6 +784,8 @@ async function initializeQueueOrchestrator() {
             mediaBrowser.setFilter({
               folderPath: undefined,
               pagePath: undefined,
+              folderPaths: undefined,
+              pagePaths: undefined,
               types: ['image', 'video', 'document'],
               isExternal: undefined,
               usedOnPage: false,
@@ -786,6 +793,47 @@ async function initializeQueueOrchestrator() {
               search: '',
             });
           }
+        });
+
+        queueOrchestrator.on('multiFilterApplied', (data) => {
+          if (mediaBrowser) {
+            const { items } = data;
+            const folderPaths = [];
+            const pagePaths = [];
+            items.forEach((item) => {
+              const fullPath = `/${daContext.org}/${daContext.repo}${item.path}`;
+              if (item.type === 'folder') {
+                folderPaths.push(fullPath);
+              } else if (item.type === 'file') {
+                pagePaths.push(fullPath);
+              }
+            });
+            mediaBrowser.setFilter({
+              folderPaths: folderPaths.length > 0 ? folderPaths : undefined,
+              pagePaths: pagePaths.length > 0 ? pagePaths : undefined,
+              types: ['image', 'video', 'document'],
+              isExternal: undefined,
+              usedOnPage: false,
+              missingAlt: undefined,
+              search: '',
+            });
+          }
+        });
+
+        queueOrchestrator.on('multiRescanRequested', async (data) => {
+          const { items } = data;
+          const folderPaths = [];
+          const pagePaths = [];
+          items.forEach((item) => {
+            const orgRepoPattern = new RegExp(`^/${daContext.org}/${daContext.repo}/`);
+            const relativePath = item.path.replace(orgRepoPattern, '');
+            if (item.type === 'folder') {
+              folderPaths.push(relativePath);
+            } else if (item.type === 'file') {
+              pagePaths.push(relativePath);
+            }
+          });
+          await handleMultiRescan(folderPaths, pagePaths);
         });
       }
     }
@@ -856,8 +904,8 @@ async function startFullScan(forceRescan = false) {
       await queueOrchestrator.startQueueScanning(forceRescan);
     }
   } catch (error) {
-    console.error('[Media Library] V2 full scan failed:', error);
-    showError('V2 full scan failed', error);
+    console.error('[Media Library] Full scan failed:', error);
+    showError('Full scan failed', error);
     hideScanProgress();
   }
 }
@@ -896,6 +944,79 @@ function hideMediaLoadingProgress() {
   const progressContainer = document.getElementById('mediaLoadingProgress');
   if (progressContainer) {
     progressContainer.style.display = 'none';
+  }
+}
+
+// =============================================================================
+// MULTI-RESCAN HANDLERS
+// =============================================================================
+
+/**
+ * Handle multi-selection rescan for folders and files
+ * @param {Array<string>} folderPaths - Array of folder paths to rescan
+ * @param {Array<string>} pagePaths - Array of page paths to rescan
+ * @returns {Promise<void>}
+ */
+async function handleMultiRescan(folderPaths, pagePaths) {
+  try {
+    if (!selectiveRescan) {
+      console.error('[Media Library] ❌ Selective rescan not available');
+      showError('Selective rescan not available');
+      return;
+    }
+    if (!currentSessionId && sessionManager && currentUserId && currentBrowserId) {
+      const sessionId = await sessionManager.createSession(currentUserId, currentBrowserId, 'selective');
+      currentSessionId = sessionId;
+    }
+    if (mediaProcessor && currentSessionId && currentUserId && currentBrowserId) {
+      mediaProcessor.setCurrentSession(currentSessionId, currentUserId, currentBrowserId);
+    }
+    if (selectiveRescan && currentSessionId && currentUserId && currentBrowserId) {
+      selectiveRescan.setCurrentSession(currentSessionId, currentUserId, currentBrowserId);
+    }
+    const results = [];
+    if (folderPaths.length > 0) {
+      console.log('[Media Library] 🔍 Starting folder rescan for paths:', folderPaths);
+      const folderResults = await Promise.allSettled(
+        folderPaths.map(async (folderPath) => {
+          try {
+            console.log('[Media Library] 🔍 Rescanning folder:', folderPath);
+            const result = await selectiveRescan.rescanFolder(folderPath);
+            console.log('[Media Library] ✅ Folder rescan completed:', { folderPath, result });
+            return { type: 'folder', path: folderPath, result };
+          } catch (error) {
+            console.error('[Media Library] ❌ Folder rescan failed:', { folderPath, error: error.message, stack: error.stack });
+            return { type: 'folder', path: folderPath, error: error.message };
+          }
+        }),
+      );
+      console.log('[Media Library] 📊 Folder results:', folderResults);
+      results.push(...folderResults.map((r) => r.value || r.reason));
+    }
+    if (pagePaths.length > 0) {
+      try {
+        console.log('[Media Library] 🔍 Starting page rescan for paths:', pagePaths);
+        const result = await selectiveRescan.rescanPages(pagePaths);
+        console.log('[Media Library] ✅ Page rescan completed:', { pagePaths, result });
+        results.push({ type: 'pages', paths: pagePaths, result });
+      } catch (error) {
+        console.error('[Media Library] ❌ Page rescan failed:', { pagePaths, error: error.message, stack: error.stack });
+        results.push({ type: 'pages', paths: pagePaths, error: error.message });
+      }
+    }
+    console.log('[Media Library] 📊 Final results:', results);
+    const successCount = results.filter((r) => !r.error).length;
+    const errorCount = results.filter((r) => r.error).length;
+    console.log('[Media Library] 📈 Success/Error counts:', { successCount, errorCount, totalResults: results.length });
+    if (errorCount === 0) {
+      showToast(`Successfully queued ${successCount} items for processing`);
+    } else {
+      console.error('[Media Library] ❌ Errors found in results:', results.filter((r) => r.error));
+      showToast(`Queued ${successCount} items, ${errorCount} errors`);
+    }
+  } catch (error) {
+    console.error('[Media Library] ❌ Multi-rescan failed:', error);
+    showError('Multi-rescan failed', error);
   }
 }
 

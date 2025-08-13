@@ -95,7 +95,7 @@ body.modal-open {
 .folder-modal-actions {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
 }
 
 .folder-modal-action-btn {
@@ -119,6 +119,12 @@ body.modal-open {
 .folder-modal-action-btn:hover {
   background-color: var(--color-background-hover);
   color: var(--color-link-hover);
+}
+
+.folder-modal-action-btn.active {
+  background-color: #333;
+  color: white;
+  border-color: #333;
 }
 
 .folder-modal-action-btn:disabled {
@@ -148,10 +154,39 @@ body.modal-open {
   flex: 1;
   padding: var(--spacing-xl) var(--spacing-xxl);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .folder-search-container {
-  margin-bottom: var(--spacing-xxl);
+  margin-bottom: var(--spacing-lg);
+}
+
+.selection-mode-link {
+  margin-bottom: var(--spacing-lg);
+  text-align: left;
+}
+
+.selection-mode-link a {
+  color: #333;
+  text-decoration: none;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family);
+  transition: color var(--transition-default);
+}
+
+.selection-mode-link a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+.selection-mode-link a.active {
+  color: #333;
+  background-color: var(--color-separator);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  text-decoration: none;
 }
 
 .folder-search-input {
@@ -217,6 +252,19 @@ body.modal-open {
   background: #f0f0f0;
   color: #333;
   box-shadow: 0 2px 8px rgb(102 102 102 / 20%);
+}
+
+.item-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary-hover);
+}
+
+.item-checkbox:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .folder-tree-count {
@@ -321,6 +369,26 @@ body.modal-open {
   margin: 1px 0;
 }
 
+.bulk-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-separator);
+  border-top: var(--border-width) solid var(--color-border);
+  margin-top: var(--spacing-lg);
+  border-radius: var(--border-radius-sm);
+  gap: var(--spacing-md);
+}
+
+.bulk-actions-bar #selection-count {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: #333;
+}
+
+
+
 .folder-empty-state,
 .folder-error-state {
   text-align: center;
@@ -385,6 +453,17 @@ body.modal-open {
 
   .folder-tree-children {
     margin-left: var(--spacing-xl);
+  }
+
+  .bulk-actions-bar {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: stretch;
+  }
+
+  .folder-modal-action-btn {
+    margin-left: 0;
+    margin-top: var(--spacing-xs);
   }
 }
 

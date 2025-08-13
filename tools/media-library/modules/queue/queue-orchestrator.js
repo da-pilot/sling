@@ -690,6 +690,7 @@ export default function createQueueOrchestrator() {
     getPersistentStats,
     cleanup,
     startScanningPhase,
+    scanningCoordinator: state.scanningCoordinator,
     addDocumentsForScanning,
     processDiscoveryDelta,
     startBatchProcessingPhase,

@@ -25,70 +25,48 @@ export default function createQueueDocumentProcessor() {
   }
 
   /**
-   * Get documents that need scanning from discovery files
+   * Get documents to scan for incremental discovery
    * @param {Array} discoveryFiles - Array of discovery files
-   * @param {boolean} forceRescan - Whether to force rescan
+   * @param {Object} incrementalChanges - Incremental changes object
    * @returns {Array} Array of documents to scan
    */
-  function getDocumentsToScan(discoveryFiles, forceRescan = false) {
-    console.log('[Document Handler] 🔍 Analyzing documents for scanning:', {
+  function getDocumentsToScanIncremental(discoveryFiles, incrementalChanges) {
+    console.log('[Document Handler] 🔍 [INCREMENTAL] Analyzing documents for incremental scanning:', {
       fileCount: discoveryFiles.length,
-      forceRescan,
+      hasIncrementalChanges: !!incrementalChanges,
     });
-
     const documentsToScan = [];
     let totalDocuments = 0;
     let alreadyScanned = 0;
     let newDocuments = 0;
     let changedDocuments = 0;
     let needsRescan = 0;
-    let missingScanComplete = 0;
-
     discoveryFiles.forEach((file) => {
       file.documents.forEach((doc) => {
         totalDocuments += 1;
-
         if (doc.entryStatus === 'deleted') {
           return;
         }
-
         const hasScanStatus = Object.prototype.hasOwnProperty.call(doc, 'scanStatus');
         const hasScanComplete = Object.prototype.hasOwnProperty.call(doc, 'scanComplete');
         let needsScan = false;
         let scanReason = 'unknown';
-
-        if (forceRescan) {
+        if (doc.needsRescan) {
           needsScan = true;
-          scanReason = 'force';
-        } else if (hasScanStatus) {
-          needsScan = doc.scanStatus === 'pending' || doc.scanStatus === 'failed';
-          if (needsScan) {
-            scanReason = doc.scanStatus === 'failed' ? 'retry' : 'new';
-            if (doc.scanStatus === 'failed') {
-              changedDocuments += 1;
-            } else {
-              newDocuments += 1;
-            }
+          scanReason = 'changed';
+          changedDocuments += 1;
+        } else if (hasScanStatus && (doc.scanStatus === 'pending' || doc.scanStatus === 'failed')) {
+          needsScan = true;
+          scanReason = doc.scanStatus === 'failed' ? 'retry' : 'new';
+          if (doc.scanStatus === 'failed') {
+            changedDocuments += 1;
+          } else {
+            newDocuments += 1;
           }
-        } else {
-          needsScan = !doc.scanComplete || doc.needsRescan;
-          if (needsScan) {
-            if (!hasScanComplete) {
-              scanReason = 'new';
-              newDocuments += 1;
-            } else if (doc.needsRescan) {
-              scanReason = 'changed';
-              changedDocuments += 1;
-            } else {
-              scanReason = 'incomplete';
-            }
-          }
+        } else if (!hasScanComplete) {
+          needsScan = true;
+          scanReason = 'incomplete';
         }
-
-        if (!hasScanComplete && !hasScanStatus) {
-          missingScanComplete += 1;
-        }
-
         if (needsScan) {
           if (!doc.path) {
             console.warn('[Document Handler] ⚠️ Document missing path:', doc);
@@ -102,18 +80,102 @@ export default function createQueueDocumentProcessor() {
         } else {
           alreadyScanned += 1;
         }
-
         if (doc.needsRescan) {
           needsRescan += 1;
         }
       });
     });
-
     const scanReasons = documentsToScan.reduce((acc, doc) => {
       acc[doc.scanReason] = (acc[doc.scanReason] || 0) + 1;
       return acc;
     }, {});
-
+    if (documentsToScan.length > 0) {
+      console.log('[Document Handler] 📊 [INCREMENTAL] Document scanning analysis:', {
+        totalDocuments,
+        documentsToScan: documentsToScan.length,
+        alreadyScanned,
+        newDocuments,
+        changedDocuments,
+        needsRescan,
+        scanReasons,
+      });
+    }
+    return documentsToScan;
+  }
+  /**
+   * Get documents to scan
+   * @param {Array} discoveryFiles - Array of discovery files
+   * @param {boolean} forceRescan - Whether to force rescan
+   * @returns {Array} Array of documents to scan
+   */
+  function getDocumentsToScan(discoveryFiles, forceRescan = false) {
+    console.log('[Document Handler] 🔍 Analyzing documents for scanning:', {
+      fileCount: discoveryFiles.length,
+      forceRescan,
+    });
+    const documentsToScan = [];
+    let totalDocuments = 0;
+    let alreadyScanned = 0;
+    let newDocuments = 0;
+    let changedDocuments = 0;
+    let needsRescan = 0;
+    let missingScanComplete = 0;
+    discoveryFiles.forEach((file) => {
+      file.documents.forEach((doc) => {
+        totalDocuments += 1;
+        if (doc.entryStatus === 'deleted') {
+          return;
+        }
+        const hasScanStatus = Object.prototype.hasOwnProperty.call(doc, 'scanStatus');
+        const hasScanComplete = Object.prototype.hasOwnProperty.call(doc, 'scanComplete');
+        let needsScan = false;
+        let scanReason = 'unknown';
+        if (forceRescan) {
+          needsScan = true;
+          scanReason = 'force';
+        } else if (hasScanStatus) {
+          needsScan = doc.scanStatus === 'pending' || doc.scanStatus === 'failed';
+          if (needsScan) {
+            scanReason = doc.scanStatus === 'failed' ? 'retry' : 'new';
+            if (doc.scanStatus === 'failed') {
+              changedDocuments += 1;
+            } else {
+              newDocuments += 1;
+            }
+          }
+        } else if (doc.needsRescan) {
+          needsScan = true;
+          scanReason = 'changed';
+          changedDocuments += 1;
+        } else if (!doc.scanComplete) {
+          needsScan = true;
+          scanReason = 'incomplete';
+        }
+        if (!hasScanComplete && !hasScanStatus) {
+          missingScanComplete += 1;
+        }
+        if (needsScan) {
+          if (!doc.path) {
+            console.warn('[Document Handler] ⚠️ Document missing path:', doc);
+            return;
+          }
+          documentsToScan.push({
+            ...doc,
+            sourceFile: file.fileName,
+            scanReason,
+          });
+        } else {
+          alreadyScanned += 1;
+        }
+        if (doc.needsRescan) {
+          needsRescan += 1;
+        }
+      });
+    });
+    const scanReasons = documentsToScan.reduce((acc, doc) => {
+      acc[doc.scanReason] = (acc[doc.scanReason] || 0) + 1;
+      return acc;
+    }, {});
     if (documentsToScan.length > 0) {
       console.log('[Document Handler] 📊 Document scanning analysis:', {
         totalDocuments,
@@ -126,7 +188,6 @@ export default function createQueueDocumentProcessor() {
         scanReasons,
       });
     }
-
     return documentsToScan;
   }
 
@@ -278,6 +339,7 @@ export default function createQueueDocumentProcessor() {
   return {
     init,
     getDocumentsToScan,
+    getDocumentsToScanIncremental,
     detectChangedDocuments,
     detectIncrementalDocumentChanges,
     addDocumentsForScanning,

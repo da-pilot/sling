@@ -15,6 +15,8 @@ export default function createFolderModal() {
     config: null,
     daApi: null,
     eventEmitter: null,
+    selectionMode: 'single',
+    selectedItems: new Set(),
   };
 
   /**
@@ -23,7 +25,6 @@ export default function createFolderModal() {
   function renderLoadingState() {
     const treeContainer = state.modal?.querySelector('#folderTree');
     if (!treeContainer) return;
-    console.log('[Folder Modal] 🔄 Rendering loading state');
     treeContainer.innerHTML = `
       <div class="folder-loading-state">
         <div class="folder-loading-spinner"></div>
@@ -44,21 +45,14 @@ export default function createFolderModal() {
     setTimeout(() => {
       state.modal.classList.add('visible');
     }, 10);
-
-    // Show loading state if site structure is not available
     if (!state.siteStructure) {
       state.isLoading = true;
-      console.log('[Folder Modal] 🔄 Site structure not available, showing loading state');
       renderLoadingState();
-    } else {
-      console.log('[Folder Modal] ✅ Site structure available, no loading needed');
     }
-
     const searchInput = state.modal.querySelector('#folderSearchInput');
     if (searchInput) {
       setTimeout(() => searchInput.focus(), 350);
     }
-    console.log('[Folder Modal] Modal shown');
   }
 
   /**
@@ -80,7 +74,109 @@ export default function createFolderModal() {
     if (searchInput) {
       searchInput.value = '';
     }
-    console.log('[Folder Modal] Modal hidden');
+    exitSelectionMode();
+  }
+
+  /**
+   * Toggle selection mode
+   */
+  function toggleSelectionMode() {
+    if (state.selectionMode === 'single') {
+      enterSelectionMode();
+    } else {
+      exitSelectionMode();
+    }
+  }
+
+  /**
+   * Enter multi-selection mode
+   */
+  function enterSelectionMode() {
+    state.selectionMode = 'multi';
+    state.selectedItems.clear();
+    updateSelectionModeUI();
+    renderFolderTree();
+  }
+
+  /**
+   * Exit multi-selection mode
+   */
+  function exitSelectionMode() {
+    state.selectionMode = 'single';
+    state.selectedItems.clear();
+    updateSelectionModeUI();
+    renderFolderTree();
+  }
+
+  /**
+   * Update selection mode UI elements
+   */
+  function updateSelectionModeUI() {
+    const selectLink = state.modal?.querySelector('#selectModeLink');
+    const actionBar = state.modal?.querySelector('#bulkActionsBar');
+    const selectionCount = state.modal?.querySelector('#selection-count');
+    if (selectLink) {
+      selectLink.textContent = state.selectionMode === 'multi' ? 'Cancel' : 'Select';
+      selectLink.classList.toggle('active', state.selectionMode === 'multi');
+    }
+    if (actionBar) {
+      actionBar.style.display = state.selectedItems.size > 0 ? 'flex' : 'none';
+    }
+    if (selectionCount) {
+      selectionCount.textContent = `${state.selectedItems.size} item${state.selectedItems.size !== 1 ? 's' : ''} selected`;
+    }
+  }
+
+  /**
+   * Toggle item selection in multi-select mode
+   * @param {string} path - Item path
+   * @param {string} type - Item type (folder or file)
+   */
+  function toggleItemSelection(path, type) {
+    if (state.selectionMode !== 'multi') return;
+    const itemKey = `${type}:${path}`;
+    if (state.selectedItems.has(itemKey)) {
+      state.selectedItems.delete(itemKey);
+    } else {
+      state.selectedItems.add(itemKey);
+    }
+    updateSelectionModeUI();
+  }
+
+  /**
+   * Handle filter selected items action
+   */
+  function handleFilterSelected() {
+    if (state.selectedItems.size === 0) return;
+    const selectedPaths = Array.from(state.selectedItems).map((item) => {
+      const [type, path] = item.split(':');
+      return { type, path };
+    });
+    if (state.eventEmitter) {
+      state.eventEmitter.emit('multiFilterApplied', {
+        items: selectedPaths,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    exitSelectionMode();
+  }
+
+  /**
+   * Handle rescan selected items action
+   */
+  function handleRescanSelected() {
+    if (state.selectedItems.size === 0) return;
+    const selectedPaths = Array.from(state.selectedItems).map((item) => {
+      const [type, path] = item.split(':');
+      return { type, path };
+    });
+    if (state.eventEmitter) {
+      state.eventEmitter.emit('multiRescanRequested', {
+        items: selectedPaths,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    exitSelectionMode();
   }
 
   /**
@@ -113,8 +209,14 @@ export default function createFolderModal() {
     const fileName = file.path.split('/').pop() || `${file.name}.${file.ext}`;
     const isHtmlFile = fileName.toLowerCase().endsWith('.html');
     const iconPath = isHtmlFile ? '/tools/media-library/icons/Smock_FileHTML_18_N.svg' : '/tools/media-library/icons/Smock_Document_18_N.svg';
+    const itemKey = `file:${file.path}`;
+    const isSelected = state.selectedItems.has(itemKey);
+    const checkboxHtml = state.selectionMode === 'multi' ? `
+      <input type="checkbox" class="item-checkbox" data-path="${file.path}" data-type="file" ${isSelected ? 'checked' : ''}>
+    ` : '';
     return `
       <div class="folder-tree-item file-item" data-path="${file.path}" data-type="file" style="padding-left: ${indent}px;">
+        ${checkboxHtml}
         <img src="${iconPath}" class="folder-tree-icon" alt="Document">
         <span class="folder-tree-name">${fileName}</span>
         <span class="folder-tree-count">(${mediaCount})</span>
@@ -135,8 +237,14 @@ export default function createFolderModal() {
     const hasFiles = folder.files && folder.files.length > 0;
     const hasChildren = hasSubfolders || hasFiles;
     const indent = level * 20;
+    const itemKey = `folder:${folder.path}`;
+    const isSelected = state.selectedItems.has(itemKey);
+    const checkboxHtml = state.selectionMode === 'multi' ? `
+      <input type="checkbox" class="item-checkbox" data-path="${folder.path}" data-type="folder" ${isSelected ? 'checked' : ''}>
+    ` : '';
     let html = `
     <div class="folder-tree-item folder-item" data-path="${folder.path}" data-type="folder" data-level="${level}" style="padding-left: ${indent}px;">
+      ${checkboxHtml}
       <span class="folder-tree-toggle">${hasChildren ? '<img src="/tools/media-library/icons/chevron-right.svg" class="chevron-icon" alt="Expand">' : ''}</span>
       <img src="/tools/media-library/icons/Smock_Folder_18_N.svg" class="folder-tree-icon" alt="Folder">
       <span class="folder-tree-name">${folderName}</span>
@@ -208,18 +316,18 @@ export default function createFolderModal() {
             });
           }
         }
-      }
-      if (children.children.length === 0) {
-        const folderPath = folderItem.dataset.path;
-        const folderData = findFolderData(folderPath);
-        if (folderData) {
-          renderFolderChildren(children, folderData, parseInt(folderItem.dataset.level || '0', 10) + 1);
+        if (children.children.length === 0) {
+          const folderPath = folderItem.dataset.path;
+          const folderData = findFolderData(folderPath);
+          if (folderData) {
+            renderFolderChildren(children, folderData, parseInt(folderItem.dataset.level || '0', 10) + 1);
+          }
         }
-      }
-      children.style.display = 'block';
-      toggleIcon.innerHTML = '<img src="/tools/media-library/icons/chevron-down.svg" class="chevron-icon" alt="Collapse">';
-      if (folderIcon) {
-        folderIcon.src = '/tools/media-library/icons/Smock_FolderOpen_18_N.svg';
+        children.style.display = 'block';
+        toggleIcon.innerHTML = '<img src="/tools/media-library/icons/chevron-down.svg" class="chevron-icon" alt="Collapse">';
+        if (folderIcon) {
+          folderIcon.src = '/tools/media-library/icons/Smock_FolderOpen_18_N.svg';
+        }
       }
     }
   }
@@ -229,6 +337,7 @@ export default function createFolderModal() {
    * @param {HTMLElement} item - Item element
    */
   function selectItem(item) {
+    if (state.selectionMode === 'multi') return;
     state.modal?.querySelectorAll('.folder-tree-item').forEach((el) => {
       el.classList.remove('selected');
     });
@@ -243,11 +352,11 @@ export default function createFolderModal() {
    * Apply the selected folder filter
    */
   function applyFolderFilter() {
+    if (state.selectionMode === 'multi') return;
     const selectedItem = state.modal?.querySelector('.folder-tree-item.selected');
     if (!selectedItem) return;
     const { path, type } = selectedItem.dataset;
     let fullPath = path;
-
     if (state.config && state.config.org && state.config.repo) {
       if (type === 'folder') {
         fullPath = `/${state.config.org}/${state.config.repo}${fullPath}`;
@@ -272,31 +381,52 @@ export default function createFolderModal() {
     if (!treeContainer) return;
     treeContainer.querySelectorAll('.folder-item').forEach((item) => {
       const toggleIcon = item.querySelector('.folder-tree-toggle');
+      const checkbox = item.querySelector('.item-checkbox');
       if (toggleIcon && toggleIcon.innerHTML && toggleIcon.innerHTML.trim()) {
         toggleIcon.addEventListener('click', (e) => {
           e.stopPropagation();
           toggleFolder(item);
         });
       }
+      if (checkbox) {
+        checkbox.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const { path, type } = checkbox.dataset;
+          toggleItemSelection(path, type);
+        });
+      }
       item.addEventListener('click', (e) => {
-        if (e.target === toggleIcon) return;
+        if (e.target === toggleIcon || e.target === checkbox) return;
         e.stopPropagation();
-        selectItem(item);
-        if (toggleIcon && toggleIcon.innerHTML && toggleIcon.innerHTML.trim()) {
-          toggleFolder(item);
+        if (state.selectionMode === 'single') {
+          selectItem(item);
+          if (toggleIcon && toggleIcon.innerHTML && toggleIcon.innerHTML.trim()) {
+            toggleFolder(item);
+          }
+          setTimeout(() => {
+            applyFolderFilter();
+          }, 100);
         }
-        setTimeout(() => {
-          applyFolderFilter();
-        }, 100);
       });
     });
     treeContainer.querySelectorAll('.file-item').forEach((item) => {
+      const checkbox = item.querySelector('.item-checkbox');
+      if (checkbox) {
+        checkbox.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const { path, type } = checkbox.dataset;
+          toggleItemSelection(path, type);
+        });
+      }
       item.addEventListener('click', (e) => {
+        if (e.target === checkbox) return;
         e.stopPropagation();
-        selectItem(item);
-        setTimeout(() => {
-          applyFolderFilter();
-        }, 100);
+        if (state.selectionMode === 'single') {
+          selectItem(item);
+          setTimeout(() => {
+            applyFolderFilter();
+          }, 100);
+        }
       });
     });
   }
@@ -378,7 +508,6 @@ export default function createFolderModal() {
   function renderEmptyState() {
     const treeContainer = state.modal?.querySelector('#folderTree');
     if (!treeContainer) return;
-    console.log('[Folder Modal] 📝 Rendering empty state');
     treeContainer.innerHTML = `
       <div class="folder-empty-state">
         <p>No folders or files found.</p>
@@ -454,7 +583,6 @@ export default function createFolderModal() {
    */
   async function loadSiteStructure() {
     if (!state.config || !state.daApi) {
-      console.warn('[Folder Modal] Configuration not available');
       return;
     }
     const filePath = `/${state.config.org}/${state.config.repo}/.media/site-structure.json`;
@@ -466,7 +594,6 @@ export default function createFolderModal() {
       state.isLoading = false;
       renderFolderTree();
     } else {
-      console.warn('[Folder Modal] No site structure data found');
       state.isLoading = false;
       renderEmptyState();
     }
@@ -490,6 +617,24 @@ export default function createFolderModal() {
         clearFilter();
         hideModal();
       });
+    }
+
+    const selectModeLink = modal.querySelector('#selectModeLink');
+    if (selectModeLink) {
+      selectModeLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleSelectionMode();
+      });
+    }
+
+    const filterSelectedBtn = modal.querySelector('#filterSelectedBtn');
+    if (filterSelectedBtn) {
+      filterSelectedBtn.addEventListener('click', () => handleFilterSelected());
+    }
+
+    const rescanSelectedBtn = modal.querySelector('#rescanSelectedBtn');
+    if (rescanSelectedBtn) {
+      rescanSelectedBtn.addEventListener('click', () => handleRescanSelected());
     }
 
     modal.addEventListener('click', ({ target }) => {
@@ -537,8 +682,16 @@ export default function createFolderModal() {
           <div class="folder-search-container">
             <input type="text" class="folder-search-input" placeholder="Search Folders & Files" id="folderSearchInput">
           </div>
+          <div class="selection-mode-link">
+            <a href="#" id="selectModeLink">Select</a>
+          </div>
           <div class="folder-tree-container">
             <div class="folder-tree" id="folderTree"></div>
+          </div>
+          <div class="bulk-actions-bar" id="bulkActionsBar" style="display: none;">
+            <span id="selection-count">0 items selected</span>
+            <button class="folder-modal-action-btn" id="filterSelectedBtn">Filter</button>
+            <button class="folder-modal-action-btn" id="rescanSelectedBtn">Rescan</button>
           </div>
         </div>
       </div>

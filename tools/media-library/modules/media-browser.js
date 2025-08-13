@@ -376,9 +376,7 @@ export default function createMediaBrowser(container, context = null) {
         } else if (Array.isArray(media.usedIn)) {
           usedInPages = media.usedIn;
         }
-        // Check if media is used in any page that starts with the folder path
         const matches = usedInPages.some((page) => {
-          // Use exact path matching for better reliability
           const result = page.startsWith(state.currentFilter.folderPath);
           return result;
         });
@@ -386,8 +384,9 @@ export default function createMediaBrowser(container, context = null) {
       });
     }
 
-    // Apply page path filter (for file-based filtering)
-    if (state.currentFilter.pagePath) {
+    // Apply combined multiple paths filter (for multi-selection)
+    if ((state.currentFilter.folderPaths && state.currentFilter.folderPaths.length > 0)
+        || (state.currentFilter.pagePaths && state.currentFilter.pagePaths.length > 0)) {
       filtered = filtered.filter((media) => {
         if (!media.usedIn) return false;
         let usedInPages = [];
@@ -396,11 +395,19 @@ export default function createMediaBrowser(container, context = null) {
         } else if (Array.isArray(media.usedIn)) {
           usedInPages = media.usedIn;
         }
-        // Check if media is used in the specific page using exact path matching
-        const matches = usedInPages.some((page) => {
-          const result = page === state.currentFilter.pagePath;
-          return result;
-        });
+        let matches = false;
+        if (state.currentFilter.folderPaths && state.currentFilter.folderPaths.length > 0) {
+          matches = matches || usedInPages.some(
+            (page) => state.currentFilter.folderPaths.some(
+              (folderPath) => page.startsWith(folderPath),
+            ),
+          );
+        }
+        if (state.currentFilter.pagePaths && state.currentFilter.pagePaths.length > 0) {
+          matches = matches || usedInPages.some(
+            (page) => state.currentFilter.pagePaths.includes(page),
+          );
+        }
         return matches;
       });
     }

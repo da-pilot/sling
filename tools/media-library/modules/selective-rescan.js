@@ -4,12 +4,18 @@
  * Provides intelligent rescan capabilities for incremental updates
  */
 
+import createDocumentScanner from './discovery/document-scanner.js';
+
 export default function createSelectiveRescan() {
   const state = {
     daApi: null,
     sessionManager: null,
     processingStateManager: null,
-    scanStatusManager: null,
+    persistenceManager: null,
+    queueOrchestrator: null,
+    mediaProcessor: null,
+    documentScanner: null,
+    config: null,
     isActive: false,
     currentSessionId: null,
     currentUserId: null,
@@ -26,235 +32,224 @@ export default function createSelectiveRescan() {
 
   /**
    * Initialize selective rescan with dependencies
+   * @param {Object} docAuthoringService - Document authoring service instance
+   * @param {Object} sessionManagerInstance - Session manager instance
+   * @param {Object} processingStateManagerInstance - Processing state manager instance
+   * @param {Object} persistenceManagerInstance - Persistence manager instance
+   * @param {Object} mediaProcessorInstance - Media processor instance
+   * @param {Object} queueOrchestratorInstance - Queue orchestrator instance
+   * @returns {Promise<boolean>} Initialization success status
    */
   async function init(
     docAuthoringService,
     sessionManagerInstance,
     processingStateManagerInstance,
-    scanStatusManagerInstance,
+    persistenceManagerInstance,
+    mediaProcessorInstance,
+    queueOrchestratorInstance,
   ) {
-    try {
-      state.sessionManager = sessionManagerInstance;
-      state.processingStateManager = processingStateManagerInstance;
-      state.scanStatusManager = scanStatusManagerInstance;
-
-      state.daApi = docAuthoringService;
-
-      console.log('[Selective Rescan] ✅ Initialized successfully');
-      return true;
-    } catch (error) {
-      console.error('[Selective Rescan] ❌ Initialization failed:', error);
-      throw error;
-    }
+    state.sessionManager = sessionManagerInstance;
+    state.processingStateManager = processingStateManagerInstance;
+    state.persistenceManager = persistenceManagerInstance;
+    state.mediaProcessor = mediaProcessorInstance;
+    state.queueOrchestrator = queueOrchestratorInstance;
+    state.daApi = docAuthoringService;
+    state.documentScanner = createDocumentScanner();
+    state.config = docAuthoringService.getConfig();
+    await state.documentScanner.init(state.config, docAuthoringService);
+    state.isActive = true;
+    return true;
   }
 
   /**
    * Set current session for rescan operations
+   * @param {string} sessionId - Session ID
+   * @param {string} userId - User ID
+   * @param {string} browserId - Browser ID
    */
   function setCurrentSession(sessionId, userId, browserId) {
     state.currentSessionId = sessionId;
     state.currentUserId = userId;
     state.currentBrowserId = browserId;
-
-    // eslint-disable-next-line no-console
-    console.log('[Selective Rescan] 🔄 Session updated:', {
-      sessionId,
-      userId,
-      browserId,
-      timestamp: new Date().toISOString(),
-    });
   }
 
   /**
    * Rescan specific folder with intelligent change detection
+   * @param {string} folderPath - Folder path to rescan
+   * @param {Object} options - Rescan options
+   * @returns {Promise<Object>} Rescan results
    */
   async function rescanFolder(folderPath, options = {}) {
     if (!state.isActive) {
+      console.error('[Selective Rescan] ❌ Not initialized');
       throw new Error('Selective rescan not initialized');
     }
+    emit('rescanStarted', { type: 'folder', path: folderPath, options });
+    console.log('[Selective Rescan] 🔍 Starting folder rescan:', { folderPath });
+    const pagePaths = await discoverAllPagesInFolderRecursive(folderPath);
+    if (pagePaths.length === 0) {
+      console.log('[Selective Rescan] ⚠️ No pages found in folder:', { folderPath });
+      emit('rescanCompleted', { type: 'folder', path: folderPath, documentsScanned: 0 });
+      return { documentsScanned: 0, errors: 0 };
+    }
+    console.log('[Selective Rescan] 📁 Found pages in folder:', { folderPath, pageCount: pagePaths.length, pages: pagePaths });
+    const documentsToScan = pagePaths.map((path) => ({
+      path,
+      scanStatus: 'pending',
+      needsRescan: true,
+      scanComplete: false,
+      lastScannedAt: null,
+      scanAttempts: 0,
+      scanErrors: [],
+      discoveredAt: new Date().toISOString(),
+      discoveryComplete: true,
+      mediaCount: 0,
+      entryStatus: 'pending',
+    }));
+    const result = await state.queueOrchestrator.scanningCoordinator
+      .startSelectiveScanningPhase(documentsToScan, false);
+    console.log('[Selective Rescan] 📊 Scanning phase result:', result);
+    emit('rescanCompleted', {
+      type: 'folder',
+      path: folderPath,
+      documentsScanned: pagePaths.length,
+      errors: result.success ? 0 : 1,
+    });
+    return { documentsScanned: pagePaths.length, errors: result.success ? 0 : 1 };
+  }
 
+  /**
+   * Discover all pages in a folder recursively using DA API
+   * @param {string} folderPath - Folder path to discover
+   * @returns {Promise<Array>} Array of page paths
+   */
+  async function discoverAllPagesInFolderRecursive(folderPath) {
+    console.log('[Selective Rescan] 🔍 Discovering pages recursively:', { folderPath });
+    const allPages = [];
+    await discoverFolderRecursively(folderPath, allPages);
+    console.log('[Selective Rescan] ✅ Discovery complete:', { folderPath, totalPages: allPages.length });
+    return allPages;
+  }
+
+  /**
+   * Discover pages in a folder recursively
+   * @param {string} folderPath - Folder path to process
+   * @param {Array} allPages - Array to collect page paths
+   * @returns {Promise<void>}
+   */
+  async function discoverFolderRecursively(folderPath, allPages) {
     try {
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 🔍 Starting folder rescan:', folderPath);
-
-      emit('rescanStarted', { type: 'folder', path: folderPath, options });
-
-      const documents = await discoverDocumentsInFolder(folderPath);
-      const validDocuments = await validateAndGetDocuments(documents, options);
-
-      if (validDocuments.length === 0) {
-        // eslint-disable-next-line no-console
-        console.log('[Selective Rescan] ⚠️ No valid documents found in folder:', folderPath);
-        emit('rescanCompleted', { type: 'folder', path: folderPath, documentsScanned: 0 });
-        return { documentsScanned: 0, errors: 0 };
-      }
-
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 📄 Processing documents:', validDocuments.length);
-
-      const results = await processBatchRescan(validDocuments, options);
-
-      emit('rescanCompleted', {
-        type: 'folder',
-        path: folderPath,
-        documentsScanned: results.scanned,
-        errors: results.errors,
+      console.log('[Selective Rescan] 📂 Processing folder:', { folderPath });
+      const items = await state.daApi.listPath(folderPath);
+      const htmlFiles = items.filter((item) => item.ext && item.ext === 'html');
+      const subfolders = items.filter((item) => !item.ext);
+      console.log('[Selective Rescan] 📄 Found HTML files:', { folderPath, htmlCount: htmlFiles.length, files: htmlFiles.map((f) => f.path) });
+      console.log('[Selective Rescan] 📁 Found subfolders:', { folderPath, subfolderCount: subfolders.length, subfolders: subfolders.map((f) => f.path) });
+      htmlFiles.forEach((file) => {
+        allPages.push(file.path);
       });
-
-      return results;
+      const subfolderPromises = subfolders.map(async (subfolder) => {
+        if (subfolder.path !== folderPath) {
+          await discoverFolderRecursively(subfolder.path, allPages);
+        }
+      });
+      await Promise.all(subfolderPromises);
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Folder rescan failed:', error);
-      emit('rescanError', { type: 'folder', path: folderPath, error: error.message });
-      throw error;
+      console.error('[Selective Rescan] ❌ Error discovering folder:', { folderPath, error: error.message });
     }
   }
 
   /**
    * Rescan specific pages with change detection
+   * @param {Array} pagePaths - Array of page paths to rescan
+   * @param {Object} options - Rescan options
+   * @returns {Promise<Object>} Rescan results
    */
   async function rescanPages(pagePaths, options = {}) {
     if (!state.isActive) {
+      console.error('[Selective Rescan] ❌ Not initialized');
       throw new Error('Selective rescan not initialized');
     }
-
-    try {
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 🔍 Starting page rescan:', pagePaths.length, 'pages');
-
-      emit('rescanStarted', { type: 'pages', paths: pagePaths, options });
-
-      const validDocuments = await validateAndGetDocuments(pagePaths, options);
-
-      if (validDocuments.length === 0) {
-        // eslint-disable-next-line no-console
-        console.log('[Selective Rescan] ⚠️ No valid pages found for rescan');
-        emit('rescanCompleted', { type: 'pages', documentsScanned: 0 });
-        return { documentsScanned: 0, errors: 0 };
-      }
-
-      const results = await processBatchRescan(validDocuments, options);
-
-      emit('rescanCompleted', {
-        type: 'pages',
-        documentsScanned: results.scanned,
-        errors: results.errors,
-      });
-
-      return results;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Page rescan failed:', error);
-      emit('rescanError', { type: 'pages', error: error.message });
-      throw error;
-    }
+    emit('rescanStarted', { type: 'pages', paths: pagePaths, options });
+    const fullPaths = pagePaths.map((path) => {
+      const fullPath = path.startsWith('/da-pilot/sling/') ? path : `/da-pilot/sling${path}`;
+      return fullPath;
+    });
+    console.log('[Selective Rescan] 📄 Starting selective scanning:', { pageCount: fullPaths.length, pages: fullPaths });
+    const documentsToScan = fullPaths.map((path) => ({
+      path,
+      scanStatus: 'pending',
+      needsRescan: true,
+      scanComplete: false,
+      lastScannedAt: null,
+      scanAttempts: 0,
+      scanErrors: [],
+      discoveredAt: new Date().toISOString(),
+      discoveryComplete: true,
+      mediaCount: 0,
+      entryStatus: 'pending',
+    }));
+    const result = await state.queueOrchestrator.scanningCoordinator
+      .startSelectiveScanningPhase(documentsToScan, false);
+    console.log('[Selective Rescan] 📊 Scanning phase result:', result);
+    emit('rescanCompleted', {
+      type: 'pages',
+      documentsScanned: fullPaths.length,
+      errors: result.success ? 0 : 1,
+    });
+    return { documentsScanned: fullPaths.length, errors: result.success ? 0 : 1 };
   }
 
   /**
    * Rescan documents modified since a specific date
+   * @param {string} sinceDate - Date to check modifications since
+   * @param {Object} options - Rescan options
+   * @returns {Promise<Object>} Rescan results
    */
   async function rescanModifiedSince(sinceDate, options = {}) {
     if (!state.isActive) {
+      console.error('[Selective Rescan] ❌ Not initialized');
       throw new Error('Selective rescan not initialized');
     }
-
-    try {
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 🔍 Starting modified-since rescan:', sinceDate);
-
-      emit('rescanStarted', { type: 'modified-since', sinceDate, options });
-
-      const allDocuments = await discoverAllDocuments();
-      const modifiedDocuments = allDocuments.filter((doc) => {
-        const lastModified = new Date(doc.lastModified || 0);
-        return lastModified >= new Date(sinceDate);
-      });
-
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 📄 Found modified documents:', modifiedDocuments.length);
-
-      const validDocuments = await validateAndGetDocuments(modifiedDocuments, options);
-
-      if (validDocuments.length === 0) {
-        // eslint-disable-next-line no-console
-        console.log('[Selective Rescan] ⚠️ No valid modified documents found');
-        emit('rescanCompleted', { type: 'modified-since', documentsScanned: 0 });
-        return { documentsScanned: 0, errors: 0 };
-      }
-
-      const results = await processBatchRescan(validDocuments, options);
-
-      emit('rescanCompleted', {
-        type: 'modified-since',
-        documentsScanned: results.scanned,
-        errors: results.errors,
-      });
-
-      return results;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Modified-since rescan failed:', error);
-      emit('rescanError', { type: 'modified-since', error: error.message });
-      throw error;
+    emit('rescanStarted', { type: 'modified-since', sinceDate, options });
+    const allDocuments = await discoverAllDocuments();
+    const modifiedDocuments = allDocuments.filter((doc) => {
+      const lastModified = new Date(doc.lastModified || 0);
+      return lastModified >= new Date(sinceDate);
+    });
+    if (modifiedDocuments.length === 0) {
+      emit('rescanCompleted', { type: 'modified-since', documentsScanned: 0 });
+      return { documentsScanned: 0, errors: 0 };
     }
-  }
-
-  /**
-   * Get intelligent rescan suggestions based on analysis
-   */
-  async function getRescanSuggestions() {
-    try {
-      const suggestions = [];
-
-      // Analyze scan status for failed pages
-      if (state.scanStatusManager) {
-        const failedPages = await state.scanStatusManager.getFailedPages();
-        if (failedPages.length > 0) {
-          suggestions.push({
-            type: 'failed-pages',
-            count: failedPages.length,
-            description: `${failedPages.length} pages failed during previous scan`,
-            priority: 'high',
-          });
-        }
-      }
-
-      // Analyze processing state for incomplete scans
-      if (state.processingStateManager && state.currentSessionId) {
-        const scanningProgress = await state.processingStateManager
-          .getScanningProgress(state.currentSessionId);
-
-        if (scanningProgress && scanningProgress.status === 'incomplete') {
-          suggestions.push({
-            type: 'incomplete-scan',
-            count: scanningProgress.pendingPages || 0,
-            description: 'Previous scan was incomplete',
-            priority: 'medium',
-          });
-        }
-      }
-
-      // Analyze folder statistics for potential issues
-      const folderStats = await getFolderStatistics();
-      if (folderStats.foldersWithErrors > 0) {
-        suggestions.push({
-          type: 'error-folders',
-          count: folderStats.foldersWithErrors,
-          description: `${folderStats.foldersWithErrors} folders have scanning errors`,
-          priority: 'medium',
-        });
-      }
-
-      return suggestions;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Error getting suggestions:', error);
-      return [];
-    }
+    const pagePaths = modifiedDocuments.map((doc) => doc.path);
+    console.log('[Selective Rescan] 📅 Rescanning modified documents:', { sinceDate, pageCount: pagePaths.length, pages: pagePaths });
+    const documentsToScan = pagePaths.map((path) => ({
+      path,
+      scanStatus: 'pending',
+      needsRescan: true,
+      scanComplete: false,
+      lastScannedAt: null,
+      scanAttempts: 0,
+      scanErrors: [],
+      discoveredAt: new Date().toISOString(),
+      discoveryComplete: true,
+      mediaCount: 0,
+      entryStatus: 'pending',
+    }));
+    const result = await state.queueOrchestrator.scanningCoordinator
+      .startSelectiveScanningPhase(documentsToScan, false);
+    emit('rescanCompleted', {
+      type: 'modified-since',
+      documentsScanned: pagePaths.length,
+      errors: result.success ? 0 : 1,
+    });
+    return { documentsScanned: pagePaths.length, errors: result.success ? 0 : 1 };
   }
 
   /**
    * Add event listener
+   * @param {string} event - Event name
+   * @param {Function} callback - Callback function
    */
   function on(event, callback) {
     if (!state.listeners.has(event)) {
@@ -265,6 +260,8 @@ export default function createSelectiveRescan() {
 
   /**
    * Remove event listener
+   * @param {string} event - Event name
+   * @param {Function} callback - Callback function
    */
   function off(event, callback) {
     const callbacks = state.listeners.get(event);
@@ -278,6 +275,8 @@ export default function createSelectiveRescan() {
 
   /**
    * Emit event to listeners
+   * @param {string} event - Event name
+   * @param {Object} data - Event data
    */
   function emit(event, data) {
     const callbacks = state.listeners.get(event);
@@ -286,7 +285,6 @@ export default function createSelectiveRescan() {
         try {
           callback(data);
         } catch (error) {
-          // eslint-disable-next-line no-console
           console.error('Error in event listener:', error);
         }
       });
@@ -294,299 +292,27 @@ export default function createSelectiveRescan() {
   }
 
   /**
-   * Discover documents in a specific folder
-   */
-  async function discoverDocumentsInFolder(folderPath) {
-    try {
-      if (!state.daApi) {
-        throw new Error('DA API not initialized');
-      }
-
-      const items = await state.daApi.listPath(folderPath);
-      const documents = items.filter((item) => item.type === 'file' && item.ext === 'html');
-
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 📁 Discovered documents in folder:', {
-        folderPath,
-        totalItems: items.length,
-        documents: documents.length,
-      });
-
-      return documents;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Error discovering documents:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Discover all documents in the repository
+   * @returns {Promise<Array>} Array of all documents
    */
   async function discoverAllDocuments() {
     try {
       if (!state.daApi) {
+        console.error('[Selective Rescan] ❌ DA API not initialized');
         throw new Error('DA API not initialized');
       }
-
       const allItems = await state.daApi.getAllHTMLFiles();
       const documents = allItems.filter((item) => item.type === 'file' && item.ext === 'html');
-
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 📁 Discovered all documents:', documents.length);
-
       return documents;
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('[Selective Rescan] ❌ Error discovering all documents:', error);
       throw error;
     }
   }
 
   /**
-   * Process batch rescan with progress tracking
-   */
-  async function processBatchRescan(documents, options) {
-    const results = {
-      scanned: 0,
-      errors: 0,
-      details: [],
-    };
-
-    const batchSize = options.batchSize || 10;
-    const batches = [];
-
-    // Create batches
-    for (let i = 0; i < documents.length; i += batchSize) {
-      batches.push(documents.slice(i, i + batchSize));
-    }
-
-    // Process batches with progress updates
-    const allBatchPromises = batches.map(async (batch, i) => {
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 📦 Processing batch:', i + 1, 'of', batches.length);
-
-      const batchPromises = batch.map(async (document) => {
-        try {
-          const result = await processSingleDocument(document);
-          results.scanned += 1;
-          return { success: true, document, result };
-        } catch (error) {
-          results.errors += 1;
-          return { success: false, document, error: error.message };
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      results.details.push(...batchResults);
-
-      // Update progress
-      emit('rescanProgress', {
-        currentBatch: i + 1,
-        totalBatches: batches.length,
-        documentsScanned: results.scanned,
-        errors: results.errors,
-      });
-
-      return batchResults;
-    });
-
-    await Promise.all(allBatchPromises);
-
-    return results;
-  }
-
-  /**
-   * Validate and get documents for rescan
-   */
-  async function validateAndGetDocuments(documents, options) {
-    const validDocuments = [];
-
-    documents.forEach((doc) => {
-      // Basic validation
-      if (!doc.path || !doc.name) {
-        return;
-      }
-
-      // Check if document should be rescanned based on options
-      if (options.skipScanned && doc.scanComplete) {
-        return;
-      }
-
-      if (options.onlyFailed && doc.scanStatus !== 'failed') {
-        return;
-      }
-
-      validDocuments.push(doc);
-    });
-
-    // eslint-disable-next-line no-console
-    console.log('[Selective Rescan] ✅ Validated documents:', {
-      total: documents.length,
-      valid: validDocuments.length,
-    });
-
-    return validDocuments;
-  }
-
-  /**
-   * Process a single document for rescan
-   */
-  async function processSingleDocument(document) {
-    try {
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 📄 Processing document:', document.path);
-
-      // Get document content
-      const content = await state.daApi.getSource(document.path);
-
-      // Scan document for media
-      const media = await scanDocumentForMedia(content, document.path);
-
-      // Update scan status
-      if (state.scanStatusManager) {
-        await state.scanStatusManager.markPageScanned(
-          document.sourceFile || 'unknown',
-          document.path,
-          media.length,
-        );
-      }
-
-      emit('documentScanned', {
-        path: document.path,
-        mediaCount: media.length,
-      });
-
-      return { mediaCount: media.length, success: true };
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Error processing document:', document.path, error);
-
-      // Update scan status for failed document
-      if (state.scanStatusManager) {
-        await state.scanStatusManager.markPageFailed(
-          document.sourceFile || 'unknown',
-          document.path,
-          error.message,
-        );
-      }
-
-      emit('documentError', {
-        path: document.path,
-        error: error.message,
-      });
-
-      throw error;
-    }
-  }
-
-  /**
-   * Scan document for media content
-   */
-  async function scanDocumentForMedia(content, documentPath) {
-    try {
-      // Extract media from HTML content
-      const media = extractMediaFromHTML(content, documentPath);
-
-      // eslint-disable-next-line no-console
-      console.log('[Selective Rescan] 🖼️ Extracted media from document:', {
-        path: documentPath,
-        mediaCount: media.length,
-      });
-
-      return media;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Error scanning document for media:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Extract media from HTML content
-   */
-  function extractMediaFromHTML(content) {
-    const media = [];
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(content, 'text/html');
-
-    // Extract images
-    const images = doc.querySelectorAll('img[src]');
-    images.forEach((img) => {
-      const src = img.getAttribute('src');
-      if (src) {
-        media.push({
-          src,
-          alt: img.getAttribute('alt') || '',
-          type: 'image',
-          context: getElementContext(img),
-        });
-      }
-    });
-
-    // Extract videos
-    const videos = doc.querySelectorAll('video source[src]');
-    videos.forEach((source) => {
-      const src = source.getAttribute('src');
-      if (src) {
-        media.push({
-          src,
-          type: 'video',
-          context: getElementContext(source),
-        });
-      }
-    });
-
-    // Extract background images
-    const elements = doc.querySelectorAll('*');
-    elements.forEach((element) => {
-      const { style } = element;
-      if (style.backgroundImage && style.backgroundImage !== 'none') {
-        const matches = style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/g);
-        if (matches) {
-          matches.forEach((match) => {
-            const src = match.replace(/url\(['"]?([^'"]+)['"]?\)/, '$1');
-            if (src) {
-              media.push({
-                src,
-                type: 'background-image',
-                context: getElementContext(element),
-              });
-            }
-          });
-        }
-      }
-    });
-
-    return media;
-  }
-
-  /**
-   * Get element context for media
-   */
-  function getElementContext(element) {
-    const context = [];
-
-    // Get parent heading
-    const heading = element.closest('h1, h2, h3, h4, h5, h6');
-    if (heading) {
-      context.push(heading.textContent.trim().substring(0, 30));
-    }
-
-    // Get parent section
-    const section = element.closest('section, article, div[class*="content"]');
-    if (section) {
-      const sectionText = section.textContent.trim().substring(0, 50);
-      if (sectionText) {
-        context.push(sectionText);
-      }
-    }
-
-    return context.join(' - ');
-  }
-
-  /**
    * Get folder statistics for analysis
+   * @returns {Promise<Object>} Folder statistics
    */
   async function getFolderStatistics() {
     try {
@@ -596,26 +322,20 @@ export default function createSelectiveRescan() {
         foldersWithMedia: 0,
         averageDocumentsPerFolder: 0,
       };
-
       if (!state.daApi) {
         return stats;
       }
-
       const folders = await state.daApi.listPath('/');
       const folderItems = folders.filter((item) => item.type === 'folder');
-
       stats.totalFolders = folderItems.length;
-
-      // Analyze each folder
       const folderPromises = folderItems.map(async (folder) => {
         try {
           const items = await state.daApi.listPath(folder.path);
           const documents = items.filter((item) => item.type === 'file' && item.ext === 'html');
-
           return {
             path: folder.path,
             documentCount: documents.length,
-            hasErrors: false, // This would need to be determined from scan status
+            hasErrors: false,
           };
         } catch (error) {
           return {
@@ -625,9 +345,7 @@ export default function createSelectiveRescan() {
           };
         }
       });
-
       const folderResults = await Promise.all(folderPromises);
-
       folderResults.forEach((result) => {
         if (result.hasErrors) {
           stats.foldersWithErrors += 1;
@@ -636,15 +354,12 @@ export default function createSelectiveRescan() {
           stats.foldersWithMedia += 1;
         }
       });
-
       const totalDocuments = folderResults.reduce((sum, result) => sum + result.documentCount, 0);
       stats.averageDocumentsPerFolder = stats.totalFolders > 0
         ? Math.round(totalDocuments / stats.totalFolders)
         : 0;
-
       return stats;
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('[Selective Rescan] ❌ Error getting folder statistics:', error);
       return {
         totalFolders: 0,
@@ -656,34 +371,8 @@ export default function createSelectiveRescan() {
   }
 
   /**
-   * Get document statistics
-   */
-  async function getDocumentStats(documentPath) {
-    try {
-      const content = await state.daApi.getSource(documentPath);
-      const media = extractMediaFromHTML(content);
-
-      return {
-        path: documentPath,
-        mediaCount: media.length,
-        lastModified: new Date().toISOString(),
-        size: content.length,
-      };
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[Selective Rescan] ❌ Error getting document stats:', error);
-      return {
-        path: documentPath,
-        mediaCount: 0,
-        lastModified: null,
-        size: 0,
-        error: error.message,
-      };
-    }
-  }
-
-  /**
    * Get rescan statistics
+   * @returns {Object} Rescan statistics
    */
   function getStats() {
     return { ...state.stats };
@@ -703,11 +392,10 @@ export default function createSelectiveRescan() {
     rescanFolder,
     rescanPages,
     rescanModifiedSince,
-    getRescanSuggestions,
+    getFolderStatistics,
     on,
     off,
     getStats,
-    getDocumentStats,
     cleanup,
   };
 }
