@@ -51,8 +51,9 @@ export async function ensureMediaJsonSync() {
 }
 
 /**
- * Check if media.json has changes without loading content
- * @returns {Promise<{hasChanges: boolean, lastModified?: number, mediaJsonExists: boolean}>}
+ * Check for changes in media.json file
+ * @returns {Promise<{hasChanges: boolean, lastModified?: number,
+ * mediaJsonExists: boolean, authError?: boolean}>}
  */
 export async function checkMediaJsonChanges() {
   try {
@@ -77,7 +78,12 @@ export async function checkMediaJsonChanges() {
     };
   } catch (error) {
     console.error('[Media Loader] Error checking media changes:', error);
-    return { hasChanges: false, mediaJsonExists: false };
+    const isAuthError = error.message && error.message.includes('HTTP 401');
+    return {
+      hasChanges: false,
+      mediaJsonExists: false,
+      authError: isAuthError,
+    };
   }
 }
 
@@ -221,6 +227,16 @@ export function setDocAuthoringService(docAuthoringService) {
 let pollingInterval = null;
 
 /**
+ * Stop polling for media.json updates
+ */
+export function stopMediaPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+}
+
+/**
  * Start polling for media.json updates
  * @param {Function} onUpdate - Callback function when updates are detected
  * @param {number} intervalMs - Polling interval in milliseconds (default: 30000)
@@ -235,6 +251,12 @@ export function startMediaPolling(onUpdate, intervalMs = 30000) {
         return;
       }
       const changeCheck = await checkMediaJsonChanges();
+      if (changeCheck.authError) {
+        stopMediaPolling();
+        const { showToast } = await import('./toast.js');
+        showToast('Authentication expired. Please refresh the page to continue.', 'error');
+        return;
+      }
       if (changeCheck.hasChanges && onUpdate && typeof onUpdate === 'function') {
         const { media, lastModified } = await loadMediaFromMediaJson();
         onUpdate(media, lastModified);
@@ -243,14 +265,4 @@ export function startMediaPolling(onUpdate, intervalMs = 30000) {
       console.error('[Media Loader] Polling error:', error);
     }
   }, intervalMs);
-}
-
-/**
- * Stop polling for media.json updates
- */
-export function stopMediaPolling() {
-  if (pollingInterval) {
-    clearInterval(pollingInterval);
-    pollingInterval = null;
-  }
 }
