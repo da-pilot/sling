@@ -196,6 +196,7 @@ export const LOCALSTORAGE_KEYS = {
   DISCOVERY_PROGRESS: 'media-discovery-progress',
   DISCOVERY_CHECKPOINT: 'media-discovery-checkpoint',
   SCANNING_CHECKPOINT: 'media-scanning-checkpoint',
+  MEDIA_JSON_LASTMODIFIED: 'media_json_lastModified',
 };
 
 export const SESSION_PREFIX = 'session_';

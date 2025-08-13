@@ -61,7 +61,8 @@ export default function createMediaBrowser(container, context = null) {
   function getVisibleItems() {
     const startIndex = state.virtualScroll.currentPage * state.virtualScroll.itemsPerPage;
     const endIndex = startIndex + state.virtualScroll.itemsPerPage;
-    return state.filteredMedia.slice(startIndex, endIndex);
+    const items = state.filteredMedia.slice(startIndex, endIndex);
+    return items;
   }
 
   /**
@@ -86,9 +87,24 @@ export default function createMediaBrowser(container, context = null) {
       threshold: 0.1,
     });
 
-    const lastItem = state.container?.querySelector('.media-item:last-child');
+    const allMediaItems = state.container?.querySelectorAll('.media-item');
+    let lastItem = state.container?.querySelector('.media-item:last-child');
+    if (!lastItem && allMediaItems && allMediaItems.length > 0) {
+      lastItem = allMediaItems[allMediaItems.length - 1];
+    }
     if (lastItem) {
       state.virtualScroll.observer.observe(lastItem);
+    } else {
+      setTimeout(() => {
+        const retryAllMediaItems = state.container?.querySelectorAll('.media-item');
+        let retryLastItem = state.container?.querySelector('.media-item:last-child');
+        if (!retryLastItem && retryAllMediaItems && retryAllMediaItems.length > 0) {
+          retryLastItem = retryAllMediaItems[retryAllMediaItems.length - 1];
+        }
+        if (retryLastItem) {
+          state.virtualScroll.observer.observe(retryLastItem);
+        }
+      }, 100);
     }
   }
 
@@ -115,7 +131,7 @@ export default function createMediaBrowser(container, context = null) {
    * @param {Array} items - Array of media items to render
    * @param {boolean} append - Whether to append to existing content
    */
-  function renderVisibleItems(items, append = false) {
+  function renderVisibleItems(items, append = false, setupObserver = true) {
     if (!state.container) return;
 
     const fragment = document.createDocumentFragment();
@@ -133,9 +149,11 @@ export default function createMediaBrowser(container, context = null) {
       state.container.appendChild(fragment);
     }
 
-    setTimeout(() => {
-      setupIntersectionObserver();
-    }, 100);
+    if (setupObserver) {
+      requestAnimationFrame(() => {
+        setupIntersectionObserver();
+      });
+    }
   }
 
   /**
@@ -188,6 +206,7 @@ export default function createMediaBrowser(container, context = null) {
     setMediaLoadingState,
     cleanup,
     setCurrentFilter,
+    setupIntersectionObserver,
   };
 
   function on(event, callback) {
@@ -210,13 +229,16 @@ export default function createMediaBrowser(container, context = null) {
       state.isInitialLoad = false;
     }
 
-    // Reset virtual scroll state when media changes
-    state.virtualScroll.currentPage = 0;
-    state.virtualScroll.visibleItems = [];
-    state.virtualScroll.hasMoreItems = true;
-
     applyFiltersAndSort();
-    render();
+
+    if (state.filteredMedia.length <= state.virtualScroll.itemsPerPage) {
+      renderAllItems();
+    } else {
+      state.virtualScroll.currentPage = 0;
+      state.virtualScroll.visibleItems = [];
+      state.virtualScroll.hasMoreItems = true;
+      render();
+    }
     updateFilterCounts();
   }
 
@@ -431,6 +453,34 @@ export default function createMediaBrowser(container, context = null) {
     });
 
     state.filteredMedia = filtered;
+  }
+
+  function renderAllItems() {
+    if (!state.container) {
+      return;
+    }
+    if (state.currentView === 'list') {
+      state.container.classList.add('list-view');
+    } else {
+      state.container.classList.remove('list-view');
+    }
+
+    if (state.currentView === 'list') {
+      const header = document.createElement('div');
+      header.className = 'list-header';
+      header.innerHTML = `
+        <div class="list-header-cell"></div>
+        <div class="list-header-cell">Name</div>
+        <div class="list-header-cell">Type</div>
+        <div class="list-header-cell">Actions</div>
+      `;
+      state.container.innerHTML = '';
+      state.container.appendChild(header);
+    } else {
+      state.container.innerHTML = '';
+    }
+    state.virtualScroll.visibleItems = state.filteredMedia;
+    renderVisibleItems(state.filteredMedia, false, false);
   }
 
   function render() {

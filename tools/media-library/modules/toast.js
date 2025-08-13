@@ -2,7 +2,6 @@
  * Hide a toast notification
  */
 function hideToast(toast) {
-  toast.classList.remove('toast--visible');
   setTimeout(() => {
     if (toast.parentNode) {
       toast.parentNode.removeChild(toast);
@@ -14,26 +13,23 @@ function hideToast(toast) {
  * Show a toast notification
  */
 function showToast(message, type = 'info') {
+  const toastContainer = document.getElementById('toastContainer');
+  if (!toastContainer) {
+    return;
+  }
   const toast = document.createElement('div');
-  toast.className = `toast toast--${type}`;
+  toast.className = `toast ${type}`;
   toast.innerHTML = `
-    <div class="toast__content">
-      <span class="toast__message">${message}</span>
-      <button class="toast__close" aria-label="Close notification">×</button>
+    <div class="toast-content">
+      <span class="toast-message">${message}</span>
+      <button class="toast-close" aria-label="Close notification">×</button>
     </div>
   `;
-
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add('toast--visible');
-  }, 10);
-
+  toastContainer.appendChild(toast);
   const autoRemove = setTimeout(() => {
     hideToast(toast);
   }, 5000);
-
-  const closeBtn = toast.querySelector('.toast__close');
+  const closeBtn = toast.querySelector('.toast-close');
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {
       clearTimeout(autoRemove);

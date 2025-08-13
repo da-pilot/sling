@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 
+import { DA_PATHS, LOCALSTORAGE_KEYS } from '../constants.js';
 import createMetadataManager from '../services/metadata-manager.js';
 import createPersistenceManager from '../services/persistence-manager.js';
 
@@ -50,91 +51,70 @@ export async function ensureMediaJsonSync() {
 }
 
 /**
- * Load media from media.json file
+ * Check if media.json has changes without loading content
+ * @returns {Promise<{hasChanges: boolean, lastModified?: number, mediaJsonExists: boolean}>}
+ */
+export async function checkMediaJsonChanges() {
+  try {
+    if (!contextRef || !docAuthoringServiceRef) {
+      return { hasChanges: false, mediaJsonExists: false };
+    }
+    const fullPath = DA_PATHS.getMediaDataFile(contextRef.org, contextRef.repo);
+    const storageDir = DA_PATHS.getStorageDir(contextRef.org, contextRef.repo);
+    const files = await docAuthoringServiceRef.listPath(storageDir);
+    const mediaJsonFile = files.find((f) => f.path === fullPath);
+    if (!mediaJsonFile) {
+      return { hasChanges: false, mediaJsonExists: false };
+    }
+    const storageKey = `${LOCALSTORAGE_KEYS.MEDIA_JSON_LASTMODIFIED}_${contextRef.org}_${contextRef.repo}`;
+    const storedLastModified = localStorage.getItem(storageKey);
+    const hasChanges = !storedLastModified
+      || parseInt(storedLastModified, 10) !== mediaJsonFile.lastModified;
+    return {
+      hasChanges,
+      lastModified: mediaJsonFile.lastModified,
+      mediaJsonExists: true,
+    };
+  } catch (error) {
+    console.error('[Media Loader] Error checking media changes:', error);
+    return { hasChanges: false, mediaJsonExists: false };
+  }
+}
+
+/**
+ * Load media from media.json file with change detection
  */
 export async function loadMediaFromMediaJson() {
   try {
-    console.log('[Media Loader] Starting media load process...');
-    console.log('[Media Loader] Context state:', {
-      hasContext: !!contextRef,
-      hasDocService: !!docAuthoringServiceRef,
-      contextOrg: contextRef?.org,
-      contextRepo: contextRef?.repo,
-    });
-
     if (!contextRef) {
       throw new Error('Context not set. Call setContext() first.');
     }
-
     if (!docAuthoringServiceRef) {
       throw new Error('Document Authoring Service not set. Call setDocAuthoringService() first.');
     }
-
-    console.log('[Media Loader] Loading media from media.json...');
-
-    // First check if .media folder and media.json exist
-    try {
-      const files = await docAuthoringServiceRef.listPath('/.media');
-      const mediaJsonFile = files.find((f) => f.name === 'media.json');
-      console.log('[Media Loader] Media.json status:', {
-        exists: !!mediaJsonFile,
-        lastModified: mediaJsonFile?.lastModified,
-        path: '/.media/media.json',
-      });
-    } catch (listError) {
-      console.warn('[Media Loader] Failed to check media.json existence:', listError);
+    const changeCheck = await checkMediaJsonChanges();
+    if (!changeCheck.mediaJsonExists) {
+      return { mediaJsonExists: false, media: [] };
     }
-
-    const mediaJsonPath = '/.media/media.json';
-    console.log('[Media Loader] Creating metadata manager with path:', mediaJsonPath);
-
-    const metadataManager = createMetadataManager(docAuthoringServiceRef, mediaJsonPath);
-    console.log('[Media Loader] Initializing metadata manager with context:', {
-      org: contextRef.org,
-      repo: contextRef.repo,
-      path: contextRef.path,
-    });
-
+    const fullPath = DA_PATHS.getMediaDataFile(contextRef.org, contextRef.repo);
+    const relativePath = fullPath.replace(`/${contextRef.org}/${contextRef.repo}`, '');
+    const metadataManager = createMetadataManager(docAuthoringServiceRef, relativePath);
     await metadataManager.init(contextRef);
-
     const metadata = await metadataManager.getMetadata();
-    console.log('[Media Loader] Metadata load result:', {
-      hasMetadata: !!metadata,
-      itemCount: metadata?.length || 0,
-    });
-
-    if (metadata && metadata.length > 0) {
-      console.log('[Media Loader] Successfully loaded media from media.json');
-      return {
-        mediaJsonExists: true,
-        media: metadata,
-      };
+    console.log('[Media Loader] Metadata Length:', metadata.length);
+    const storageKey = `${LOCALSTORAGE_KEYS.MEDIA_JSON_LASTMODIFIED}_${contextRef.org}_${contextRef.repo}`;
+    if (changeCheck.hasChanges) {
+      localStorage.setItem(storageKey, changeCheck.lastModified.toString());
     }
-
-    console.log('[Media Loader] No media found in media.json, creating empty file...');
-    try {
-      await metadataManager.createMetadataFile();
-      console.log('[Media Loader] Empty media.json created successfully');
-    } catch (createError) {
-      console.error('[Media Loader] Failed to create media.json:', createError);
-      throw createError; // Re-throw to be caught by outer catch
-    }
-
     return {
-      mediaJsonExists: false,
-      media: [],
+      mediaJsonExists: true,
+      media: metadata || [],
+      lastModified: changeCheck.lastModified,
+      hasChanges: changeCheck.hasChanges,
     };
   } catch (error) {
-    console.error('[Media Loader] Error loading media:', {
-      error,
-      message: error.message,
-      stack: error.stack,
-    });
-    return {
-      mediaJsonExists: false,
-      media: [],
-      error: error.message,
-    };
+    console.error('[Media Loader] Error loading media:', error);
+    return { mediaJsonExists: false, media: [], error: error.message };
   }
 }
 
@@ -236,4 +216,41 @@ export function setContext(context) {
  */
 export function setDocAuthoringService(docAuthoringService) {
   docAuthoringServiceRef = docAuthoringService;
+}
+
+let pollingInterval = null;
+
+/**
+ * Start polling for media.json updates
+ * @param {Function} onUpdate - Callback function when updates are detected
+ * @param {number} intervalMs - Polling interval in milliseconds (default: 30000)
+ */
+export function startMediaPolling(onUpdate, intervalMs = 30000) {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+  }
+  pollingInterval = setInterval(async () => {
+    try {
+      if (!contextRef || !docAuthoringServiceRef) {
+        return;
+      }
+      const changeCheck = await checkMediaJsonChanges();
+      if (changeCheck.hasChanges && onUpdate && typeof onUpdate === 'function') {
+        const { media, lastModified } = await loadMediaFromMediaJson();
+        onUpdate(media, lastModified);
+      }
+    } catch (error) {
+      console.error('[Media Loader] Polling error:', error);
+    }
+  }, intervalMs);
+}
+
+/**
+ * Stop polling for media.json updates
+ */
+export function stopMediaPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
 }
