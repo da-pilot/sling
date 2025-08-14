@@ -18,10 +18,6 @@ export default function createQueueDocumentProcessor() {
   async function init(config, daApi) {
     state.config = config;
     state.daApi = daApi;
-    console.log('[Document Handler] ✅ Initialized with config:', {
-      org: config.org,
-      repo: config.repo,
-    });
   }
 
   /**
@@ -119,7 +115,6 @@ export default function createQueueDocumentProcessor() {
    * @returns {Object} Object with changed and unchanged counts
    */
   async function detectChangedDocuments(discoveryFiles) {
-    console.log('[Document Handler] 🔍 Detecting changed documents...');
     let changedCount = 0;
     let unchangedCount = 0;
 
@@ -142,11 +137,6 @@ export default function createQueueDocumentProcessor() {
       });
     });
 
-    console.log('[Document Handler] ✅ Change detection completed:', {
-      changedCount,
-      unchangedCount,
-    });
-
     return { changedCount, unchangedCount };
   }
 
@@ -157,7 +147,6 @@ export default function createQueueDocumentProcessor() {
    * @returns {Object} Change detection results
    */
   async function detectIncrementalDocumentChanges(existingDiscoveryFiles, currentDiscoveryFiles) {
-    console.log('[Document Handler] 🔍 [INCREMENTAL] Detecting document-level changes...');
     const changes = {
       newDocuments: [],
       modifiedDocuments: [],
@@ -191,12 +180,6 @@ export default function createQueueDocumentProcessor() {
         changes.deletedDocuments.push(existingDoc);
       }
     });
-    console.log('[Document Handler] 🔍 [INCREMENTAL] Document change detection:', {
-      newDocuments: changes.newDocuments.length,
-      modifiedDocuments: changes.modifiedDocuments.length,
-      deletedDocuments: changes.deletedDocuments.length,
-      unchangedDocuments: changes.unchangedDocuments.length,
-    });
     return changes;
   }
 
@@ -207,14 +190,7 @@ export default function createQueueDocumentProcessor() {
    * @returns {Promise<void>}
    */
   async function addDocumentsForScanning(discoveryFile, documents) {
-    console.log('[Document Handler] 📄 Adding documents for scanning:', {
-      hasDiscoveryFile: !!discoveryFile,
-      documentCount: documents ? documents.length : 0,
-      documents: documents ? documents.map((d) => ({ path: d.path, name: d.name })) : [],
-    });
-
     if (!discoveryFile || !documents || !Array.isArray(documents)) {
-      console.warn('[Document Handler] ⚠️ Invalid parameters for addDocumentsForScanning');
       return;
     }
 
@@ -224,11 +200,6 @@ export default function createQueueDocumentProcessor() {
     }
 
     discoveryFile.documents.push(...documents);
-
-    console.log('[Document Handler] ✅ Documents added to discovery file:', {
-      totalDocuments: discoveryFile.documents.length,
-      addedDocuments: documents.length,
-    });
   }
 
   /**

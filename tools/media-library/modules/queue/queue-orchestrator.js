@@ -10,6 +10,8 @@ import createQueueDeltaHandler from './delta-handler.js';
 import createScanCompletionHandler from '../scan-completion-handler.js';
 import createScanningCoordinator from './scanning-coordinator.js';
 import createWorkerHandler from './worker-handler.js';
+import createScanResultsManager from '../../services/scan-results-manager.js';
+import createDirectDiscoveryUpdater from '../direct-discovery-updater.js';
 import { DISCOVERY_TYPE, PROCESSING_STATUS } from '../../constants.js';
 
 export default function createQueueOrchestrator() {
@@ -21,6 +23,8 @@ export default function createQueueOrchestrator() {
     deltaProcessor: createQueueDeltaHandler(),
     scanningCoordinator: createScanningCoordinator(),
     workerHandler: createWorkerHandler(),
+    scanResultsManager: createScanResultsManager(),
+    directDiscoveryUpdater: createDirectDiscoveryUpdater(),
     config: null,
     daApi: null,
     sessionManager: null,
@@ -32,6 +36,56 @@ export default function createQueueOrchestrator() {
   };
 
   /**
+   * Trigger completion phase
+   * @returns {Promise<void>}
+   */
+  async function triggerCompletionPhase() {
+    try {
+      const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
+      const updatedDiscoveryFiles = await state.directDiscoveryUpdater.updateAllDiscoveryFiles(
+        state.config,
+        state.daApi,
+        state.scanResultsManager,
+        discoveryFiles,
+      );
+      let totalPages = 0;
+      let totalMedia = 0;
+      if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
+        updatedDiscoveryFiles.forEach((file) => {
+          if (file.documents && Array.isArray(file.documents)) {
+            totalPages += file.documents.length;
+            totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
+          }
+        });
+      }
+      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(totalPages, totalMedia);
+      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
+      if (state.sessionManager && typeof state.sessionManager.cleanupOldSessionFiles === 'function') {
+        await state.sessionManager.cleanupOldSessionFiles();
+      }
+      eventEmitter.emit('scanningStopped', {
+        status: 'completed',
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      eventEmitter.emit('error', { error: error.message });
+    }
+  }
+
+  /**
+   * Handle scanning completion
+   * @returns {Promise<void>}
+   */
+  async function handleScanningCompletion() {
+    console.log('[Queue Orchestrator] 🔄 Handling scanning completion');
+    try {
+      await triggerCompletionPhase();
+    } catch (error) {
+      console.error('[Queue Orchestrator] ❌ Failed to handle scanning completion:', error);
+    }
+  }
+
+  /**
    * Initialize queue orchestrator
    * @param {Object} config - Configuration object
    * @param {Object} daApi - DA API service
@@ -41,6 +95,7 @@ export default function createQueueOrchestrator() {
    * @param {Object} scanStateManager - Scan state manager instance
    * @param {Object} discoveryCoordinator - Discovery coordinator instance
    * @param {Object} scanCompletionHandler - Scan completion handler instance
+   * @param {Object} persistenceManager - Persistence manager instance
    */
   async function init(
     config,
@@ -79,8 +134,7 @@ export default function createQueueOrchestrator() {
     } else {
       state.scanCompletionHandler = scanCompletionHandler;
     }
-
-    // Set up event listeners for scan completion
+    await state.scanResultsManager.init(persistenceManager);
     if (state.scanCompletionHandler && typeof state.scanCompletionHandler.on === 'function') {
       state.scanCompletionHandler.on('siteStructureUpdated', (data) => {
         if (eventEmitter && typeof eventEmitter.emit === 'function') {
@@ -108,11 +162,33 @@ export default function createQueueOrchestrator() {
       state.processingStateManager,
       state.persistenceManager,
       state.scanCompletionHandler,
+      state.scanResultsManager,
     );
     await state.workerHandler.setupWorkerHandlers();
+    state.workerHandler.getEventEmitter().on('queueProcessingStopped', async (data) => {
+      if (data.reason === 'completed') {
+        try {
+          await handleScanningCompletion();
+        } catch (error) {
+          eventEmitter.emit('error', { error: error.message });
+        }
+      }
+    });
+    if (state.mediaProcessor && typeof state.mediaProcessor.on === 'function') {
+      state.mediaProcessor.on('mediaProcessingCompleted', async (_data) => {
+        try {
+          eventEmitter.emit('scanningStopped', {
+            status: 'completed',
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          eventEmitter.emit('error', { error: error.message });
+        }
+      });
+    }
     state.discoveryCoordinator.setupDiscoveryHandlers({
       discoveryComplete: async () => {
-        console.log('[Queue Orchestrator] 📡 Discovery complete event received, populating cache');
+        console.log('[Queue Orchestrator] 📡 Discovery complete event received');
         try {
           const freshDiscoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
           state.discoveryCoordinator.setDiscoveryFilesCache(freshDiscoveryFiles);
@@ -120,7 +196,7 @@ export default function createQueueOrchestrator() {
             (sum, file) => sum + (file.documents?.length || 0),
             0,
           );
-          console.log('[Queue Orchestrator] ✅ Discovery cache populated with fresh data:', {
+          console.log('[Queue Orchestrator] ✅ Discovery cache populated:', {
             fileCount: freshDiscoveryFiles.length,
             totalDocuments,
           });
@@ -132,25 +208,37 @@ export default function createQueueOrchestrator() {
   }
 
   /**
+   * Update scanning checkpoint for audit purposes when there are no changes
+   * @returns {Promise<void>}
+   */
+  async function updateScanningCheckpointForAudit() {
+    console.log('[Queue Orchestrator] 🔄 Updating scanning checkpoint for audit (no changes)');
+    try {
+      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(0, 0);
+      console.log('[Queue Orchestrator] ✅ Scanning checkpoint updated for audit.');
+    } catch (error) {
+      console.error('[Queue Orchestrator] ❌ Failed to update scanning checkpoint for audit:', error);
+    }
+  }
+
+  /**
    * Start scanning phase
    * @param {Object} discoveryFile - Discovery file
    * @param {boolean} forceRescan - Whether to force rescan
    * @returns {Promise<Object>} Scanning result
    */
   async function startScanningPhase(
-    discoveryFile = null,
+    _discoveryFile = null,
     forceRescan = false,
     incrementalChanges = null,
   ) {
     console.log('[Queue Orchestrator] 🔍 Starting scanning phase:', {
-      hasDiscoveryFile: !!discoveryFile,
       forceRescan,
       hasIncrementalChanges: !!incrementalChanges,
     });
-
     try {
       const result = await state.scanningCoordinator.startScanningPhase(
-        discoveryFile,
+        _discoveryFile,
         forceRescan,
         incrementalChanges,
       );
@@ -173,15 +261,10 @@ export default function createQueueOrchestrator() {
   async function determineDiscoveryType() {
     try {
       const checkpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
-
-      // Check if discovery files exist - if they do, use incremental
       const discoveryStatus = await state.discoveryCoordinator.checkDiscoveryFilesExist();
-
-      // If discovery files exist, use incremental discovery
       if (discoveryStatus.filesExist && discoveryStatus.fileCount > 0) {
         return DISCOVERY_TYPE.INCREMENTAL;
       }
-
       const discoveryType = checkpoint.status === PROCESSING_STATUS.COMPLETED
         ? DISCOVERY_TYPE.INCREMENTAL
         : DISCOVERY_TYPE.FULL;
@@ -209,26 +292,7 @@ export default function createQueueOrchestrator() {
         await startScanningPhase(null, forceRescan);
         try {
           await state.mediaProcessor.processAndUploadQueuedMedia();
-          const updatedDiscoveryFiles = await state.scanCompletionHandler
-            .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
-
-          // Calculate total pages and media count
-          let totalPages = 0;
-          let totalMedia = 0;
-          if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
-            updatedDiscoveryFiles.forEach((file) => {
-              if (file.documents && Array.isArray(file.documents)) {
-                totalPages += file.documents.length;
-                totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
-              }
-            });
-          }
-
-          await state.scanCompletionHandler
-            .updateScanningCheckpointAsCompleted(totalPages, totalMedia);
-          await state.scanCompletionHandler.updateAllDiscoveryFiles();
-          await state.scanCompletionHandler
-            .updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
+          await triggerCompletionPhase();
         } catch (uploadError) {
           return { success: false, error: uploadError.message };
         }
@@ -247,47 +311,24 @@ export default function createQueueOrchestrator() {
           sessionId,
           discoveryType,
         );
-        console.log(
-          '[Queue Orchestrator] 🔍 [INCREMENTAL] Discovery completed, checking for changes',
-        );
-
+        console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Discovery completed, checking for changes');
         if (discoveryResult && discoveryResult.hasChanges) {
-          console.log(
-            '[Queue Orchestrator] 🔍 [INCREMENTAL] Changes detected, processing incremental updates',
-          );
+          console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] Changes detected, processing incremental updates');
           await startScanningPhase(null, forceRescan, discoveryResult.incrementalChanges);
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
-            const updatedDiscoveryFiles = await state.scanCompletionHandler
-              .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
-            const scannedPages = updatedDiscoveryFiles?.flatMap((file) => file.documents?.filter((doc) => doc.scanStatus === 'completed').map((doc) => doc.path) || []) || [];
+            const scannedPages = await state.scanResultsManager.getAllScanResults();
             if (scannedPages.length > 0 && state.mediaProcessor) {
-              await state.mediaProcessor.cleanupMediaForUpdatedDocuments(scannedPages);
+              await state.mediaProcessor.cleanupMediaForUpdatedDocuments(
+                scannedPages.map((p) => p.pagePath),
+              );
             }
-            let totalPages = 0;
-            let totalMedia = 0;
-            if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
-              updatedDiscoveryFiles.forEach((file) => {
-                if (file.documents && Array.isArray(file.documents)) {
-                  totalPages += file.documents.length;
-                  totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
-                }
-              });
-            }
-            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
-              totalPages,
-              totalMedia,
-            );
-            await state.scanCompletionHandler.updateAllDiscoveryFiles();
-            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
-              updatedDiscoveryFiles,
-            );
+            await triggerCompletionPhase();
           } catch (uploadError) {
             return { success: false, error: uploadError.message };
           }
         } else {
           console.log('[Queue Orchestrator] 🔍 [INCREMENTAL] No changes detected, updating scanning checkpoint for audit');
-          // eslint-disable-next-line no-use-before-define
           await updateScanningCheckpointForAudit();
         }
       } else if (discoveryStatus.shouldRunDiscovery) {
@@ -297,26 +338,7 @@ export default function createQueueOrchestrator() {
           await startScanningPhase(null, forceRescan);
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
-            const updatedDiscoveryFiles = await state.scanCompletionHandler
-              .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
-            let totalPages = 0;
-            let totalMedia = 0;
-            if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
-              updatedDiscoveryFiles.forEach((file) => {
-                if (file.documents && Array.isArray(file.documents)) {
-                  totalPages += file.documents.length;
-                  totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
-                }
-              });
-            }
-            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
-              totalPages,
-              totalMedia,
-            );
-            await state.scanCompletionHandler.updateAllDiscoveryFiles();
-            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
-              updatedDiscoveryFiles,
-            );
+            await triggerCompletionPhase();
           } catch (uploadError) {
             return { success: false, error: uploadError.message };
           }
@@ -328,28 +350,7 @@ export default function createQueueOrchestrator() {
           await startScanningPhase(null, forceRescan);
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
-            const updatedDiscoveryFiles = await state.scanCompletionHandler
-              .syncDiscoveryFilesCacheWithLocalStorage(
-                state.discoveryCoordinator,
-              );
-            let totalPages = 0;
-            let totalMedia = 0;
-            if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
-              updatedDiscoveryFiles.forEach((file) => {
-                if (file.documents && Array.isArray(file.documents)) {
-                  totalPages += file.documents.length;
-                  totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
-                }
-              });
-            }
-            await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
-              totalPages,
-              totalMedia,
-            );
-            await state.scanCompletionHandler.updateAllDiscoveryFiles();
-            await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
-              updatedDiscoveryFiles,
-            );
+            await triggerCompletionPhase();
           } catch (uploadError) {
             return { success: false, error: uploadError.message };
           }
@@ -372,7 +373,6 @@ export default function createQueueOrchestrator() {
       saveState,
       status,
     });
-
     try {
       await state.discoveryCoordinator.stopDiscovery();
       console.log('[Queue Orchestrator] ✅ Queue scanning stopped successfully');
@@ -478,51 +478,6 @@ export default function createQueueOrchestrator() {
   }
 
   /**
-   * Trigger completion phase
-   * @returns {Promise<void>}
-   */
-  async function triggerCompletionPhase() {
-    try {
-      // Sync cache with IndexedDB scan results FIRST
-      const updatedDiscoveryFiles = await state.scanCompletionHandler
-        .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
-
-      // Calculate total pages and media count from updated discovery files
-      let totalPages = 0;
-      let totalMedia = 0;
-      if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
-        updatedDiscoveryFiles.forEach((file) => {
-          if (file.documents && Array.isArray(file.documents)) {
-            totalPages += file.documents.length;
-            totalMedia += file.documents.reduce((sum, doc) => sum + (doc.mediaCount || 0), 0);
-          }
-        });
-      }
-
-      // Update scanning checkpoint as completed with final counts
-      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(totalPages, totalMedia);
-
-      // Update DA files with the updated cache data
-      await state.scanCompletionHandler.updateAllDiscoveryFiles(updatedDiscoveryFiles);
-
-      // Create site structure with the updated cache data
-      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(updatedDiscoveryFiles);
-
-      // Cleanup old session files after scanning is complete
-      if (state.sessionManager && typeof state.sessionManager.cleanupOldSessionFiles === 'function') {
-        await state.sessionManager.cleanupOldSessionFiles();
-      }
-
-      eventEmitter.emit('scanningStopped', {
-        status: 'completed',
-        timestamp: Date.now(),
-      });
-    } catch (error) {
-      eventEmitter.emit('error', { error: error.message });
-    }
-  }
-
-  /**
    * Get current statistics
    * @returns {Object}
    */
@@ -566,7 +521,6 @@ export default function createQueueOrchestrator() {
       hasDiscoveryFile: !!discoveryFile,
       documentCount: documents ? documents.length : 0,
     });
-
     try {
       await state.documentProcessor.addDocumentsForScanning(discoveryFile, documents);
       console.log('[Queue Orchestrator] ✅ Documents added for scanning');
@@ -653,21 +607,6 @@ export default function createQueueOrchestrator() {
    */
   function emit(event, data) {
     eventEmitter.emit(event, data);
-  }
-
-  /**
-   * Update scanning checkpoint for audit purposes when there are no changes.
-   * This function is used to update the checkpoint without running the scanning phase.
-   * @returns {Promise<void>}
-   */
-  async function updateScanningCheckpointForAudit() {
-    console.log('[Queue Orchestrator] 🔄 Updating scanning checkpoint for audit (no changes)');
-    try {
-      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(0, 0);
-      console.log('[Queue Orchestrator] ✅ Scanning checkpoint updated for audit.');
-    } catch (error) {
-      console.error('[Queue Orchestrator] ❌ Failed to update scanning checkpoint for audit:', error);
-    }
   }
 
   return {

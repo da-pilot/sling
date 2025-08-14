@@ -16,25 +16,23 @@
     </div>
     
     <div class="status-section" id="statusSection" style="display: none;">
-      <div class="status-text" id="statusText">Initializing...</div>
-      <div class="progress-bar">
-        <div class="progress-fill" id="progressFill"></div>
-      </div>
-      
       <div class="metrics-grid">
-        <div class="metric-box">
+        <div class="metric-box folders-box">
           <div class="metric-label">Folders</div>
           <div class="metric-value" id="foldersValue">0</div>
         </div>
-        <div class="metric-box">
+        <div class="metric-box pages-box">
           <div class="metric-label">Pages</div>
           <div class="metric-value" id="pagesValue">0</div>
         </div>
-        <div class="metric-box">
+        <div class="metric-box scanned-box" style="position: relative;">
           <div class="metric-label">Scanned</div>
           <div class="metric-value" id="scannedValue">0</div>
+          <div class="completion-indicator" id="completionIndicator">
+            ✓
+          </div>
         </div>
-        <div class="metric-box">
+        <div class="metric-box media-box">
           <div class="metric-label">Media</div>
           <div class="metric-value" id="mediaValue">0</div>
         </div>

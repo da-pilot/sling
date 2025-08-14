@@ -14,6 +14,7 @@ export default function createWorkerHandler() {
     sessionManager: null,
     scanCompletionHandler: null,
     processingStateManager: null,
+    scanResultsManager: null,
     currentScanningSession: {
       sessionId: null,
       documentsToScan: [],
@@ -28,7 +29,7 @@ export default function createWorkerHandler() {
         totalMedia: 0,
         processedCount: 0,
       },
-      saveInterval: 5000, // Save checkpoint every 5 seconds
+      saveInterval: 5000,
       saveTimer: null,
     },
   };
@@ -41,6 +42,9 @@ export default function createWorkerHandler() {
    * @param {Object} mediaProcessor - Media processor instance
    * @param {Object} sessionManager - Session manager instance
    * @param {Object} processingStateManager - Processing state manager instance
+   * @param {Object} persistenceManager - Persistence manager instance
+   * @param {Object} scanCompletionHandler - Scan completion handler instance
+   * @param {Object} scanResultsManager - Scan results manager instance
    */
   async function init(
     workerManager,
@@ -51,6 +55,7 @@ export default function createWorkerHandler() {
     processingStateManager,
     persistenceManager,
     scanCompletionHandler,
+    scanResultsManager,
   ) {
     state.workerManager = workerManager;
     state.discoveryCoordinator = discoveryCoordinator;
@@ -60,12 +65,9 @@ export default function createWorkerHandler() {
     state.processingStateManager = processingStateManager;
     state.persistenceManager = persistenceManager;
     state.scanCompletionHandler = scanCompletionHandler;
-
-    // Listen for media processor completion to stop scanning
+    state.scanResultsManager = scanResultsManager;
     if (mediaProcessor && typeof mediaProcessor.on === 'function') {
-      mediaProcessor.on('mediaProcessingCompleted', async (data) => {
-        console.log('[Worker Handler] 📡 Media processor completed, stopping scanning:', data);
-        // Stop the scanning session when media processing is complete
+      mediaProcessor.on('mediaProcessingCompleted', async (_data) => {
         if (state.currentScanningSession.isActive) {
           const worker = await state.workerManager.getDefaultWorker();
           if (worker) {
@@ -96,10 +98,6 @@ export default function createWorkerHandler() {
       totalDocuments: documentsToScan.length,
       isActive: true,
     };
-    console.log('[Worker Handler] 🔄 Initialized scanning session:', {
-      sessionId,
-      totalDocuments: documentsToScan.length,
-    });
   }
 
   /**
@@ -135,8 +133,10 @@ export default function createWorkerHandler() {
     if (!state.currentScanningSession.isActive) {
       return true;
     }
-    return state.currentScanningSession.scannedDocuments.size
-      >= state.currentScanningSession.totalDocuments;
+    return (
+      state.currentScanningSession.scannedDocuments.size
+       >= state.currentScanningSession.totalDocuments
+    );
   }
 
   /**
@@ -175,12 +175,10 @@ export default function createWorkerHandler() {
     if (!state.processingStateManager) {
       return;
     }
-
     const { pendingUpdates } = state.checkpointThrottling;
     if (pendingUpdates.processedCount === 0) {
       return;
     }
-
     try {
       const currentProgress = await state.processingStateManager.loadScanningCheckpoint();
       const newScannedPages = (currentProgress.scannedPages || 0) + pendingUpdates.scannedPages;
@@ -196,20 +194,11 @@ export default function createWorkerHandler() {
         discoveryType: currentProgress.discoveryType || 'full',
         lastUpdated: Date.now(),
       };
-
       await state.processingStateManager.saveScanningCheckpointFile(updatedProgress);
       state.checkpointThrottling.lastSaveTime = Date.now();
-
-      console.log('[Worker Handler] 💾 Checkpoint saved:', {
-        scannedPages: newScannedPages,
-        totalPages,
-        totalMedia: updatedProgress.totalMedia,
-        status: updatedProgress.status,
-      });
     } catch (error) {
-      console.error('[Worker Handler] ❌ Failed to save checkpoint:', error);
+      eventEmitter.emit('error', { error: error.message });
     } finally {
-      // Reset pending updates
       state.checkpointThrottling.pendingUpdates = {
         scannedPages: 0,
         totalMedia: 0,
@@ -240,8 +229,6 @@ export default function createWorkerHandler() {
     pendingUpdates.scannedPages += updates.scannedPages || 0;
     pendingUpdates.totalMedia += updates.totalMedia || 0;
     pendingUpdates.processedCount += updates.processedCount || 0;
-
-    // Schedule a save if not already scheduled
     if (!state.checkpointThrottling.saveTimer) {
       state.checkpointThrottling.saveTimer = setTimeout(async () => {
         await savePendingCheckpointUpdates();
@@ -258,13 +245,11 @@ export default function createWorkerHandler() {
   async function processMediaImmediately(media, sessionId) {
     try {
       if (!state.mediaProcessor) {
-        console.warn('[Worker Handler] ⚠️ No media processor available');
         return;
       }
       if (sessionId && state.sessionManager) {
         const sessionIdFromManager = state.sessionManager.getCurrentSession();
         if (sessionIdFromManager) {
-          // Get session data from active sessions
           const activeSessions = await state.sessionManager.getActiveSessions();
           const sessionData = activeSessions.find(
             (session) => session.sessionId === sessionIdFromManager,
@@ -276,25 +261,14 @@ export default function createWorkerHandler() {
               sessionData.browserId,
             );
           } else {
-            // Fallback: use the sessionId passed from the worker
-            state.mediaProcessor.setCurrentSession(
-              sessionId,
-              null,
-              null,
-            );
+            state.mediaProcessor.setCurrentSession(sessionId, null, null);
           }
         } else {
-          // Fallback: use the sessionId passed from the worker
-          state.mediaProcessor.setCurrentSession(
-            sessionId,
-            null,
-            null,
-          );
+          state.mediaProcessor.setCurrentSession(sessionId, null, null);
         }
       }
       await state.mediaProcessor.queueMediaForBatchProcessing(media);
     } catch (error) {
-      console.error('[Worker Handler] ❌ Error in processMediaImmediately:', error);
       eventEmitter.emit('error', { error: error.message });
     }
   }
@@ -302,18 +276,10 @@ export default function createWorkerHandler() {
   /**
    * Handle scanning completion
    * @param {number} processedCount - Number of processed documents
-   * @returns {Promise<void>}
+   * @returns {Promise<boolean>} Success status
    */
-  async function handleScanningCompletion(processedCount = 0) {
-    try {
-      console.log('[Worker Handler] 🔄 Worker scanning completed with processedCount:', processedCount);
-      // Worker completion is now handled by Queue Orchestrator
-      // Scan completion methods are called by Queue Orchestrator after discovery phase
-      return true;
-    } catch (error) {
-      console.error('[Worker Handler] ❌ Error in handleScanningCompletion:', error);
-      return false;
-    }
+  async function handleScanningCompletion(_processedCount = 0) {
+    return true;
   }
 
   /**
@@ -328,38 +294,22 @@ export default function createWorkerHandler() {
     const handlers = {
       onQueueProcessingStarted: (data) => {
         eventEmitter.emit('queueProcessingStarted', data);
-        // Initialize scanning session when queue processing starts
-        if (data?.sessionId && !state.currentScanningSession.isActive) {
-          console.log('[Worker Handler] 🔄 Queue processing started, will initialize session when first batch is requested');
+        if (data?.documentsToScan && data?.sessionId && !state.currentScanningSession.isActive) {
+          initializeScanningSession(data.documentsToScan, data.sessionId);
         }
       },
       onRequestBatch: async () => {
-        // If no scanning session is active, initialize one
         if (!state.currentScanningSession.isActive) {
-          const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
-          const documentsToScan = state.documentProcessor.getDocumentsToScan(discoveryFiles, false);
-          const sessionId = state.sessionManager?.getCurrentSession();
-          initializeScanningSession(documentsToScan, sessionId);
+          return;
         }
-
         const batch = getNextBatch(10);
         const progress = getScanningSessionProgress();
-
-        console.log('[Worker Handler] 📦 Requesting batch:', {
-          batchSize: batch.length,
-          progress: `${progress.scanned}/${progress.total}`,
-          isComplete: progress.isComplete,
-        });
-
         if (batch.length > 0) {
-          console.log('[Worker Handler] 📤 Sending batch to worker:', batch.length, 'documents');
           worker.postMessage({
             type: 'processBatch',
             data: { batch },
           });
         } else {
-          console.log('[Worker Handler] ✅ No more documents to scan, stopping queue processing');
-          // Force save final checkpoint before stopping
           await forceSaveCheckpoint();
           worker.postMessage({
             type: 'queueProcessingStopped',
@@ -374,13 +324,9 @@ export default function createWorkerHandler() {
       },
       onPageScanned: async (data) => {
         eventEmitter.emit('pageScanned', data);
-
-        // Mark document as scanned in current session
         if (data?.page) {
           markDocumentAsScanned(data.page);
         }
-
-        // Emit progress event for UI updates
         const progress = getScanningSessionProgress();
         eventEmitter.emit('pageProgress', {
           pagePath: data?.page,
@@ -391,37 +337,24 @@ export default function createWorkerHandler() {
           isComplete: progress.isComplete,
           timestamp: Date.now(),
         });
-
-        if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
-          const updateData = {
-            fileName: data.sourceFile,
+        if (data?.page && data?.sourceFile && state.scanResultsManager) {
+          await state.scanResultsManager.saveScanResult({
             pagePath: data.page,
+            sourceFile: data.sourceFile,
             status: 'completed',
             mediaCount: data?.mediaCount || 0,
-            error: null,
-          };
-          state.discoveryCoordinator.updateDiscoveryFileInCache(
-            updateData.fileName,
-            updateData.pagePath,
-            updateData.status,
-            updateData.mediaCount,
-            updateData.error,
-          );
-          if (state.persistenceManager) {
-            await state.persistenceManager.savePageScanStatus({
-              pagePath: data.page,
-              sourceFile: data.sourceFile,
-              status: 'completed',
-              mediaCount: data?.mediaCount || 0,
-              sessionId: state.sessionManager?.getCurrentSession(),
-            });
-          }
+            scanAttempts: 1,
+            entryStatus: 'completed',
+            needsRescan: false,
+            lastScannedAt: new Date().toISOString(),
+            scanErrors: [],
+            sessionId: state.sessionManager?.getCurrentSession(),
+          });
         }
       },
       onBatchComplete: async (data) => {
         eventEmitter.emit('batchComplete', data);
         if (data?.processedCount) {
-          // Emit progress event for UI updates
           const progress = getScanningSessionProgress();
           eventEmitter.emit('scanningProgress', {
             scannedPages: progress.scanned,
@@ -431,8 +364,6 @@ export default function createWorkerHandler() {
             totalMedia: data?.totalMedia || 0,
             timestamp: Date.now(),
           });
-
-          // Queue checkpoint update for throttled persistence (less frequent)
           queueCheckpointUpdate({
             scannedPages: data.processedCount,
             totalMedia: data?.totalMedia || 0,
@@ -442,36 +373,28 @@ export default function createWorkerHandler() {
       },
       onPageScanError: async (data) => {
         eventEmitter.emit('pageScanError', data);
-
-        // Mark document as scanned even if it failed (to avoid infinite retries)
         if (data?.page) {
           markDocumentAsScanned(data.page);
         }
-
-        if (data?.page && data?.sourceFile && state.discoveryCoordinator) {
-          const updateData = {
-            fileName: data.sourceFile,
+        if (data?.page && data?.sourceFile && state.scanResultsManager) {
+          await state.scanResultsManager.saveScanResult({
             pagePath: data.page,
+            sourceFile: data.sourceFile,
             status: 'failed',
             mediaCount: 0,
-            error: data?.error || 'Unknown error',
-          };
-          state.discoveryCoordinator.updateDiscoveryFileInCache(
-            updateData.fileName,
-            updateData.pagePath,
-            updateData.status,
-            updateData.mediaCount,
-            updateData.error,
-          );
+            scanAttempts: 1,
+            entryStatus: 'failed',
+            needsRescan: true,
+            lastScannedAt: new Date().toISOString(),
+            scanErrors: [data?.error || 'Unknown error'],
+            sessionId: state.sessionManager?.getCurrentSession(),
+          });
         }
       },
       onQueueProcessingStopped: async (data) => {
-        console.log('[Worker Handler] 📡 Received queueProcessingStopped:', data);
         if (data.reason === 'completed' || data.reason === 'media_processing_completed') {
-          console.log('[Worker Handler] 🔄 Calling handleScanningCompletion with processedCount:', data.processedCount);
           await handleScanningCompletion(data.processedCount || 0);
         }
-        // Force save any pending checkpoint updates
         await forceSaveCheckpoint();
         resetScanningSession();
         eventEmitter.emit('queueProcessingStopped', data);
@@ -483,8 +406,6 @@ export default function createWorkerHandler() {
         await processMediaImmediately(data.media, data.sessionId);
       },
     };
-
-    // Set up message forwarding for the worker
     worker.addEventListener('message', (event) => {
       const { type, data } = event.data;
       const handler = handlers[`on${type.charAt(0).toUpperCase() + type.slice(1)}`];
@@ -492,8 +413,6 @@ export default function createWorkerHandler() {
         handler(data);
       }
     });
-
-    // Store handlers for potential reuse
     state.currentHandlers = handlers;
   }
 
@@ -526,7 +445,6 @@ export default function createWorkerHandler() {
     handleScanningCompletion,
     getEventEmitter,
     cleanup,
-    // Expose session management methods for testing/debugging
     initializeScanningSession,
     getScanningSessionProgress,
     resetScanningSession,

@@ -199,11 +199,13 @@ async function scanPageForMedia(page) {
         },
       },
     });
+
     postMessage({
       type: 'markPageScanned',
       data: { path: pagePath || '' },
     });
   } catch (error) {
+    console.error(`[Media Scan Worker] ❌ Error scanning page ${pagePath}:`, error);
     postMessage({
       type: 'pageScanError',
       data: {
@@ -677,6 +679,10 @@ async function discoverFolder(folderPath) {
       },
     });
   } catch (error) {
+    console.error('[Media Scan Worker] ❌ Error discovering folder:', {
+      folderPath,
+      error: error.message,
+    });
     postMessage({
       type: 'folderDiscoveryError',
       data: {
@@ -688,25 +694,33 @@ async function discoverFolder(folderPath) {
 }
 
 async function discoverFolderRecursive(folderPath, allDocuments) {
-  const items = await daApi.listPath(folderPath);
+  try {
+    const items = await daApi.listPath(folderPath);
 
-  const htmlFiles = items
-    .filter((item) => item.ext && item.ext === 'html')
-    .map((item) => ({
-      path: item.path,
-      name: item.name,
-      ext: item.ext,
-      size: item.size,
-      lastModified: item.lastModified,
-      discoveredAt: Date.now(),
-    }));
+    const htmlFiles = items
+      .filter((item) => item.ext && item.ext === 'html')
+      .map((item) => ({
+        path: item.path,
+        name: item.name,
+        ext: item.ext,
+        size: item.size,
+        lastModified: item.lastModified,
+        discoveredAt: Date.now(),
+      }));
 
-  const subfolders = items.filter((item) => !item.ext);
+    const subfolders = items.filter((item) => !item.ext);
 
-  allDocuments.push(...htmlFiles);
-  const mapSubfolder = (subfolder) => discoverFolderRecursive(subfolder.path, allDocuments);
-  const subfolderPromises = subfolders.map(mapSubfolder);
-  await Promise.all(subfolderPromises);
+    allDocuments.push(...htmlFiles);
+    const mapSubfolder = (subfolder) => discoverFolderRecursive(subfolder.path, allDocuments);
+    const subfolderPromises = subfolders.map(mapSubfolder);
+    await Promise.all(subfolderPromises);
+  } catch (error) {
+    console.error('[Media Scan Worker] ❌ Error in recursive discovery:', {
+      folderPath,
+      error: error.message,
+    });
+    throw error;
+  }
 }
 
 function stopQueueProcessing() {
@@ -743,6 +757,7 @@ self.addEventListener('message', async (event) => {
           for (let i = 0; i < data.documentsToScan.length; i += batchSize) {
             batches.push(data.documentsToScan.slice(i, i + batchSize));
           }
+
           await Promise.all(batches.map(processBatch));
           postMessage({
             type: 'queueProcessingStopped',

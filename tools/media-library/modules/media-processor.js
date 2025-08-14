@@ -112,6 +112,12 @@ export default function createMediaProcessor() {
       existingMedia = mergedMedia;
       state.stats.totalProcessed += batch.media.length;
       state.stats.totalMedia = mergedMedia.length;
+      eventEmitter.emit('mediaItemUploaded', {
+        timestamp: Date.now(),
+        sessionId: state.currentSessionId,
+        totalMedia: state.stats.totalMedia,
+        processedCount: state.stats.totalProcessed,
+      });
       // eslint-disable-next-line no-await-in-loop
       await state.persistenceManager.removeBatch(batch.id);
     }

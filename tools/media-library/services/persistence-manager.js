@@ -417,18 +417,36 @@ export default function createPersistenceManager() {
    */
   async function savePageScanStatus(data) {
     try {
-      const statuses = await getStoreData(state.stores.pageScanStatus);
-      const existingIndex = statuses.findIndex((status) => status.pagePath === data.pagePath);
+      return new Promise((resolve, reject) => {
+        if (!state.db) {
+          reject(new Error('Database not initialized'));
+          return;
+        }
 
-      if (existingIndex !== -1) {
-        statuses[existingIndex] = { ...statuses[existingIndex], ...data, lastUpdated: Date.now() };
-      } else {
-        statuses.push({ ...data, lastUpdated: Date.now() });
-      }
-
-      await saveStoreData(state.stores.pageScanStatus, statuses);
+        const transaction = state.db.transaction([state.stores.pageScanStatus], 'readwrite');
+        const store = transaction.objectStore(state.stores.pageScanStatus);
+        
+        // Use pagePath as unique identifier
+        const record = { 
+          id: data.pagePath, // Use pagePath as unique key
+          ...data, 
+          lastUpdated: Date.now() 
+        };
+        
+        const request = store.put(record); // put() adds or updates
+        
+        request.onsuccess = () => {
+          resolve(true);
+        };
+        
+        request.onerror = () => {
+          console.error('[IndexedDB] ❌ Error saving page scan status:', request.error);
+          reject(request.error);
+        };
+      });
     } catch (error) {
       console.error('[IndexedDB] ❌ Error saving page scan status:', error);
+      throw error;
     }
   }
 
@@ -471,9 +489,22 @@ export default function createPersistenceManager() {
   async function getCompletedPagesByFile(fileName) {
     try {
       const pageStatuses = await getStoreData(state.stores.pageScanStatus);
-      return pageStatuses.filter((status) => status.fileName === fileName && status.scanStatus === 'completed');
+      return pageStatuses.filter((status) => status.sourceFile === fileName && status.status === 'completed');
     } catch (error) {
       console.error('[IndexedDB] ❌ Error getting completed pages by file:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all scan results by source file name
+   */
+  async function getScanResultsBySourceFile(sourceFile) {
+    try {
+      const pageStatuses = await getStoreData(state.stores.pageScanStatus);
+      return pageStatuses.filter((status) => status.sourceFile === sourceFile);
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error getting scan results by source file:', error);
       return [];
     }
   }
@@ -555,10 +586,13 @@ export default function createPersistenceManager() {
     saveMedia,
     checkMediaBySrc,
     getCompletedPagesByFile,
+    getScanResultsBySourceFile,
     clearIndexDBExceptCheckpoints,
     resetDatabase,
     saveDiscoveryCheckpointFile,
     loadAllDiscoveryFiles,
     ensureRequiredFolders,
+    getStoreData,
+    saveStoreData,
   };
 }

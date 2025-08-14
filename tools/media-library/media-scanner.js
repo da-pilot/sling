@@ -31,22 +31,30 @@ const ui = {
   pathInput: null,
   startScanBtn: null,
   statusSection: null,
-  statusText: null,
-  progressFill: null,
   foldersValue: null,
   pagesValue: null,
   scannedValue: null,
   mediaValue: null,
+  completionIndicator: null,
 };
-function updateStatus(text, progress = 0) {
-  if (ui.statusText) ui.statusText.textContent = text;
-  if (ui.progressFill) ui.progressFill.style.width = `${progress}%`;
-}
+
 function updateMetrics(folders = 0, pages = 0, scanned = 0, media = 0) {
   if (ui.foldersValue) ui.foldersValue.textContent = folders;
   if (ui.pagesValue) ui.pagesValue.textContent = pages;
   if (ui.scannedValue) ui.scannedValue.textContent = scanned;
   if (ui.mediaValue) ui.mediaValue.textContent = media;
+}
+
+function showCompletionIndicator() {
+  if (ui.completionIndicator) {
+    ui.completionIndicator.style.display = 'block';
+  }
+}
+
+function hideCompletionIndicator() {
+  if (ui.completionIndicator) {
+    ui.completionIndicator.style.display = 'none';
+  }
 }
 function parsePath(path) {
   const match = path.match(/^\/([^/]+)\/([^/]+)$/);
@@ -67,8 +75,6 @@ async function updateProgressFromCheckpoints() {
     } catch (error) {
       console.log('[Media Scanner] ⚠️ No scanning checkpoint yet:', error.message);
     }
-    let progress = 0;
-    let status = 'Initializing...';
     let folders = 0;
     let pages = 0;
     let scanned = 0;
@@ -78,12 +84,8 @@ async function updateProgressFromCheckpoints() {
       if (discoveryCheckpoint.status === 'running') {
         const total = discoveryCheckpoint.totalFolders || 1;
         const completed = discoveryCheckpoint.completedFolders || 0;
-        progress = 50 + Math.round((completed / total) * 25);
-        status = `Discovery: ${completed}/${total} folders`;
-        console.log('[Media Scanner] 🔄 Discovery running:', { completed, total, progress });
+        console.log('[Media Scanner] 🔄 Discovery running:', { completed, total });
       } else if (discoveryCheckpoint.status === 'completed') {
-        progress = 75;
-        status = 'Discovery completed, starting scanning...';
         console.log('[Media Scanner] ✅ Discovery completed, scanning should be handled by queue orchestrator...');
       }
     }
@@ -94,28 +96,22 @@ async function updateProgressFromCheckpoints() {
       if (scanningCheckpoint.status === 'running') {
         const total = scanningCheckpoint.totalPages || 1;
         const scannedPages = scanningCheckpoint.scannedPages || 0;
-        progress = 75 + Math.round((scannedPages / total) * 20);
-        status = `Scanning: ${scannedPages}/${total} pages`;
         console.log('[Media Scanner] 🔄 Scanning running:', {
-          scannedPages, total, progress, media,
+          scannedPages, total, media,
         });
       } else if (scanningCheckpoint.status === 'completed') {
-        progress = 100;
-        status = 'Scan completed!';
         console.log('[Media Scanner] 🎉 Scan completed!', { pages, scanned, media });
         isScanning = false;
         ui.startScanBtn.disabled = false;
       }
     }
     console.log('[Media Scanner] 📈 Updating UI:', {
-      status, progress, folders, pages, scanned, media,
+      folders, pages, scanned, media,
     });
-    updateStatus(status, progress);
     updateMetrics(folders, pages, scanned, media);
   } catch (error) {
     if (!error.message.includes('404')) {
       console.error('[Media Scanner] ❌ Progress error:', error);
-      updateStatus(`Progress error: ${error.message}`, 0);
     }
   }
 }
@@ -137,7 +133,6 @@ function stopProgressUpdates() {
 async function initializeServices() {
   try {
     console.log('[Media Scanner] 🔧 Initializing services...');
-    updateStatus('Initializing services...', 10);
     const path = ui.pathInput.value.trim();
     parsePath(path);
     const { context, actions, token } = await DA_SDK;
@@ -182,26 +177,17 @@ async function initializeServices() {
       scanCompletionHandler,
       persistenceManager || null,
     );
-    queueOrchestrator.on('scanningStopped', async (data) => {
-      console.log('[Media Scanner] 📡 Received scanningStopped event:', data);
-      try {
-        await queueOrchestrator.triggerCompletionPhase();
-        console.log('[Media Scanner] ✅ Completion phase triggered successfully');
-      } catch (error) {
-        console.error('[Media Scanner] ❌ Error triggering completion phase:', error);
-      }
+    queueOrchestrator.on('scanningStopped', async (_data) => {
       isScanning = false;
       ui.startScanBtn.disabled = false;
       stopProgressUpdates();
+      showCompletionIndicator();
     });
-    queueOrchestrator.on('scanningStarted', () => {
-      console.log('[Media Scanner] 📡 Received scanningStarted event');
+    queueOrchestrator.on('scanningStarted', (_data) => {
     });
     queueOrchestrator.on('siteStructureUpdated', (data) => {
-      console.log('[Media Scanner] 📡 Received siteStructureUpdated event:', data);
       isScanning = false;
       ui.startScanBtn.disabled = false;
-      updateStatus('Scan completed!', 100);
       updateMetrics(
         data.totalFolders || 0,
         data.totalFiles || 0,
@@ -209,11 +195,9 @@ async function initializeServices() {
         data.totalMediaItems || 0,
       );
       stopProgressUpdates();
+      showCompletionIndicator();
     });
     queueOrchestrator.on('scanningProgress', (data) => {
-      const progress = Math.round((data.scannedPages / data.totalPages) * 20) + 75;
-      const status = `Scanning: ${data.scannedPages}/${data.totalPages} pages`;
-      updateStatus(status, progress);
       updateMetrics(0, data.totalPages, data.scannedPages, data.totalMedia || 0);
     });
     queueOrchestrator.on('pageProgress', (data) => {
@@ -225,14 +209,11 @@ async function initializeServices() {
         totalMedia: data.totalMedia,
       });
     });
-    queueOrchestrator.on('batchProcessingStarted', () => {
-      console.log('[Media Scanner] 📡 Received batchProcessingStarted event');
+    queueOrchestrator.on('batchProcessingStarted', (_data) => {
     });
-    queueOrchestrator.on('batchUploaded', (data) => {
-      console.log('[Media Scanner] 📡 Received batchUploaded event:', data);
+    queueOrchestrator.on('batchUploaded', (_data) => {
     });
-    queueOrchestrator.on('batchProcessingComplete', () => {
-      console.log('[Media Scanner] 📡 Received batchProcessingComplete event');
+    queueOrchestrator.on('batchProcessingComplete', (_data) => {
     });
     queueOrchestrator.on('batchProcessingFailed', (data) => {
       console.error('[Media Scanner] ❌ Received batchProcessingFailed event:', data);
@@ -241,9 +222,22 @@ async function initializeServices() {
       console.error('[Media Scanner] ❌ Received error event:', data);
     });
     if (mediaProcessor && typeof mediaProcessor.on === 'function') {
+      mediaProcessor.on('mediaItemUploaded', (data) => {
+        const currentMetrics = {
+          folders: ui.foldersValue ? parseInt(ui.foldersValue.textContent, 10) || 0 : 0,
+          pages: ui.pagesValue ? parseInt(ui.pagesValue.textContent, 10) || 0 : 0,
+          scanned: ui.scannedValue ? parseInt(ui.scannedValue.textContent, 10) || 0 : 0,
+          media: data.totalMedia || 0,
+        };
+        updateMetrics(
+          currentMetrics.folders,
+          currentMetrics.pages,
+          currentMetrics.scanned,
+          currentMetrics.media,
+        );
+      });
       mediaProcessor.on('mediaProcessingCompleted', (data) => {
         console.log('[Media Scanner] 📡 Media processing completed:', data);
-        // Update media count from the media processor stats
         const currentMetrics = {
           folders: ui.foldersValue ? parseInt(ui.foldersValue.textContent, 10) || 0 : 0,
           pages: ui.pagesValue ? parseInt(ui.pagesValue.textContent, 10) || 0 : 0,
@@ -258,10 +252,8 @@ async function initializeServices() {
         );
       });
     }
-    updateStatus('Services initialized', 20);
     return true;
   } catch (error) {
-    updateStatus(`Error: ${error.message}`, 0);
     console.error('[Media Scanner] ❌ Failed to initialize services:', error);
     return false;
   }
@@ -280,7 +272,7 @@ async function startFullScan() {
     isScanning = true;
     ui.startScanBtn.disabled = true;
     ui.statusSection.style.display = 'block';
-    updateStatus('Starting scan...', 30);
+    hideCompletionIndicator();
     // Generate user and browser IDs for session management
     currentUserId = `scanner-${Date.now()}`;
     currentBrowserId = `browser-${Date.now()}`;
@@ -292,7 +284,6 @@ async function startFullScan() {
     if (mediaProcessor) {
       mediaProcessor.setCurrentSession(sessionId, currentUserId, currentBrowserId);
     }
-    updateStatus('Starting queue scanning...', 40);
     console.log('[Media Scanner] 🔍 Starting queue scanning...');
     // Use queue orchestrator to start the full scanning process
     await queueOrchestrator.startQueueScanning(
@@ -302,11 +293,9 @@ async function startFullScan() {
       currentBrowserId,
     );
     console.log('[Media Scanner] ✅ Queue scanning started successfully');
-    updateStatus('Queue scanning in progress...', 50);
     startProgressUpdates();
   } catch (error) {
     console.error('[Media Scanner] ❌ Failed to start scan:', error);
-    updateStatus(`Error: ${error.message}`, 0);
     isScanning = false;
     ui.startScanBtn.disabled = false;
   }
@@ -315,12 +304,11 @@ function initializeUI() {
   ui.pathInput = document.getElementById('pathInput');
   ui.startScanBtn = document.getElementById('startScanBtn');
   ui.statusSection = document.getElementById('statusSection');
-  ui.statusText = document.getElementById('statusText');
-  ui.progressFill = document.getElementById('progressFill');
   ui.foldersValue = document.getElementById('foldersValue');
   ui.pagesValue = document.getElementById('pagesValue');
   ui.scannedValue = document.getElementById('scannedValue');
   ui.mediaValue = document.getElementById('mediaValue');
+  ui.completionIndicator = document.getElementById('completionIndicator');
   ui.startScanBtn.addEventListener('click', startFullScan);
 }
 document.addEventListener('DOMContentLoaded', () => {
