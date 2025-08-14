@@ -1,14 +1,15 @@
 /* eslint-disable no-use-before-define */
 /**
- * Persistence Manager - Handles local database operations for media library
+ * Persistence Manager - Handles IndexedDB storage operations for media library
  * Provides persistent storage for media metadata, scan progress, and batch processing
+ * Uses IndexedDB for better performance and larger storage capacity
  */
 
 export default function createPersistenceManager() {
   const state = {
-    db: null,
     dbName: 'MediaLibraryDB',
-    dbVersion: 4,
+    dbVersion: 1, // Use consistent version
+    db: null,
     stores: {
       media: 'media',
       scanProgress: 'scanProgress',
@@ -21,802 +22,543 @@ export default function createPersistenceManager() {
   };
 
   /**
-   * Initialize IndexedDB
+   * Delete existing database
+   */
+  async function deleteDatabase() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(state.dbName);
+
+      request.onsuccess = () => {
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        console.error('[IndexedDB] ❌ Error deleting database:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
+   * Initialize IndexedDB database with data clearing
    */
   async function init() {
     try {
-      state.db = await openDatabase();
+      if (!window.indexedDB) {
+        throw new Error('IndexedDB is not available');
+      }
 
-      return true;
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(state.dbName, state.dbVersion);
+
+        request.onerror = () => {
+          console.error('[IndexedDB] ❌ Database opening failed:', request.error);
+
+          if (request.error.name === 'VersionError') {
+            console.warn('[IndexedDB] ⚠️ Version conflict detected, deleting and recreating database');
+            deleteDatabase()
+              .then(() => {
+                init().then(resolve).catch(reject);
+              })
+              .catch((deleteError) => {
+                console.error('[IndexedDB] ❌ Failed to delete database:', deleteError);
+                reject(request.error);
+              });
+          } else {
+            reject(request.error);
+          }
+        };
+
+        request.onsuccess = () => {
+          state.db = request.result;
+
+          // Clear all data but keep schema
+          clearAllData()
+            .then(() => {
+              resolve(true);
+            })
+            .catch((clearError) => {
+              console.error('[IndexedDB] ❌ Error clearing data:', clearError);
+              resolve(true);
+            });
+        };
+
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+
+          Object.values(state.stores).forEach((storeName) => {
+            if (!db.objectStoreNames.contains(storeName)) {
+              const store = db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+              store.createIndex('createdAt', 'createdAt', { unique: false });
+              store.createIndex('sessionId', 'sessionId', { unique: false });
+            }
+          });
+        };
+      });
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('[IndexedDB] ❌ Database initialization failed:', error);
       throw error;
     }
   }
 
   /**
-   * Open or create database
+   * Clear all data from all stores (keep schema)
    */
-  function openDatabase() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(state.dbName, state.dbVersion);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-
-        // Create media store
-        if (!db.objectStoreNames.contains(state.stores.media)) {
-          const mediaStore = db.createObjectStore(state.stores.media, { keyPath: 'id' });
-          mediaStore.createIndex('path', 'path', { unique: true });
-          mediaStore.createIndex('type', 'type', { unique: false });
-          mediaStore.createIndex('lastModified', 'lastModified', { unique: false });
-        }
-
-        // Create scan progress store
-        if (!db.objectStoreNames.contains(state.stores.scanProgress)) {
-          const progressStore = db.createObjectStore(state.stores.scanProgress, { keyPath: 'sessionId' });
-          progressStore.createIndex('status', 'status', { unique: false });
-          progressStore.createIndex('lastUpdated', 'lastUpdated', { unique: false });
-        }
-
-        // Create sessions store
-        if (!db.objectStoreNames.contains(state.stores.sessions)) {
-          const sessionsStore = db.createObjectStore(state.stores.sessions, { keyPath: 'sessionId' });
-          sessionsStore.createIndex('userId', 'userId', { unique: false });
-          sessionsStore.createIndex('status', 'status', { unique: false });
-          sessionsStore.createIndex('lastHeartbeat', 'lastHeartbeat', { unique: false });
-        }
-
-        if (!db.objectStoreNames.contains(state.stores.mediaProcessingQueue)) {
-          const processingQueueStore = db.createObjectStore(state.stores.mediaProcessingQueue, { keyPath: 'id' });
-          processingQueueStore.createIndex('status', 'status', { unique: false });
-          processingQueueStore.createIndex('createdAt', 'createdAt', { unique: false });
-        }
-
-        if (!db.objectStoreNames.contains(state.stores.mediaUploadBatches)) {
-          const uploadBatchesStore = db.createObjectStore(state.stores.mediaUploadBatches, { keyPath: 'id' });
-          uploadBatchesStore.createIndex('batchNumber', 'batchNumber', { unique: false });
-          uploadBatchesStore.createIndex('status', 'status', { unique: false });
-          uploadBatchesStore.createIndex('sessionId', 'sessionId', { unique: false });
-        }
-
-        if (!db.objectStoreNames.contains(state.stores.mediaUploadHistory)) {
-          const uploadHistoryStore = db.createObjectStore(state.stores.mediaUploadHistory, { keyPath: 'id' });
-          uploadHistoryStore.createIndex('batchId', 'batchId', { unique: false });
-          uploadHistoryStore.createIndex('sessionId', 'sessionId', { unique: false });
-          uploadHistoryStore.createIndex('timestamp', 'timestamp', { unique: false });
-        }
-
-        if (!db.objectStoreNames.contains(state.stores.pageScanStatus)) {
-          const pageScanStatusStore = db.createObjectStore(state.stores.pageScanStatus, { keyPath: 'pageUrl' });
-          pageScanStatusStore.createIndex('status', 'status', { unique: false });
-          pageScanStatusStore.createIndex('lastUpdated', 'lastUpdated', { unique: false });
-        }
-      };
-    });
-  }
-
-  /**
-   * Save media items to database
-   */
-  async function saveMedia(mediaItems) {
+  async function clearAllData() {
     if (!state.db) {
-      throw new Error('Database not initialized');
+      return;
     }
 
-    const transaction = state.db.transaction([state.stores.media], 'readwrite');
-    const store = transaction.objectStore(state.stores.media);
+    const clearPromises = Object.values(state.stores).map(
+      (storeName) => new Promise((resolve) => {
+        const transaction = state.db.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const clearRequest = store.clear();
 
-    const promises = mediaItems.map((mediaItem) => new Promise((resolve, reject) => {
-      const request = store.put(mediaItem);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    }));
-
-    await Promise.all(promises);
-    return mediaItems.length;
-  }
-
-  /**
-   * Get media items by criteria
-   */
-  async function getMedia(criteria = {}) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.media], 'readonly');
-    const store = transaction.objectStore(state.stores.media);
-
-    return new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => {
-        let results = request.result;
-
-        // Apply filters
-        if (criteria.type) {
-          results = results.filter((item) => item.type === criteria.type);
-        }
-        if (criteria.path) {
-          results = results.filter((item) => item.path.includes(criteria.path));
-        }
-        if (criteria.lastModified) {
-          results = results.filter((item) => item.lastModified >= criteria.lastModified);
-        }
-
-        resolve(results);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Update media item
-   */
-  async function updateMedia(mediaId, updates) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.media], 'readwrite');
-    const store = transaction.objectStore(state.stores.media);
-
-    return new Promise((resolve, reject) => {
-      const getRequest = store.get(mediaId);
-      getRequest.onsuccess = () => {
-        const existingItem = getRequest.result;
-        if (!existingItem) {
-          reject(new Error(`Media item with id ${mediaId} not found`));
-          return;
-        }
-
-        const updatedItem = { ...existingItem, ...updates };
-        const putRequest = store.put(updatedItem);
-        putRequest.onsuccess = () => resolve(updatedItem);
-        putRequest.onerror = () => reject(putRequest.error);
-      };
-      getRequest.onerror = () => reject(getRequest.error);
-    });
-  }
-
-  /**
-   * Delete media items
-   */
-  async function deleteMedia(mediaIds) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.media], 'readwrite');
-    const store = transaction.objectStore(state.stores.media);
-
-    const promises = mediaIds.map((mediaId) => new Promise((resolve, reject) => {
-      const request = store.delete(mediaId);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    }));
-
-    await Promise.all(promises);
-    return mediaIds.length;
-  }
-
-  async function savePageScanStatus(pageData) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readwrite');
-    const store = transaction.objectStore(state.stores.pageScanStatus);
-    const pageStatusData = {
-      pageUrl: pageData.pagePath,
-      sourceFile: pageData.sourceFile,
-      scanStatus: pageData.status,
-      mediaCount: pageData.mediaCount || 0,
-      lastScannedAt: pageData.lastScannedAt || Date.now(),
-      sessionId: pageData.sessionId,
-      scanAttempts: pageData.scanAttempts || 1,
-      scanErrors: pageData.scanErrors || [],
-      lastUpdated: Date.now(),
-    };
-    return new Promise((resolve, reject) => {
-      const request = store.put(pageStatusData);
-      request.onsuccess = () => resolve(pageStatusData);
-      request.onerror = () => reject(request.error);
-    });
-  }
-  async function getPageScanStatus(pageUrl) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readonly');
-    const store = transaction.objectStore(state.stores.pageScanStatus);
-    return new Promise((resolve, reject) => {
-      const request = store.get(pageUrl);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-  async function getCompletedPagesByFile(sourceFile) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readonly');
-    const store = transaction.objectStore(state.stores.pageScanStatus);
-    return new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const allPages = request.result;
-        const completedPages = allPages.filter((page) => page.sourceFile === sourceFile && page.scanStatus === 'completed');
-        resolve(completedPages);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  }
-  async function getAllPageScanStatus() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readonly');
-    const store = transaction.objectStore(state.stores.pageScanStatus);
-    return new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-  async function clearPageScanStatus() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-    const transaction = state.db.transaction([state.stores.pageScanStatus], 'readwrite');
-    const store = transaction.objectStore(state.stores.pageScanStatus);
-    return new Promise((resolve, reject) => {
-      const request = store.clear();
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Save scan progress
-   */
-  async function saveScanProgress(sessionId, progress) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.scanProgress], 'readwrite');
-    const store = transaction.objectStore(state.stores.scanProgress);
-
-    const progressData = {
-      sessionId,
-      ...progress,
-      lastUpdated: Date.now(),
-    };
-
-    return new Promise((resolve, reject) => {
-      const request = store.put(progressData);
-      request.onsuccess = () => resolve(progressData);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Get scan progress
-   */
-  async function getScanProgress(sessionId) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.scanProgress], 'readonly');
-    const store = transaction.objectStore(state.stores.scanProgress);
-
-    return new Promise((resolve, reject) => {
-      const request = store.get(sessionId);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Save session data
-   */
-  async function saveSession(sessionId, sessionData) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.sessions], 'readwrite');
-    const store = transaction.objectStore(state.stores.sessions);
-
-    const session = {
-      sessionId,
-      ...sessionData,
-      lastHeartbeat: Date.now(),
-    };
-
-    return new Promise((resolve, reject) => {
-      const request = store.put(session);
-      request.onsuccess = () => resolve(session);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Get session data
-   */
-  async function getSession(sessionId) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.sessions], 'readonly');
-    const store = transaction.objectStore(state.stores.sessions);
-
-    return new Promise((resolve, reject) => {
-      const request = store.get(sessionId);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Get all active sessions
-   */
-  async function getActiveSessions() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.sessions], 'readonly');
-    const store = transaction.objectStore(state.stores.sessions);
-    const index = store.index('status');
-
-    return new Promise((resolve, reject) => {
-      const request = index.getAll('active');
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Clear all data
-   */
-  async function clearAll() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const stores = Object.values(state.stores);
-    const transaction = state.db.transaction(stores, 'readwrite');
-
-    const promises = stores.map((storeName) => {
-      const store = transaction.objectStore(storeName);
-      return new Promise((resolve, reject) => {
-        const request = store.clear();
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      });
-    });
-
-    await Promise.all(promises);
-    console.log('[IndexedDB] 🗑️ All data cleared');
-  }
-
-  async function clearIndexDBExceptCheckpoints() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const storesToClear = [
-      state.stores.media,
-      state.stores.mediaProcessingQueue,
-      state.stores.mediaUploadBatches,
-      state.stores.mediaUploadHistory,
-      state.stores.pageScanStatus,
-    ];
-
-    const transaction = state.db.transaction(storesToClear, 'readwrite');
-
-    const promises = storesToClear.map((storeName) => {
-      const store = transaction.objectStore(storeName);
-      return new Promise((resolve, reject) => {
-        const request = store.clear();
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      });
-    });
-
-    await Promise.all(promises);
-    console.log('[IndexedDB] 🗑️ IndexDB cleared except checkpoints (scanProgress and sessions preserved)');
-  }
-
-  /**
-   * Get database statistics
-   */
-  async function getStats() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const stats = {};
-    const stores = Object.values(state.stores);
-
-    const promises = stores.map(async (storeName) => {
-      const transaction = state.db.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-
-      return new Promise((resolve, reject) => {
-        const request = store.count();
-        request.onsuccess = () => {
-          stats[storeName] = request.result;
+        clearRequest.onsuccess = () => {
           resolve();
         };
-        request.onerror = () => reject(request.error);
-      });
-    });
 
-    await Promise.all(promises);
-    return stats;
+        clearRequest.onerror = () => {
+          console.warn(`[IndexedDB] ⚠️ Could not clear ${storeName}:`, clearRequest.error);
+          resolve();
+        };
+      }),
+    );
+
+    await Promise.all(clearPromises);
   }
 
   /**
-   * Close database connection
+   * Get data from IndexedDB store
    */
-  function close() {
-    if (state.db) {
-      state.db.close();
-      state.db = null;
-      // eslint-disable-next-line no-console
-      console.log('[IndexedDB] 🔒 Database connection closed');
-    }
-  }
-
-  async function queueMediaForProcessing(mediaArray, sessionId) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.mediaProcessingQueue], 'readwrite');
-    const store = transaction.objectStore(state.stores.mediaProcessingQueue);
-
-    const queueItem = {
-      id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      sessionId,
-      media: mediaArray,
-      status: 'pending',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
+  async function getStoreData(storeName) {
     return new Promise((resolve, reject) => {
-      const request = store.put(queueItem);
-      request.onsuccess = () => resolve(queueItem);
-      request.onerror = () => reject(request.error);
-    });
-  }
+      if (!state.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
 
-  async function getProcessingQueue(sessionId) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.mediaProcessingQueue], 'readonly');
-    const store = transaction.objectStore(state.stores.mediaProcessingQueue);
-
-    return new Promise((resolve, reject) => {
+      const transaction = state.db.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
       const request = store.getAll();
+
       request.onsuccess = () => {
-        const results = request.result;
-        const sessionQueues = sessionId
-          ? results.filter((item) => item.sessionId === sessionId)
-          : results;
-        resolve(sessionQueues);
+        resolve(request.result || []);
       };
-      request.onerror = () => reject(request.error);
+
+      request.onerror = () => {
+        console.error(`[IndexedDB] ❌ Error getting data from ${storeName}:`, request.error);
+        reject(request.error);
+      };
     });
   }
 
-  async function createUploadBatch(batchData, sessionId) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readwrite');
-    const store = transaction.objectStore(state.stores.mediaUploadBatches);
-
-    const batchItem = {
-      id: `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      sessionId,
-      batchNumber: batchData.batchNumber,
-      media: batchData.media,
-      status: 'pending',
-      attempts: 0,
-      lastAttempt: null,
-      error: null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
+  /**
+   * Save data to IndexedDB store
+   */
+  async function saveStoreData(storeName, data) {
     return new Promise((resolve, reject) => {
-      const request = store.put(batchItem);
-      request.onsuccess = () => resolve(batchItem);
-      request.onerror = () => reject(request.error);
-    });
-  }
+      if (!state.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
 
-  async function updateBatchStatus(batchId, status, error = null) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
+      const transaction = state.db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
 
-    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readwrite');
-    const store = transaction.objectStore(state.stores.mediaUploadBatches);
-
-    return new Promise((resolve, reject) => {
-      const getRequest = store.get(batchId);
-      getRequest.onsuccess = () => {
-        const existingBatch = getRequest.result;
-        if (!existingBatch) {
-          reject(new Error(`Batch with id ${batchId} not found`));
+      // Clear existing data and add new data
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () => {
+        if (data.length === 0) {
+          resolve(true);
           return;
         }
 
-        const updatedBatch = {
-          ...existingBatch,
-          status,
-          error,
-          attempts: status === 'failed' ? existingBatch.attempts + 1 : existingBatch.attempts,
-          lastAttempt: Date.now(),
-          updatedAt: Date.now(),
-        };
+        let completed = 0;
+        let hasError = false;
 
-        const putRequest = store.put(updatedBatch);
-        putRequest.onsuccess = () => resolve(updatedBatch);
-        putRequest.onerror = () => reject(putRequest.error);
-      };
-      getRequest.onerror = () => reject(getRequest.error);
-    });
-  }
-
-  async function getPendingBatches(sessionId) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readonly');
-    const store = transaction.objectStore(state.stores.mediaUploadBatches);
-    const index = store.index('status');
-
-    return new Promise((resolve, reject) => {
-      const request = index.getAll('pending');
-      request.onsuccess = () => {
-        const results = request.result;
-        const filteredBatches = sessionId
-          ? results.filter((batch) => batch.sessionId === sessionId)
-          : results;
-        resolve(
-          filteredBatches.sort(
-            (a, b) => a.batchNumber - b.batchNumber,
-          ),
-        );
-      };
-      request.onerror = () => reject(request.error);
-    });
-  }
-  async function confirmBatchUpload(batchId, uploadedData) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction(
-      [state.stores.mediaUploadBatches, state.stores.mediaUploadHistory],
-      'readwrite',
-    );
-    const batchStore = transaction.objectStore(state.stores.mediaUploadBatches);
-    const historyStore = transaction.objectStore(state.stores.mediaUploadHistory);
-
-    return new Promise((resolve, reject) => {
-      const getRequest = batchStore.get(batchId);
-      getRequest.onsuccess = () => {
-        const batch = getRequest.result;
-        if (!batch) {
-          reject(new Error(`Batch with id ${batchId} not found`));
-          return;
-        }
-
-        const updatedBatch = {
-          ...batch,
-          status: 'completed',
-          updatedAt: Date.now(),
-        };
-
-        const historyItem = {
-          id: `history_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          batchId,
-          sessionId: batch.sessionId,
-          uploadedData,
-          timestamp: Date.now(),
-        };
-
-        const batchPutRequest = batchStore.put(updatedBatch);
-        const historyPutRequest = historyStore.put(historyItem);
-
-        batchPutRequest.onsuccess = () => {
-          historyPutRequest.onsuccess = () => resolve({
-            batch: updatedBatch,
-            history: historyItem,
-          });
-          historyPutRequest.onerror = () => reject(historyPutRequest.error);
-        };
-        batchPutRequest.onerror = () => reject(batchPutRequest.error);
-      };
-      getRequest.onerror = () => reject(getRequest.error);
-    });
-  }
-
-  async function getUploadProgress(sessionId) {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readonly');
-    const store = transaction.objectStore(state.stores.mediaUploadBatches);
-
-    return new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const results = request.result;
-        const sessionBatches = sessionId
-          ? results.filter((batch) => batch.sessionId === sessionId)
-          : results;
-
-        const totalBatches = sessionBatches.length;
-        const completedBatches = sessionBatches.filter((batch) => batch.status === 'completed').length;
-        const failedBatches = sessionBatches.filter((batch) => batch.status === 'failed').length;
-        const pendingBatches = sessionBatches.filter((batch) => batch.status === 'pending').length;
-
-        const totalItems = sessionBatches.reduce(
-          (sum, batch) => sum + (batch.media?.length || 0),
-          0,
-        );
-        const completedBatchesForUpload = sessionBatches.filter(
-          (batch) => batch.status === 'completed',
-        );
-        const uploadedItems = completedBatchesForUpload.reduce(
-          (sum, batch) => sum + (batch.media?.length || 0),
-          0,
-        );
-
-        resolve({
-          totalBatches,
-          completedBatches,
-          failedBatches,
-          pendingBatches,
-          totalItems,
-          uploadedItems,
-          progress: totalBatches > 0 ? (completedBatches / totalBatches) * 100 : 0,
+        data.forEach((item) => {
+          const addRequest = store.add(item);
+          addRequest.onsuccess = () => {
+            completed += 1;
+            if (completed === data.length && !hasError) {
+              resolve(true);
+            }
+          };
+          addRequest.onerror = () => {
+            hasError = true;
+            console.error(`[IndexedDB] ❌ Error adding item to ${storeName}:`, addRequest.error);
+            reject(addRequest.error);
+          };
         });
       };
-      request.onerror = () => reject(request.error);
+
+      clearRequest.onerror = () => {
+        console.error(`[IndexedDB] ❌ Error clearing ${storeName}:`, clearRequest.error);
+        reject(clearRequest.error);
+      };
     });
   }
 
-  async function clearProcessingQueue() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
-    }
+  /**
+   * Add single item to store
+   */
+  async function addToStore(storeName, item) {
+    return new Promise((resolve, reject) => {
+      if (!state.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
 
-    const transaction = state.db.transaction(
-      [
+      const transaction = state.db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.add(item);
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        console.error(`[IndexedDB] ❌ Error adding item to ${storeName}:`, request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
+   * Queue media for processing
+   */
+  async function queueMediaForProcessing(media, sessionId) {
+    try {
+      const queueItem = {
+        id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        sessionId,
+        media,
+        status: 'pending',
+        createdAt: Date.now(),
+      };
+
+      await addToStore(state.stores.mediaProcessingQueue, queueItem);
+      return true;
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error queuing media for processing:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get processing queue
+   */
+  async function getProcessingQueue(sessionId = null) {
+    try {
+      const queue = await getStoreData(state.stores.mediaProcessingQueue);
+      if (sessionId) {
+        return queue.filter((item) => item.sessionId === sessionId);
+      }
+      return queue;
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error getting processing queue:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create upload batch
+   */
+  async function createUploadBatch(batchData) {
+    try {
+      const batch = {
+        id: `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        ...batchData,
+        status: 'pending',
+        createdAt: Date.now(),
+      };
+
+      await addToStore(state.stores.mediaUploadBatches, batch);
+      return true;
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error creating upload batch:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get pending batches
+   */
+  async function getPendingBatches() {
+    try {
+      const batches = await getStoreData(state.stores.mediaUploadBatches);
+      return batches.filter((batch) => batch.status === 'pending');
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error getting pending batches:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Confirm batch upload
+   */
+  async function confirmBatchUpload(batchId, data) {
+    return new Promise((resolve, reject) => {
+      if (!state.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readwrite');
+      const store = transaction.objectStore(state.stores.mediaUploadBatches);
+      const getRequest = store.get(batchId);
+
+      getRequest.onsuccess = () => {
+        const batch = getRequest.result;
+        if (batch) {
+          batch.status = 'completed';
+          batch.completedAt = Date.now();
+          batch.count = data.count;
+
+          const putRequest = store.put(batch);
+          putRequest.onsuccess = () => resolve(true);
+          putRequest.onerror = () => reject(putRequest.error);
+        } else {
+          resolve(false);
+        }
+      };
+
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+
+  /**
+   * Remove batch by ID
+   */
+  async function removeBatch(batchId) {
+    return new Promise((resolve, reject) => {
+      if (!state.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      if (!batchId) {
+        reject(new Error('Batch ID is required for deletion'));
+        return;
+      }
+
+      const transaction = state.db.transaction([state.stores.mediaUploadBatches], 'readwrite');
+      const store = transaction.objectStore(state.stores.mediaUploadBatches);
+      const deleteRequest = store.delete(batchId);
+
+      deleteRequest.onsuccess = () => resolve(true);
+      deleteRequest.onerror = () => reject(deleteRequest.error);
+    });
+  }
+
+  /**
+   * Remove media from processing queue
+   */
+  async function removeMediaFromProcessingQueue(mediaIds, sessionId) {
+    return new Promise((resolve, reject) => {
+      if (!state.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = state.db.transaction([state.stores.mediaProcessingQueue], 'readwrite');
+      const store = transaction.objectStore(state.stores.mediaProcessingQueue);
+      const getRequest = store.getAll();
+
+      getRequest.onsuccess = () => {
+        const queue = getRequest.result;
+        const updatedQueue = queue.filter((item) => {
+          if (item.sessionId === sessionId) {
+            const filteredMedia = item.media.filter((media) => !mediaIds.includes(media.id));
+            if (filteredMedia.length === 0) {
+              return false;
+            }
+            item.media = filteredMedia;
+          }
+          return true;
+        });
+
+        const clearRequest = store.clear();
+        clearRequest.onsuccess = () => {
+          if (updatedQueue.length === 0) {
+            resolve(true);
+            return;
+          }
+
+          let completed = 0;
+          let hasError = false;
+
+          updatedQueue.forEach((item) => {
+            const addRequest = store.add(item);
+            addRequest.onsuccess = () => {
+              completed += 1;
+              if (completed === updatedQueue.length && !hasError) {
+                resolve(true);
+              }
+            };
+            addRequest.onerror = () => {
+              hasError = true;
+              reject(addRequest.error);
+            };
+          });
+        };
+
+        clearRequest.onerror = () => reject(clearRequest.error);
+      };
+
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+
+  /**
+   * Save page scan status
+   */
+  async function savePageScanStatus(data) {
+    try {
+      const statuses = await getStoreData(state.stores.pageScanStatus);
+      const existingIndex = statuses.findIndex((status) => status.pagePath === data.pagePath);
+
+      if (existingIndex !== -1) {
+        statuses[existingIndex] = { ...statuses[existingIndex], ...data, lastUpdated: Date.now() };
+      } else {
+        statuses.push({ ...data, lastUpdated: Date.now() });
+      }
+
+      await saveStoreData(state.stores.pageScanStatus, statuses);
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error saving page scan status:', error);
+    }
+  }
+
+  /**
+   * Save media to storage
+   */
+  async function saveMedia(mediaArray) {
+    try {
+      const media = await getStoreData(state.stores.media);
+      mediaArray.forEach((item) => {
+        const existingIndex = media.findIndex((m) => m.id === item.id);
+        if (existingIndex !== -1) {
+          media[existingIndex] = { ...media[existingIndex], ...item };
+        } else {
+          media.push(item);
+        }
+      });
+      await saveStoreData(state.stores.media, media);
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error saving media:', error);
+    }
+  }
+
+  /**
+   * Check media by source
+   */
+  async function checkMediaBySrc(src) {
+    try {
+      const media = await getStoreData(state.stores.media);
+      return media.find((item) => item.src === src);
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error checking media by src:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get completed pages by file name
+   */
+  async function getCompletedPagesByFile(fileName) {
+    try {
+      const pageStatuses = await getStoreData(state.stores.pageScanStatus);
+      return pageStatuses.filter((status) => status.fileName === fileName && status.scanStatus === 'completed');
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error getting completed pages by file:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Clear all data except checkpoints
+   */
+  async function clearIndexDBExceptCheckpoints() {
+    try {
+      const storesToClear = [
         state.stores.mediaProcessingQueue,
         state.stores.mediaUploadBatches,
         state.stores.mediaUploadHistory,
-      ],
-      'readwrite',
-    );
-    const queueStore = transaction.objectStore(state.stores.mediaProcessingQueue);
-    const batchStore = transaction.objectStore(state.stores.mediaUploadBatches);
-    const historyStore = transaction.objectStore(state.stores.mediaUploadHistory);
+      ];
 
-    const clearQueue = new Promise((resolve, reject) => {
-      const request = queueStore.clear();
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-
-    const clearBatches = new Promise((resolve, reject) => {
-      const request = batchStore.clear();
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-
-    const clearHistory = new Promise((resolve, reject) => {
-      const request = historyStore.clear();
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-
-    await Promise.all([clearQueue, clearBatches, clearHistory]);
-  }
-
-  async function clearMediaStore() {
-    if (!state.db) {
-      throw new Error('Database not initialized');
+      await Promise.all(storesToClear.map((storeName) => saveStoreData(storeName, [])));
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error clearing storage:', error);
     }
-
-    const transaction = state.db.transaction([state.stores.media], 'readwrite');
-    const store = transaction.objectStore(state.stores.media);
-
-    return new Promise((resolve, reject) => {
-      const request = store.clear();
-      request.onsuccess = () => {
-        console.log('[IndexedDB] 🗑️ Media store cleared');
-        resolve();
-      };
-      request.onerror = () => reject(request.error);
-    });
   }
 
-  async function removeMediaFromProcessingQueue(mediaIds, sessionId) {
-    if (!state.db) throw new Error('Database not initialized');
+  /**
+   * Reset database (clear all data)
+   */
+  async function resetDatabase() {
+    try {
+      await Promise.all(
+        Object.values(state.stores).map((storeName) => saveStoreData(storeName, [])),
+      );
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error resetting database:', error);
+    }
+  }
 
-    // Get the items first in a separate transaction
-    const allItems = await getProcessingQueue(sessionId);
+  /**
+   * Save discovery checkpoint file
+   */
+  async function saveDiscoveryCheckpointFile(checkpoint) {
+    try {
+      const key = `${state.dbName}_discovery_checkpoint`;
+      localStorage.setItem(key, JSON.stringify(checkpoint));
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error saving discovery checkpoint:', error);
+    }
+  }
 
-    // Then process them in a new transaction
-    const transaction = state.db.transaction([state.stores.mediaProcessingQueue], 'readwrite');
-    const store = transaction.objectStore(state.stores.mediaProcessingQueue);
+  /**
+   * Load all discovery files
+   */
+  async function loadAllDiscoveryFiles() {
+    try {
+      const key = `${state.dbName}_discovery_files`;
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('[IndexedDB] ❌ Error loading discovery files:', error);
+      return [];
+    }
+  }
 
-    const promises = allItems.map((item) => new Promise((resolve, reject) => {
-      const remainingMedia = (item.media || []).filter((m) => !mediaIds.includes(m.id));
-      if (remainingMedia.length === 0) {
-        const deleteRequest = store.delete(item.id);
-        deleteRequest.onsuccess = () => resolve();
-        deleteRequest.onerror = () => reject(deleteRequest.error);
-      } else {
-        const putRequest = store.put({ ...item, media: remainingMedia });
-        putRequest.onsuccess = () => resolve();
-        putRequest.onerror = () => reject(putRequest.error);
-      }
-    }));
-
-    await Promise.all(promises);
+  /**
+   * Ensure required folders (no-op for IndexedDB)
+   */
+  async function ensureRequiredFolders() {
+    return true;
   }
 
   return {
     init,
-    saveMedia,
-    getMedia,
-    updateMedia,
-    deleteMedia,
-    saveScanProgress,
-    getScanProgress,
-    saveSession,
-    getSession,
-    getActiveSessions,
-    clearAll,
-    getStats,
-    close,
+    deleteDatabase,
     queueMediaForProcessing,
     getProcessingQueue,
     createUploadBatch,
-    updateBatchStatus,
     getPendingBatches,
     confirmBatchUpload,
-    getUploadProgress,
-    clearProcessingQueue,
-    clearMediaStore,
+    removeBatch,
     removeMediaFromProcessingQueue,
     savePageScanStatus,
-    getPageScanStatus,
+    saveMedia,
+    checkMediaBySrc,
     getCompletedPagesByFile,
-    getAllPageScanStatus,
-    clearPageScanStatus,
     clearIndexDBExceptCheckpoints,
+    resetDatabase,
+    saveDiscoveryCheckpointFile,
+    loadAllDiscoveryFiles,
+    ensureRequiredFolders,
   };
 }

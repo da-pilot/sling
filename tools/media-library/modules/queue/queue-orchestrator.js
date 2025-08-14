@@ -210,7 +210,7 @@ export default function createQueueOrchestrator() {
         try {
           await state.mediaProcessor.processAndUploadQueuedMedia();
           const updatedDiscoveryFiles = await state.scanCompletionHandler
-            .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
+            .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
 
           // Calculate total pages and media count
           let totalPages = 0;
@@ -259,9 +259,11 @@ export default function createQueueOrchestrator() {
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
             const updatedDiscoveryFiles = await state.scanCompletionHandler
-              .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
-
-            // Calculate total pages and media count
+              .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
+            const scannedPages = updatedDiscoveryFiles?.flatMap((file) => file.documents?.filter((doc) => doc.scanStatus === 'completed').map((doc) => doc.path) || []) || [];
+            if (scannedPages.length > 0 && state.mediaProcessor) {
+              await state.mediaProcessor.cleanupMediaForUpdatedDocuments(scannedPages);
+            }
             let totalPages = 0;
             let totalMedia = 0;
             if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
@@ -272,7 +274,6 @@ export default function createQueueOrchestrator() {
                 }
               });
             }
-
             await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
               totalPages,
               totalMedia,
@@ -297,9 +298,7 @@ export default function createQueueOrchestrator() {
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
             const updatedDiscoveryFiles = await state.scanCompletionHandler
-              .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
-
-            // Calculate total pages and media count
+              .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
             let totalPages = 0;
             let totalMedia = 0;
             if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
@@ -310,7 +309,6 @@ export default function createQueueOrchestrator() {
                 }
               });
             }
-
             await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
               totalPages,
               totalMedia,
@@ -331,11 +329,9 @@ export default function createQueueOrchestrator() {
           try {
             await state.mediaProcessor.processAndUploadQueuedMedia();
             const updatedDiscoveryFiles = await state.scanCompletionHandler
-              .syncDiscoveryFilesCacheWithIndexedDB(
+              .syncDiscoveryFilesCacheWithLocalStorage(
                 state.discoveryCoordinator,
               );
-
-            // Calculate total pages and media count
             let totalPages = 0;
             let totalMedia = 0;
             if (updatedDiscoveryFiles && updatedDiscoveryFiles.length > 0) {
@@ -346,7 +342,6 @@ export default function createQueueOrchestrator() {
                 }
               });
             }
-
             await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
               totalPages,
               totalMedia,
@@ -490,7 +485,7 @@ export default function createQueueOrchestrator() {
     try {
       // Sync cache with IndexedDB scan results FIRST
       const updatedDiscoveryFiles = await state.scanCompletionHandler
-        .syncDiscoveryFilesCacheWithIndexedDB(state.discoveryCoordinator);
+        .syncDiscoveryFilesCacheWithLocalStorage(state.discoveryCoordinator);
 
       // Calculate total pages and media count from updated discovery files
       let totalPages = 0;

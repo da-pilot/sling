@@ -211,11 +211,9 @@ export default function createDocumentScanner() {
   ) {
     return new Promise((resolve, reject) => {
       const workerId = `worker_${folder.path.replace(/[/\\]/g, '_')}_${Date.now()}`;
-
       workerManager.createWorker(folder, workerId).then((worker) => {
         worker.onmessage = async (event) => {
           const { type, data } = event.data;
-
           switch (type) {
             case 'initialized':
               worker.postMessage({
@@ -227,20 +225,16 @@ export default function createDocumentScanner() {
                 },
               });
               break;
-
             case 'folderDiscoveryComplete': {
               progressTracker.incrementCompletedFolders();
               progressTracker.incrementTotalDocuments(data.documentCount || 0);
-
               if (data.documents && data.documents.length > 0) {
                 const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop() || 'root';
-
                 if (discoveryType === 'incremental' && incrementalChanges) {
                   const existingFolderDocs = incrementalChanges.existingFiles.find(
                     (file) => file.name === folderName,
                   )?.data || [];
                   const isNewFolder = !existingFolderDocs || existingFolderDocs.length === 0;
-
                   if (isNewFolder) {
                     await processDocumentsIncremental(data.documents, folderName, []);
                   } else {
@@ -262,40 +256,33 @@ export default function createDocumentScanner() {
                     scanErrors: [],
                     mediaCount: 0,
                   }));
-
                   const filePath = `/${state.apiConfig.org}/${state.apiConfig.repo}/.media/.pages/${fileName}`;
                   const url = `${state.apiConfig.baseUrl}/source${filePath}`;
                   await saveData(url, documentsToSave, state.apiConfig.token);
-
                   eventEmitter.emitDocumentsDiscovered({
                     documents: documentsToSave,
                     folder: folder.path,
                   });
                 }
               }
-
               workerManager.cleanup(workerId);
               resolve();
               break;
             }
-
             case 'folderDiscoveryError':
               progressTracker.incrementCompletedFolders();
               progressTracker.incrementErrors();
               workerManager.cleanup(workerId);
               reject(new Error(data.error));
               break;
-
             default:
               break;
           }
         };
-
         worker.onerror = (error) => {
           workerManager.cleanup(workerId);
           reject(error);
         };
-
         worker.postMessage({ type: 'init', data: { apiConfig: state.apiConfig } });
       }).catch((error) => {
         reject(error);

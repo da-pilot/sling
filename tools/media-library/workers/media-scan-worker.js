@@ -163,9 +163,13 @@ async function processBatch(pages) {
 
 async function scanPageForMedia(page) {
   const startTime = Date.now();
+  const pagePath = page.pagePath || page.path;
   try {
-    const html = await getPageContent(page.path);
-    const media = await extractMediaFromHTML(html, page.path);
+    const html = await getPageContent(pagePath);
+    if (!html || html.length === 0) {
+      return;
+    }
+    const media = await extractMediaFromHTML(html, pagePath);
     const scanTime = Date.now() - startTime;
     page.media = media;
     if (media.length > 0) {
@@ -181,7 +185,7 @@ async function scanPageForMedia(page) {
     postMessage({
       type: 'pageScanned',
       data: {
-        page: page?.path || '',
+        page: pagePath || '',
         media,
         scanTime,
         mediaCount: media.length,
@@ -191,19 +195,19 @@ async function scanPageForMedia(page) {
         file: {
           org: config?.org || 'unknown',
           repo: config?.repo || 'unknown',
-          path: page?.path || '',
+          path: pagePath || '',
         },
       },
     });
     postMessage({
       type: 'markPageScanned',
-      data: { path: page?.path || '' },
+      data: { path: pagePath || '' },
     });
   } catch (error) {
     postMessage({
       type: 'pageScanError',
       data: {
-        page: page?.path || '',
+        page: pagePath || '',
         error: error?.message || 'unknown error',
         retryCount: page?.retryCount || 0,
         sourceFile: page?.sourceFile || null,
@@ -211,7 +215,7 @@ async function scanPageForMedia(page) {
         file: {
           org: config?.org || 'unknown',
           repo: config?.repo || 'unknown',
-          path: page?.path || '',
+          path: pagePath || '',
         },
       },
     });
@@ -235,13 +239,16 @@ async function getPageContent(path) {
 async function extractMediaFromHTML(html, sourcePath) {
   const mediaMap = new Map();
   const pictureCanonicalSrcs = new Set();
+
   await extractPictureImages(html, mediaMap, sourcePath, pictureCanonicalSrcs);
   await extractImgTags(html, mediaMap, sourcePath, pictureCanonicalSrcs);
   extractBackgroundImages(html, mediaMap, sourcePath);
   extractVideoSources(html, mediaMap, sourcePath);
   await extractMediaLinks(html, mediaMap, sourcePath);
   extractCSSBackgrounds(html, mediaMap, sourcePath);
+
   const mediaArray = Array.from(mediaMap.values());
+
   return mediaArray;
 }
 
@@ -670,10 +677,6 @@ async function discoverFolder(folderPath) {
       },
     });
   } catch (error) {
-    console.error('[Media Scan Worker] ❌ Error discovering folder:', {
-      folderPath,
-      error: error.message,
-    });
     postMessage({
       type: 'folderDiscoveryError',
       data: {
@@ -685,33 +688,25 @@ async function discoverFolder(folderPath) {
 }
 
 async function discoverFolderRecursive(folderPath, allDocuments) {
-  try {
-    const items = await daApi.listPath(folderPath);
+  const items = await daApi.listPath(folderPath);
 
-    const htmlFiles = items
-      .filter((item) => item.ext && item.ext === 'html')
-      .map((item) => ({
-        path: item.path,
-        name: item.name,
-        ext: item.ext,
-        size: item.size,
-        lastModified: item.lastModified,
-        discoveredAt: Date.now(),
-      }));
+  const htmlFiles = items
+    .filter((item) => item.ext && item.ext === 'html')
+    .map((item) => ({
+      path: item.path,
+      name: item.name,
+      ext: item.ext,
+      size: item.size,
+      lastModified: item.lastModified,
+      discoveredAt: Date.now(),
+    }));
 
-    const subfolders = items.filter((item) => !item.ext);
+  const subfolders = items.filter((item) => !item.ext);
 
-    allDocuments.push(...htmlFiles);
-    const mapSubfolder = (subfolder) => discoverFolderRecursive(subfolder.path, allDocuments);
-    const subfolderPromises = subfolders.map(mapSubfolder);
-    await Promise.all(subfolderPromises);
-  } catch (error) {
-    console.error('[Media Scan Worker] ❌ Error in recursive discovery:', {
-      folderPath,
-      error: error.message,
-    });
-    throw error;
-  }
+  allDocuments.push(...htmlFiles);
+  const mapSubfolder = (subfolder) => discoverFolderRecursive(subfolder.path, allDocuments);
+  const subfolderPromises = subfolders.map(mapSubfolder);
+  await Promise.all(subfolderPromises);
 }
 
 function stopQueueProcessing() {

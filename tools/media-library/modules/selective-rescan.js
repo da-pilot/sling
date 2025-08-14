@@ -20,6 +20,7 @@ export default function createSelectiveRescan() {
     currentSessionId: null,
     currentUserId: null,
     currentBrowserId: null,
+    scanCompletionHandler: null,
     stats: {
       totalFolders: 0,
       completedFolders: 0,
@@ -38,6 +39,7 @@ export default function createSelectiveRescan() {
    * @param {Object} persistenceManagerInstance - Persistence manager instance
    * @param {Object} mediaProcessorInstance - Media processor instance
    * @param {Object} queueOrchestratorInstance - Queue orchestrator instance
+   * @param {Object} scanCompletionHandlerInstance - Scan completion handler instance
    * @returns {Promise<boolean>} Initialization success status
    */
   async function init(
@@ -47,12 +49,14 @@ export default function createSelectiveRescan() {
     persistenceManagerInstance,
     mediaProcessorInstance,
     queueOrchestratorInstance,
+    scanCompletionHandlerInstance,
   ) {
     state.sessionManager = sessionManagerInstance;
     state.processingStateManager = processingStateManagerInstance;
     state.persistenceManager = persistenceManagerInstance;
     state.mediaProcessor = mediaProcessorInstance;
     state.queueOrchestrator = queueOrchestratorInstance;
+    state.scanCompletionHandler = scanCompletionHandlerInstance;
     state.daApi = docAuthoringService;
     state.documentScanner = createDocumentScanner();
     state.config = docAuthoringService.getConfig();
@@ -74,6 +78,23 @@ export default function createSelectiveRescan() {
   }
 
   /**
+   * Get affected discovery file names from scanned documents
+   * @param {Array} documentsToScan - Array of documents to scan
+   * @returns {Array} Array of affected discovery file names
+   */
+  function getAffectedFileNames(documentsToScan) {
+    const fileNames = new Set();
+    documentsToScan.forEach((doc) => {
+      const pathParts = doc.path.split('/');
+      if (pathParts.length >= 3) {
+        const folderName = pathParts[pathParts.length - 2] || 'root';
+        fileNames.add(`${folderName}.json`);
+      }
+    });
+    return Array.from(fileNames);
+  }
+
+  /**
    * Rescan specific folder with intelligent change detection
    * @param {string} folderPath - Folder path to rescan
    * @param {Object} options - Rescan options
@@ -81,18 +102,14 @@ export default function createSelectiveRescan() {
    */
   async function rescanFolder(folderPath, options = {}) {
     if (!state.isActive) {
-      console.error('[Selective Rescan] ❌ Not initialized');
       throw new Error('Selective rescan not initialized');
     }
     emit('rescanStarted', { type: 'folder', path: folderPath, options });
-    console.log('[Selective Rescan] 🔍 Starting folder rescan:', { folderPath });
     const pagePaths = await discoverAllPagesInFolderRecursive(folderPath);
     if (pagePaths.length === 0) {
-      console.log('[Selective Rescan] ⚠️ No pages found in folder:', { folderPath });
       emit('rescanCompleted', { type: 'folder', path: folderPath, documentsScanned: 0 });
       return { documentsScanned: 0, errors: 0 };
     }
-    console.log('[Selective Rescan] 📁 Found pages in folder:', { folderPath, pageCount: pagePaths.length, pages: pagePaths });
     const documentsToScan = pagePaths.map((path) => ({
       path,
       scanStatus: 'pending',
@@ -108,7 +125,23 @@ export default function createSelectiveRescan() {
     }));
     const result = await state.queueOrchestrator.scanningCoordinator
       .startSelectiveScanningPhase(documentsToScan, false);
-    console.log('[Selective Rescan] 📊 Scanning phase result:', result);
+    if (result.success) {
+      await state.mediaProcessor.processAndUploadQueuedMedia();
+      const updatedDiscoveryFiles = await state.scanCompletionHandler
+        .syncDiscoveryFilesCacheWithLocalStorage(state.queueOrchestrator.discoveryCoordinator);
+      const affectedFileNames = getAffectedFileNames(documentsToScan);
+      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
+        pagePaths.length,
+        0,
+      );
+      await state.scanCompletionHandler.updateSelectiveDiscoveryFiles(
+        affectedFileNames,
+        documentsToScan,
+      );
+      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
+        updatedDiscoveryFiles,
+      );
+    }
     emit('rescanCompleted', {
       type: 'folder',
       path: folderPath,
@@ -124,10 +157,8 @@ export default function createSelectiveRescan() {
    * @returns {Promise<Array>} Array of page paths
    */
   async function discoverAllPagesInFolderRecursive(folderPath) {
-    console.log('[Selective Rescan] 🔍 Discovering pages recursively:', { folderPath });
     const allPages = [];
     await discoverFolderRecursively(folderPath, allPages);
-    console.log('[Selective Rescan] ✅ Discovery complete:', { folderPath, totalPages: allPages.length });
     return allPages;
   }
 
@@ -139,12 +170,9 @@ export default function createSelectiveRescan() {
    */
   async function discoverFolderRecursively(folderPath, allPages) {
     try {
-      console.log('[Selective Rescan] 📂 Processing folder:', { folderPath });
       const items = await state.daApi.listPath(folderPath);
       const htmlFiles = items.filter((item) => item.ext && item.ext === 'html');
       const subfolders = items.filter((item) => !item.ext);
-      console.log('[Selective Rescan] 📄 Found HTML files:', { folderPath, htmlCount: htmlFiles.length, files: htmlFiles.map((f) => f.path) });
-      console.log('[Selective Rescan] 📁 Found subfolders:', { folderPath, subfolderCount: subfolders.length, subfolders: subfolders.map((f) => f.path) });
       htmlFiles.forEach((file) => {
         allPages.push(file.path);
       });
@@ -155,7 +183,7 @@ export default function createSelectiveRescan() {
       });
       await Promise.all(subfolderPromises);
     } catch (error) {
-      console.error('[Selective Rescan] ❌ Error discovering folder:', { folderPath, error: error.message });
+      throw new Error(`Error discovering folder: ${error.message}`);
     }
   }
 
@@ -167,7 +195,6 @@ export default function createSelectiveRescan() {
    */
   async function rescanPages(pagePaths, options = {}) {
     if (!state.isActive) {
-      console.error('[Selective Rescan] ❌ Not initialized');
       throw new Error('Selective rescan not initialized');
     }
     emit('rescanStarted', { type: 'pages', paths: pagePaths, options });
@@ -175,7 +202,6 @@ export default function createSelectiveRescan() {
       const fullPath = path.startsWith('/da-pilot/sling/') ? path : `/da-pilot/sling${path}`;
       return fullPath;
     });
-    console.log('[Selective Rescan] 📄 Starting selective scanning:', { pageCount: fullPaths.length, pages: fullPaths });
     const documentsToScan = fullPaths.map((path) => ({
       path,
       scanStatus: 'pending',
@@ -191,7 +217,23 @@ export default function createSelectiveRescan() {
     }));
     const result = await state.queueOrchestrator.scanningCoordinator
       .startSelectiveScanningPhase(documentsToScan, false);
-    console.log('[Selective Rescan] 📊 Scanning phase result:', result);
+    if (result.success) {
+      await state.mediaProcessor.processAndUploadQueuedMedia();
+      const updatedDiscoveryFiles = await state.scanCompletionHandler
+        .syncDiscoveryFilesCacheWithLocalStorage(state.queueOrchestrator.discoveryCoordinator);
+      const affectedFileNames = getAffectedFileNames(documentsToScan);
+      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
+        fullPaths.length,
+        0,
+      );
+      await state.scanCompletionHandler.updateSelectiveDiscoveryFiles(
+        affectedFileNames,
+        documentsToScan,
+      );
+      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
+        updatedDiscoveryFiles,
+      );
+    }
     emit('rescanCompleted', {
       type: 'pages',
       documentsScanned: fullPaths.length,
@@ -208,7 +250,6 @@ export default function createSelectiveRescan() {
    */
   async function rescanModifiedSince(sinceDate, options = {}) {
     if (!state.isActive) {
-      console.error('[Selective Rescan] ❌ Not initialized');
       throw new Error('Selective rescan not initialized');
     }
     emit('rescanStarted', { type: 'modified-since', sinceDate, options });
@@ -222,7 +263,6 @@ export default function createSelectiveRescan() {
       return { documentsScanned: 0, errors: 0 };
     }
     const pagePaths = modifiedDocuments.map((doc) => doc.path);
-    console.log('[Selective Rescan] 📅 Rescanning modified documents:', { sinceDate, pageCount: pagePaths.length, pages: pagePaths });
     const documentsToScan = pagePaths.map((path) => ({
       path,
       scanStatus: 'pending',
@@ -238,6 +278,23 @@ export default function createSelectiveRescan() {
     }));
     const result = await state.queueOrchestrator.scanningCoordinator
       .startSelectiveScanningPhase(documentsToScan, false);
+    if (result.success) {
+      await state.mediaProcessor.processAndUploadQueuedMedia();
+      const updatedDiscoveryFiles = await state.scanCompletionHandler
+        .syncDiscoveryFilesCacheWithLocalStorage(state.queueOrchestrator.discoveryCoordinator);
+      const affectedFileNames = getAffectedFileNames(documentsToScan);
+      await state.scanCompletionHandler.updateScanningCheckpointAsCompleted(
+        pagePaths.length,
+        0,
+      );
+      await state.scanCompletionHandler.updateSelectiveDiscoveryFiles(
+        affectedFileNames,
+        documentsToScan,
+      );
+      await state.scanCompletionHandler.updateSiteStructureWithMediaCounts(
+        updatedDiscoveryFiles,
+      );
+    }
     emit('rescanCompleted', {
       type: 'modified-since',
       documentsScanned: pagePaths.length,
@@ -285,7 +342,7 @@ export default function createSelectiveRescan() {
         try {
           callback(data);
         } catch (error) {
-          console.error('Error in event listener:', error);
+          throw new Error(`Error in event listener: ${error.message}`);
         }
       });
     }
@@ -298,15 +355,13 @@ export default function createSelectiveRescan() {
   async function discoverAllDocuments() {
     try {
       if (!state.daApi) {
-        console.error('[Selective Rescan] ❌ DA API not initialized');
         throw new Error('DA API not initialized');
       }
       const allItems = await state.daApi.getAllHTMLFiles();
       const documents = allItems.filter((item) => item.type === 'file' && item.ext === 'html');
       return documents;
     } catch (error) {
-      console.error('[Selective Rescan] ❌ Error discovering all documents:', error);
-      throw error;
+      throw new Error(`Error discovering all documents: ${error.message}`);
     }
   }
 
@@ -360,7 +415,6 @@ export default function createSelectiveRescan() {
         : 0;
       return stats;
     } catch (error) {
-      console.error('[Selective Rescan] ❌ Error getting folder statistics:', error);
       return {
         totalFolders: 0,
         foldersWithErrors: 0,

@@ -35,11 +35,7 @@ import {
 
 import {
   loadMediaFromMediaJson,
-  loadMediaFromIndexedDB,
-  checkIndexedDBStatus,
   startMediaPolling,
-  stopMediaPolling,
-  setMediaBrowser as setMediaLoaderMediaBrowser,
   setContext as setMediaLoaderContext,
   setDocAuthoringService as setMediaLoaderDocAuthoringService,
 } from './modules/media-loader.js';
@@ -52,7 +48,6 @@ const {
   POLLING_INTERVAL: _POLLING_INTERVAL,
 } = SCAN_CONFIG;
 const useQueueBasedScanning = true;
-let pollingIntervalId = null;
 const MEDIA_LASTMOD_KEY = 'mediaJsonLastModified';
 
 // =============================================================================
@@ -85,11 +80,7 @@ let isScanningInProgress = false;
 // =============================================================================
 
 window.loadMediaFromMediaJson = loadMediaFromMediaJson;
-window.loadMediaFromIndexedDB = loadMediaFromIndexedDB;
-window.checkIndexedDBStatus = checkIndexedDBStatus;
 window.mediaLibraryMode = null; // Will be set during init
-
-if (typeof setMediaLoaderMediaBrowser === 'function') setMediaLoaderMediaBrowser(media);
 
 // =============================================================================
 // MAIN INITIALIZATION
@@ -205,20 +196,10 @@ async function initializeCoreServices() {
   docAuthoringService = createDocAuthoringService();
   await docAuthoringService.init(daContext);
 
-  // Set context and docAuthoringService for media loader
-  if (typeof setMediaLoaderContext === 'function') {
-    setMediaLoaderContext(daContext);
-    console.log('[Media Library] Set context for media; loader:', { org: daContext.org, repo: daContext.repo });
-  } else {
-    console.warn('[Media Library] setMediaLoaderContext not available');
-  }
-
-  if (typeof setMediaLoaderDocAuthoringService === 'function') {
-    setMediaLoaderDocAuthoringService(docAuthoringService);
-    console.log('[Media Library] Set docAuthoringService for media loader');
-  } else {
-    console.warn('[Media Library] setMediaLoaderDocAuthoringService not available');
-  }
+  console.log('[Media Library] Setting media loader context:', { org: daContext.org, repo: daContext.repo });
+  setMediaLoaderContext(daContext);
+  console.log('[Media Library] Setting media loader docAuthoringService');
+  setMediaLoaderDocAuthoringService(docAuthoringService);
 
   const metadataPath = DA_PATHS.getMediaDataFile(daContext.org, daContext.repo);
   metadataManager = createMetadataManager(docAuthoringService, metadataPath);
@@ -237,10 +218,6 @@ async function initializeCoreServices() {
   mediaBrowser.on('mediaLinkCopied', handleMediaLinkCopied);
 
   window.mediaBrowser = mediaBrowser;
-
-  if (typeof setMediaLoaderMediaBrowser === 'function') {
-    setMediaLoaderMediaBrowser(mediaBrowser);
-  }
 
   mediaInsertion = createMediaInsertion();
   mediaInsertion.init(daActions, daContext);
@@ -268,8 +245,6 @@ async function initializeCoreServices() {
   const userAgent = navigator.userAgent.replace(/[^a-zA-Z0-9]/g, '').substr(0, 20);
   currentBrowserId = `browser_${userAgent}_${Date.now()}`;
 
-  setupMediaUpdateHandler();
-
   // Initialize folder modal
   folderModal = createFolderModal();
   await folderModal.init(docAuthoringService.getConfig(), docAuthoringService, null);
@@ -284,17 +259,6 @@ async function initializeCoreServices() {
   setupUIEventHandlers();
 }
 
-/**
- * Set up media update handler
- */
-function setupMediaUpdateHandler() {
-  // Disabled media processor callback to prevent browser crashes during scanning
-  // Media browser will handle updates through its own polling mechanism
-  if (mediaProcessor) {
-    mediaProcessor.setOnMediaUpdated(null);
-  }
-}
-
 // =============================================================================
 // MEDIA LOADING & RENDERING
 // =============================================================================
@@ -305,8 +269,8 @@ function setupMediaUpdateHandler() {
 async function loadAndRenderMedia() {
   try {
     showPlaceholderCards();
-    const { media: loadedMedia } = await loadMediaFromMediaJson();
-    media = loadedMedia || [];
+    const result = await loadMediaFromMediaJson();
+    media = result.media || [];
     hideScanProgress();
     if (media.length > 0) {
       renderMedia(media);
@@ -314,21 +278,27 @@ async function loadAndRenderMedia() {
     if (mediaBrowser && typeof mediaBrowser.setMediaLoadingState === 'function') {
       mediaBrowser.setMediaLoadingState(false);
     }
-    stopPolling();
     hideProgressiveLoadingIndicator();
     hideMediaLoadingProgress();
+    console.log('[Media Library] Starting media polling from loadAndRenderMedia success path');
     startMediaPolling((updatedMedia) => {
+      console.log('[Media Library] Media polling callback triggered with', updatedMedia?.length || 0, 'items');
       media = updatedMedia || [];
       renderMedia(media);
       showToast('Media updated', 'success');
-      console.log('[Media Library] Auto-refreshed media from polling update');
     }, 30000);
   } catch (error) {
-    console.error('[Media Library] Failed to load media:', error);
     media = [];
     if (mediaBrowser && typeof mediaBrowser.setMediaLoadingState === 'function') {
       mediaBrowser.setMediaLoadingState(false);
     }
+    console.log('[Media Library] Starting media polling from loadAndRenderMedia error path');
+    startMediaPolling((updatedMedia) => {
+      console.log('[Media Library] Media polling callback triggered with', updatedMedia?.length || 0, 'items');
+      media = updatedMedia || [];
+      renderMedia(media);
+      showToast('Media updated', 'success');
+    }, 30000);
   }
 }
 
@@ -654,7 +624,6 @@ async function initializeScanning() {
   }
 
   if (queueOrchestrator) {
-    console.log('[Media Library] 🔧 Initializing selective rescan...');
     selectiveRescan = createSelectiveRescan();
     await selectiveRescan.init(
       docAuthoringService,
@@ -663,25 +632,21 @@ async function initializeScanning() {
       persistenceManager,
       mediaProcessor,
       queueOrchestrator,
+      queueOrchestrator.scanCompletionHandler,
     );
-    console.log('[Media Library] ✅ Selective rescan initialized successfully');
   }
 
   try {
-    // Check if it's safe to start a scan (multi-user coordination)
     const canStartScan = await checkInitialScanStatus();
-
     if (canStartScan) {
       await startFullScan(false);
     } else if (media.length === 0) {
-      // Another user is scanning and we don't have media loaded - show scan progress
       showScanProgress();
     } else {
-      // Another user is scanning but we have media loaded from media.json - hide scan progress
       hideScanProgress();
     }
   } catch (error) {
-    console.warn('Failed to initialize scanning, continuing:', error);
+    // Continue initialization even if scan status check fails
   }
 }
 
@@ -739,13 +704,18 @@ async function initializeQueueOrchestrator() {
     queueOrchestrator.on('siteStructureUpdated', (data) => {
       console.log('[Media Library] 📡 Received siteStructureUpdated event:', data);
       hideScanProgress();
-      stopPolling();
-
       localStorage.setItem('fullScanCompleted', 'true');
       if (mediaBrowser && typeof mediaBrowser.setScanningState === 'function') {
         mediaBrowser.setScanningState(false);
       }
       isScanningInProgress = false;
+      console.log('[Media Library] Restarting media polling after scan completion');
+      startMediaPolling((updatedMedia) => {
+        console.log('[Media Library] Media polling callback triggered with', updatedMedia?.length || 0, 'items');
+        media = updatedMedia || [];
+        renderMedia(media);
+        showToast('Media updated', 'success');
+      }, 30000);
     });
 
     // Re-initialize folder modal with queue orchestrator for event handling
@@ -856,18 +826,12 @@ async function checkInitialScanStatus() {
       processingStateManager.loadDiscoveryCheckpoint(),
       processingStateManager.loadScanningCheckpoint(),
     ]);
-    console.log('[Media Library] 📊 Checkpoint Status:', {
-      discovery: discoveryCheckpoint.status,
-      scanning: scanningCheckpoint.status,
-      lastUpdate: new Date(scanningCheckpoint.lastUpdated).toLocaleString(),
-    });
     const isActive = discoveryCheckpoint.status === 'running' || scanningCheckpoint.status === 'running';
     if (isActive) {
       return false;
     }
     return true;
   } catch (error) {
-    console.error('[Media Library] ❌ Failed to check scan status:', error);
     return true;
   }
 }
@@ -877,22 +841,19 @@ async function checkInitialScanStatus() {
  */
 async function startFullScan(forceRescan = false) {
   try {
-    console.log('[Media Library] startFullScan called with forceRescan:', forceRescan);
     resetPollingState();
     if (sessionManager && currentUserId && currentBrowserId) {
       try {
         const sessionId = await sessionManager.createSession(currentUserId, currentBrowserId, forceRescan ? 'force' : 'incremental');
         currentSessionId = sessionId;
-        console.log('[Media Library] Created session:', sessionId);
         if (mediaProcessor) {
           mediaProcessor.setCurrentSession(sessionId, currentUserId, currentBrowserId);
         }
       } catch (sessionError) {
-        console.warn('[Media Library] Failed to create session, falling back to legacy scanning:', sessionError);
+        throw new Error(`Session creation failed: ${sessionError.message}`);
       }
     }
     if (sessionManager && currentSessionId) {
-      console.log('[Media Library] Starting queue scanning with session...');
       await queueOrchestrator.startQueueScanning(
         forceRescan,
         currentSessionId,
@@ -900,25 +861,12 @@ async function startFullScan(forceRescan = false) {
         currentBrowserId,
       );
     } else {
-      console.log('[Media Library] Starting queue scanning without session...');
       await queueOrchestrator.startQueueScanning(forceRescan);
     }
   } catch (error) {
-    console.error('[Media Library] Full scan failed:', error);
     showError('Full scan failed', error);
     hideScanProgress();
   }
-}
-/**
- * Stop polling for media updates
- */
-function stopPolling() {
-  if (pollingIntervalId) {
-    clearInterval(pollingIntervalId);
-    pollingIntervalId = null;
-    console.log('[Media Library] Stopped polling for media updates');
-  }
-  stopMediaPolling();
 }
 
 /**

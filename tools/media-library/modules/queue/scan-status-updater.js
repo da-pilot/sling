@@ -222,7 +222,7 @@ export default function createScanStatusUpdater() {
               scanStatus = 'completed';
               scanComplete = true;
               // Use the mediaCount from the synced cache data
-              // (should be updated by syncDiscoveryFilesCacheWithIndexedDB)
+              // (should be updated by syncDiscoveryFilesCacheWithLocalStorage)
               // Don't override mediaCount if it's already been updated by the sync process
             }
 

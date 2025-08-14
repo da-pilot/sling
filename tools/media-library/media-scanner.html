@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Scanner</title>
+  <link rel="stylesheet" href="media-scanner.css">
+</head>
+<body>
+  <div class="scanner-container">
+    <h1>Media Scanner</h1>
+    
+    <div class="input-section">
+      <input type="text" id="pathInput" value="/da-pilot/sling" placeholder="/{org}/{repo}">
+      <button id="startScanBtn" class="btn btn-primary">Scan</button>
+    </div>
+    
+    <div class="status-section" id="statusSection" style="display: none;">
+      <div class="status-text" id="statusText">Initializing...</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div class="metric-label">Folders</div>
+          <div class="metric-value" id="foldersValue">0</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Pages</div>
+          <div class="metric-value" id="pagesValue">0</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Scanned</div>
+          <div class="metric-value" id="scannedValue">0</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Media</div>
+          <div class="metric-value" id="mediaValue">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="media-scanner.js"></script>
+</body>
+</html>

@@ -2,7 +2,6 @@
 
 import { DA_PATHS, LOCALSTORAGE_KEYS } from '../constants.js';
 import createMetadataManager from '../services/metadata-manager.js';
-import createPersistenceManager from '../services/persistence-manager.js';
 
 /**
  * Media Loader Module
@@ -11,7 +10,6 @@ import createPersistenceManager from '../services/persistence-manager.js';
 
 let contextRef = null;
 let docAuthoringServiceRef = null;
-let mediaBrowserRef = null;
 
 /**
  * Ensure media.json is properly synchronized
@@ -57,20 +55,29 @@ export async function ensureMediaJsonSync() {
  */
 export async function checkMediaJsonChanges() {
   try {
+    console.log('[Media Loader] Checking for media.json changes');
     if (!contextRef || !docAuthoringServiceRef) {
+      console.log('[Media Loader] Context or service not available for change check');
       return { hasChanges: false, mediaJsonExists: false };
     }
     const fullPath = DA_PATHS.getMediaDataFile(contextRef.org, contextRef.repo);
     const storageDir = DA_PATHS.getStorageDir(contextRef.org, contextRef.repo);
+    console.log('[Media Loader] Checking path:', fullPath);
     const files = await docAuthoringServiceRef.listPath(storageDir);
     const mediaJsonFile = files.find((f) => f.path === fullPath);
     if (!mediaJsonFile) {
+      console.log('[Media Loader] media.json file not found');
       return { hasChanges: false, mediaJsonExists: false };
     }
     const storageKey = `${LOCALSTORAGE_KEYS.MEDIA_JSON_LASTMODIFIED}_${contextRef.org}_${contextRef.repo}`;
     const storedLastModified = localStorage.getItem(storageKey);
     const hasChanges = !storedLastModified
       || parseInt(storedLastModified, 10) !== mediaJsonFile.lastModified;
+    console.log('[Media Loader] Change check:', {
+      storedLastModified,
+      currentLastModified: mediaJsonFile.lastModified,
+      hasChanges,
+    });
     return {
       hasChanges,
       lastModified: mediaJsonFile.lastModified,
@@ -124,96 +131,11 @@ export async function loadMediaFromMediaJson() {
   }
 }
 
-export async function loadMediaFromIndexedDB() {
-  try {
-    if (!contextRef || !docAuthoringServiceRef) {
-      console.warn('[Media Loader] Context or DocAuthoringService not set, skipping IndexedDB load');
-      return { mediaCount: 0, isLoaded: false };
-    }
-
-    console.log('[Media Loader] Loading media from IndexedDB...');
-
-    const metadataManager = createMetadataManager(docAuthoringServiceRef, '/.media/media.json');
-    await metadataManager.init(contextRef);
-
-    const metadata = await metadataManager.getMetadata();
-    const mediaCount = metadata ? metadata.length : 0;
-
-    console.log('[Media Loader] Loaded', mediaCount, 'media items from IndexedDB');
-
-    if (mediaBrowserRef && metadata) {
-      mediaBrowserRef.setMedia(metadata);
-    }
-
-    return {
-      mediaCount,
-      isLoaded: true,
-      media: metadata || [],
-    };
-  } catch (error) {
-    console.error('[Media Loader] Failed to load media from IndexedDB:', error);
-    return {
-      mediaCount: 0,
-      isLoaded: false,
-      media: [],
-    };
-  }
-}
-
-export async function checkIndexedDBStatus() {
-  try {
-    if (!contextRef || !docAuthoringServiceRef) {
-      console.warn('[Media Loader] Context or DocAuthoringService not set, skipping IndexedDB check');
-      return { hasData: false, queueCount: 0, totalItems: 0 };
-    }
-
-    console.log('[Media Loader] Checking IndexedDB status...');
-
-    const persistenceManager = createPersistenceManager();
-    await persistenceManager.init();
-
-    const queueItems = await persistenceManager.getProcessingQueue();
-    const totalQueuedItems = queueItems.reduce((sum, item) => sum + (item.media?.length || 0), 0);
-
-    const stats = await persistenceManager.getStats();
-    console.log('[Media Loader] IndexedDB stats:', stats);
-
-    const hasData = totalQueuedItems > 0;
-    console.log('[Media Loader] IndexedDB status:', {
-      hasData,
-      queueCount: queueItems.length,
-      totalItems: totalQueuedItems,
-      stats,
-    });
-
-    return {
-      hasData,
-      queueCount: queueItems.length,
-      totalItems: totalQueuedItems,
-      stats,
-    };
-  } catch (error) {
-    console.error('[Media Loader] Error checking IndexedDB status:', error);
-    return {
-      hasData: false,
-      queueCount: 0,
-      totalItems: 0,
-      error: error.message,
-    };
-  }
-}
-
-/**
- * Set media browser reference
- */
-export function setMediaBrowser(browser) {
-  mediaBrowserRef = browser;
-}
-
 /**
  * Set context reference
  */
 export function setContext(context) {
+  console.log('[Media Loader] Setting context:', { org: context.org, repo: context.repo });
   contextRef = context;
 }
 
@@ -221,6 +143,7 @@ export function setContext(context) {
  * Set Document Authoring Service reference
  */
 export function setDocAuthoringService(docAuthoringService) {
+  console.log('[Media Loader] Setting docAuthoringService');
   docAuthoringServiceRef = docAuthoringService;
 }
 
@@ -230,9 +153,13 @@ let pollingInterval = null;
  * Stop polling for media.json updates
  */
 export function stopMediaPolling() {
+  console.log('[Media Loader] Stopping polling');
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+    console.log('[Media Loader] Polling stopped successfully');
+  } else {
+    console.log('[Media Loader] No polling interval to stop');
   }
 }
 
@@ -242,27 +169,36 @@ export function stopMediaPolling() {
  * @param {number} intervalMs - Polling interval in milliseconds (default: 30000)
  */
 export function startMediaPolling(onUpdate, intervalMs = 30000) {
+  console.log('[Media Loader] Starting polling with interval:', intervalMs);
   if (pollingInterval) {
     clearInterval(pollingInterval);
   }
   pollingInterval = setInterval(async () => {
     try {
+      console.log('[Media Loader] Polling check started');
       if (!contextRef || !docAuthoringServiceRef) {
+        console.log('[Media Loader] Context or service not available, skipping poll');
         return;
       }
       const changeCheck = await checkMediaJsonChanges();
+      console.log('[Media Loader] Change check result:', changeCheck);
       if (changeCheck.authError) {
+        console.log('[Media Loader] Auth error detected, stopping polling');
         stopMediaPolling();
         const { showToast } = await import('./toast.js');
         showToast('Authentication expired. Please refresh the page to continue.', 'error');
         return;
       }
       if (changeCheck.hasChanges && onUpdate && typeof onUpdate === 'function') {
+        console.log('[Media Loader] Changes detected, loading updated media');
         const { media, lastModified } = await loadMediaFromMediaJson();
         onUpdate(media, lastModified);
+      } else {
+        console.log('[Media Loader] No changes detected or no update callback');
       }
     } catch (error) {
       console.error('[Media Loader] Polling error:', error);
     }
   }, intervalMs);
+  console.log('[Media Loader] Polling interval set successfully');
 }

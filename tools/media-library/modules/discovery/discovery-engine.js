@@ -190,23 +190,11 @@ export default function createDiscoveryEngine() {
     await triggerDiscoveryComplete();
   }
 
-  /**
-   * Start discovery with session
-   * @param {string} sessionId - Session ID
-   * @param {string} discoveryType - Discovery type ('full' or 'incremental')
-   * @returns {Promise<Object>} Discovery result
-   */
-  async function startDiscoveryWithSession(sessionId, discoveryType) {
+  async function startFullDiscovery(_sessionId) {
     try {
       state.discoveryStartTime = Date.now();
-      state.discoveryType = discoveryType;
-      if (discoveryType === 'full') {
-        await resetDiscoveryState();
-      } else {
-        state.isRunning = false;
-        parallelProcessor.cleanupAll();
-        statsTracker.resetProgress();
-      }
+      state.discoveryType = 'full';
+      await resetDiscoveryState();
 
       const { folders, files } = await documentScanner.getTopLevelItems();
       const totalWork = folders.length + (files.length > 0 ? 1 : 0);
@@ -216,76 +204,121 @@ export default function createDiscoveryEngine() {
         totalDocuments: 0,
         status: 'running',
         discoveryStartTime: state.discoveryStartTime,
-        discoveryType,
+        discoveryType: 'full',
         lastUpdated: Date.now(),
       };
       await persistenceManager.saveDiscoveryCheckpointFile(initialCheckpoint);
-      if (discoveryType === 'incremental') {
-        const existingFiles = await persistenceManager.loadAllDiscoveryFiles();
-        const allExistingFolderNames = existingFiles.map((file) => file.name.replace('.json', ''));
-        const existingFolderNames = allExistingFolderNames.filter((name) => name !== 'root');
-        const currentFolderNames = folders.map((folder) => (
-          folder.path === '/' ? 'root' : folder.path.split('/').pop()
-        ));
-        const newFolders = folders.filter((folder) => {
-          const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop();
-          return !existingFolderNames.includes(folderName);
-        });
-        const deletedFolders = existingFolderNames.filter(
-          (name) => !currentFolderNames.includes(name),
-        );
-        state.incrementalChanges = {
-          newFolders,
-          deletedFolders,
-          existingFiles,
-        };
-      }
+
       state.isRunning = true;
-      state.hasFileChanges = false;
       statsTracker.setTotalFolders(totalWork);
-      if (discoveryType === 'incremental' && state.incrementalChanges) {
-        if (state.incrementalChanges.newFolders.length > 0) {
-          await processFoldersInParallel(state.incrementalChanges.newFolders);
-        }
-        if (state.incrementalChanges.deletedFolders.length > 0) {
-          await markDeletedFolders(state.incrementalChanges.deletedFolders);
-        }
-      }
+
       if (files.length > 0) {
-        if (discoveryType === 'incremental' && state.incrementalChanges) {
-          const existingRootDocs = state.incrementalChanges.existingFiles.find((file) => file.name === 'root')?.data || [];
-          const documentsToScan = await documentScanner.processDocumentsIncremental(files, 'root', existingRootDocs, discoveryType, eventEmitter);
-          if (documentsToScan && documentsToScan.length > 0) {
-            state.hasFileChanges = true;
-          }
-        } else {
-          await documentScanner.processRootFiles(files, statsTracker, eventEmitter);
-        }
+        await documentScanner.processRootFiles(files, statsTracker, eventEmitter);
       }
+
       if (folders.length > 0) {
-        if (discoveryType === 'incremental' && state.incrementalChanges) {
-          await processFoldersInParallel(folders);
-        } else {
-          await processFoldersInParallel(folders);
-        }
+        await processFoldersInParallel(folders);
       } else {
         await triggerDiscoveryComplete();
       }
+
+      return { hasChanges: false };
     } catch (error) {
       state.isRunning = false;
+      throw error;
     } finally {
       state.isRunning = false;
     }
-    if (discoveryType === 'incremental' && state.incrementalChanges) {
-      const hasChanges = state.incrementalChanges.newFolders.length > 0
-        || state.incrementalChanges.deletedFolders.length > 0
+  }
+
+  async function detectIncrementalChanges(folders, _files) {
+    const existingFiles = await persistenceManager.loadAllDiscoveryFiles();
+    const allExistingFolderNames = existingFiles.map((file) => file.name.replace('.json', ''));
+    const existingFolderNames = allExistingFolderNames.filter((name) => name !== 'root');
+    const currentFolderNames = folders.map((folder) => (
+      folder.path === '/' ? 'root' : folder.path.split('/').pop()
+    ));
+    const newFolders = folders.filter((folder) => {
+      const folderName = folder.path === '/' ? 'root' : folder.path.split('/').pop();
+      return !existingFolderNames.includes(folderName);
+    });
+    const deletedFolders = existingFolderNames.filter(
+      (name) => !currentFolderNames.includes(name),
+    );
+    return {
+      newFolders,
+      deletedFolders,
+      existingFiles,
+    };
+  }
+
+  async function processIncrementalChanges(incrementalChanges, folders, files) {
+    state.isRunning = true;
+    state.hasFileChanges = false;
+    const totalWork = folders.length + (files.length > 0 ? 1 : 0);
+    statsTracker.setTotalFolders(totalWork);
+    const changedDocuments = [];
+    if (incrementalChanges.newFolders.length > 0) {
+      await processFoldersInParallel(incrementalChanges.newFolders);
+    }
+    if (incrementalChanges.deletedFolders.length > 0) {
+      await markDeletedFolders(incrementalChanges.deletedFolders);
+    }
+    if (files.length > 0) {
+      const existingRootDocs = incrementalChanges.existingFiles.find((file) => file.name === 'root')?.data || [];
+      const documentsToScan = await documentScanner.processDocumentsIncremental(files, 'root', existingRootDocs, 'incremental', eventEmitter);
+      if (documentsToScan && documentsToScan.length > 0) {
+        state.hasFileChanges = true;
+        changedDocuments.push(...documentsToScan);
+      }
+    }
+    if (folders.length > 0) {
+      await processFoldersInParallel(folders);
+    } else {
+      await triggerDiscoveryComplete();
+    }
+    incrementalChanges.changedDocuments = changedDocuments;
+  }
+
+  async function startIncrementalDiscovery(_sessionId) {
+    try {
+      state.discoveryStartTime = Date.now();
+      state.discoveryType = 'incremental';
+      state.isRunning = false;
+      parallelProcessor.cleanupAll();
+      statsTracker.resetProgress();
+
+      const { folders, files } = await documentScanner.getTopLevelItems();
+
+      const totalWork = folders.length + (files.length > 0 ? 1 : 0);
+      const initialCheckpoint = {
+        totalFolders: totalWork,
+        completedFolders: 0,
+        totalDocuments: 0,
+        status: 'running',
+        discoveryStartTime: state.discoveryStartTime,
+        discoveryType: 'incremental',
+        lastUpdated: Date.now(),
+      };
+      await persistenceManager.saveDiscoveryCheckpointFile(initialCheckpoint);
+
+      const incrementalChanges = await detectIncrementalChanges(folders, files);
+      await processIncrementalChanges(incrementalChanges, folders, files);
+
+      const hasChanges = incrementalChanges.newFolders.length > 0
+        || incrementalChanges.deletedFolders.length > 0
         || state.hasFileChanges;
+
       return {
         hasChanges,
-        incrementalChanges: state.incrementalChanges,
+        incrementalChanges,
       };
+    } catch (error) {
+      state.isRunning = false;
+      throw error;
+    } finally {
+      state.isRunning = false;
     }
-    return { hasChanges: false };
   }
 
   async function stopDiscovery() {
@@ -324,6 +357,19 @@ export default function createDiscoveryEngine() {
 
   function setMediaProcessor(mediaProcessor) {
     state.mediaProcessor = mediaProcessor;
+  }
+
+  /**
+   * Start discovery with session
+   * @param {string} sessionId - Session ID
+   * @param {string} discoveryType - Discovery type ('full' or 'incremental')
+   * @returns {Promise<Object>} Discovery result
+   */
+  async function startDiscoveryWithSession(sessionId, discoveryType) {
+    if (discoveryType === 'full') {
+      return startFullDiscovery(sessionId);
+    }
+    return startIncrementalDiscovery(sessionId);
   }
 
   return {

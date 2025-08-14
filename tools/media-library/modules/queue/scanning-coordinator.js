@@ -49,6 +49,13 @@ export default function createScanningCoordinator() {
   ) {
     try {
       const discoveryFiles = await state.discoveryCoordinator.loadDiscoveryFiles();
+      console.log('[Scanning Coordinator] 📋 Loaded discovery files:', {
+        fileCount: discoveryFiles.length,
+        totalDocuments: discoveryFiles.reduce(
+          (sum, file) => sum + (file.documents?.length || 0),
+          0,
+        ),
+      });
       let documentsToScan;
       if (incrementalChanges && !forceRescan) {
         console.log('[Scanning Coordinator] 🔍 [INCREMENTAL] Filtering documents based on incremental changes');
@@ -59,6 +66,10 @@ export default function createScanningCoordinator() {
       } else {
         documentsToScan = state.documentProcessor.getDocumentsToScan(discoveryFiles, forceRescan);
       }
+      console.log('[Scanning Coordinator] 📊 Document analysis result:', {
+        documentsToScan: documentsToScan.length,
+        forceRescan,
+      });
       if (state.processingStateManager) {
         let discoveryType = 'full';
         try {
@@ -88,7 +99,7 @@ export default function createScanningCoordinator() {
             type: 'startQueueProcessing',
             data: {
               documentsToScan,
-              sessionId: state.sessionManager?.getCurrentSession()?.sessionId,
+              sessionId: state.sessionManager?.getCurrentSession(),
             },
           });
           return { success: true, documentsScanned: documentsToScan.length };
@@ -133,7 +144,7 @@ export default function createScanningCoordinator() {
             type: 'startQueueProcessing',
             data: {
               documentsToScan,
-              sessionId: state.sessionManager?.getCurrentSession()?.sessionId,
+              sessionId: state.sessionManager?.getCurrentSession(),
             },
           });
           return { success: true, documentsScanned: documentsToScan.length };

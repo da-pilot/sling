@@ -132,62 +132,6 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
     }
   }
 
-  async function getMediaStatistics() {
-    try {
-      const metadata = await getMetadata();
-      return metadata.statistics || {
-        images: 0,
-        videos: 0,
-        documents: 0,
-        external: 0,
-        internal: 0,
-      };
-    } catch (error) {
-      console.error('[Metadata Manager] ❌ Failed to get media statistics:', error);
-      return {
-        images: 0,
-        videos: 0,
-        documents: 0,
-        external: 0,
-        internal: 0,
-      };
-    }
-  }
-
-  async function exportMetadata(format = 'json') {
-    try {
-      const metadata = await getMetadata();
-
-      if (format === 'csv') {
-        return exportToCSV(metadata);
-      }
-
-      return JSON.stringify(metadata, null, 2);
-    } catch (error) {
-      console.error('[Metadata Manager] ❌ Failed to export metadata:', error);
-      throw error;
-    }
-  }
-
-  function exportToCSV(metadata) {
-    const headers = ['id', 'src', 'alt', 'title', 'type', 'displayName', 'discoveredAt'];
-    const rows = metadata.map((item) => [
-      item.id,
-      item.src,
-      item.alt,
-      item.title,
-      item.type,
-      item.displayName,
-      item.discoveredAt,
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell || ''}"`).join(','))
-      .join('\n');
-
-    return csvContent;
-  }
-
   async function importMetadata(fileContent) {
     try {
       const data = JSON.parse(fileContent);
@@ -254,8 +198,6 @@ export default function createMetadataManager(docAuthoringService, metadataPath)
     saveMetadata,
     updateMetadata,
     clearMetadata,
-    getMediaStatistics,
-    exportMetadata,
     importMetadata,
     createMetadataFile,
     clearCache,

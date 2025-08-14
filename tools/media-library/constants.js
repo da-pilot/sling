@@ -334,7 +334,7 @@ export const LOG_PREFIXES = {
   QUEUE_ORCHESTRATOR: '[Queue Orchestrator]',
   MEDIA_BROWSER: '[Media Browser]',
   MEDIA_INFO_MODAL: '[Media Info Modal]',
-  INDEXED_DB: '[IndexedDB]',
+  LOCAL_STORAGE: '[localStorage]',
   MEDIA_LOADER: '[Media Loader]',
   MEDIA_LIBRARY: '[Media Library]',
 };

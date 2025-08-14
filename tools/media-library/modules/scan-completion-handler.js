@@ -101,7 +101,7 @@ export default function createScanCompletionHandler() {
       await state.processingStateManager.saveScanningCheckpointFile(updatedCheckpoint);
       const discoveryCheckpoint = await state.processingStateManager.loadDiscoveryCheckpoint();
       if (discoveryCheckpoint && state.auditLogManager) {
-        const sessionId = state.sessionManager?.getCurrentSession()?.sessionId || 'unknown';
+        const sessionId = state.sessionManager?.getCurrentSession() || 'unknown';
         await state.auditLogManager.createAuditEntry(
           discoveryCheckpoint,
           updatedCheckpoint,
@@ -125,7 +125,7 @@ export default function createScanCompletionHandler() {
    * @param {Object} discoveryCoordinator - Discovery coordinator instance
    * @returns {Promise<Array>} Updated discovery files
    */
-  async function syncDiscoveryFilesCacheWithIndexedDB(discoveryCoordinator) {
+  async function syncDiscoveryFilesCacheWithLocalStorage(discoveryCoordinator) {
     try {
       if (!discoveryCoordinator || !state.persistenceManager) {
         return null;
@@ -141,7 +141,7 @@ export default function createScanCompletionHandler() {
             discoveryFiles = loadedFiles;
           }
         } catch (loadError) {
-          // Silent error handling
+          console.warn('[Scan Completion Handler] ⚠️ Error loading discovery files:', loadError);
         }
 
         if (!discoveryFiles || discoveryFiles.length === 0) {
@@ -153,21 +153,25 @@ export default function createScanCompletionHandler() {
 
       const filePromises = discoveryFiles.map(async (file) => {
         if (file.fileName && file.documents) {
-          const completedPages = await state.persistenceManager
-            .getCompletedPagesByFile(file.fileName);
+          try {
+            const completedPages = await state.persistenceManager
+              .getCompletedPagesByFile(file.fileName);
 
-          completedPages.forEach((page) => {
-            const document = file.documents.find((doc) => doc.path === page.pageUrl);
-            if (document) {
-              updates.push({
-                fileName: file.fileName,
-                pagePath: page.pageUrl,
-                status: page.scanStatus || 'completed',
-                mediaCount: page.mediaCount || 0,
-                error: page.scanErrors?.length > 0 ? page.scanErrors[0] : null,
-              });
-            }
-          });
+            completedPages.forEach((page) => {
+              const document = file.documents.find((doc) => doc.path === page.pagePath);
+              if (document) {
+                updates.push({
+                  fileName: file.fileName,
+                  pagePath: page.pagePath,
+                  status: page.scanStatus || 'completed',
+                  mediaCount: page.mediaCount || 0,
+                  error: page.scanErrors?.length > 0 ? page.scanErrors[0] : null,
+                });
+              }
+            });
+          } catch (error) {
+            console.warn(`[Scan Completion Handler] ⚠️ Error getting completed pages for ${file.fileName}:`, error);
+          }
         }
       });
 
@@ -199,28 +203,70 @@ export default function createScanCompletionHandler() {
 
       return updatedCache;
     } catch (error) {
+      console.error('[Scan Completion Handler] ❌ Error syncing discovery files cache:', error);
       return null;
+    }
+  }
+
+  async function updateSelectiveDiscoveryFiles(affectedFileNames, scannedDocuments) {
+    try {
+      if (!affectedFileNames || affectedFileNames.length === 0) {
+        return { success: true, updatedFiles: 0 };
+      }
+      const discoveryFileManager = createDiscoveryFileManager();
+      const allDiscoveryFiles = await discoveryFileManager.loadDiscoveryFilesWithChangeDetection(
+        state.config,
+        state.daApi,
+        () => [],
+      );
+      const filesToUpdate = allDiscoveryFiles.filter(
+        (file) => affectedFileNames.includes(file.fileName),
+      );
+      if (filesToUpdate.length === 0) {
+        return { success: true, updatedFiles: 0 };
+      }
+      const scannedPaths = new Set(scannedDocuments.map((doc) => doc.path));
+      const updatedFiles = filesToUpdate.map((file) => {
+        const updatedDocuments = file.documents.map((doc) => {
+          if (scannedPaths.has(doc.path)) {
+            return {
+              ...doc,
+              scanStatus: 'completed',
+              scanComplete: true,
+              needsRescan: false,
+              lastScannedAt: new Date().toISOString(),
+              entryStatus: 'completed',
+            };
+          }
+          return doc;
+        });
+        return { ...file, documents: updatedDocuments };
+      });
+      const result = await state.scanStatusUpdater.updateDiscoveryFilesInParallel(
+        state.config,
+        state.daApi,
+        state.processingStateManager,
+        updatedFiles,
+      );
+      eventEmitter.emit('selectiveDiscoveryFilesUpdated', {
+        fileCount: updatedFiles.length,
+        fileNames: updatedFiles.map((f) => f.fileName),
+        timestamp: new Date().toISOString(),
+        success: result.success,
+      });
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to update selective discovery files: ${error.message}`);
     }
   }
 
   async function updateSiteStructureWithMediaCounts(discoveryFilesData) {
     try {
-      console.log('[Scan Completion Handler] 🔄 Creating site structure from discovery files data:', {
-        hasData: !!discoveryFilesData,
-        dataLength: discoveryFilesData?.length || 0,
-      });
-
       const siteStructure = await state.siteAggregator
         .createSiteStructureFromCache(discoveryFilesData);
 
       if (siteStructure) {
-        console.log('[Scan Completion Handler] ✅ Site structure created successfully:', {
-          totalFolders: siteStructure.stats.totalFolders,
-          totalFiles: siteStructure.stats.totalFiles,
-          totalMediaItems: siteStructure.stats.totalMediaItems,
-        });
         await state.processingStateManager.saveSiteStructureFile(siteStructure);
-        console.log('[Scan Completion Handler] ✅ Site structure file saved');
         const eventData = {
           totalFolders: siteStructure.stats.totalFolders,
           totalFiles: siteStructure.stats.totalFiles,
@@ -228,12 +274,9 @@ export default function createScanCompletionHandler() {
           timestamp: new Date().toISOString(),
         };
         eventEmitter.emit('siteStructureUpdated', eventData);
-        console.log('[Scan Completion Handler] 📡 Emitted siteStructureUpdated event:', eventData);
-      } else {
-        console.warn('[Scan Completion Handler] ⚠️ No site structure created');
       }
     } catch (error) {
-      console.error('[Scan Completion Handler] ❌ Error updating site structure:', error);
+      throw new Error(`Error updating site structure: ${error.message}`);
     }
   }
 
@@ -299,13 +342,14 @@ export default function createScanCompletionHandler() {
   return {
     init,
     updateAllDiscoveryFiles,
+    updateSelectiveDiscoveryFiles,
     updateSiteStructureWithMediaCounts,
     updateDiscoveryFileScanStatus,
     updateSiteStructureMediaCount,
     updateFolderMediaCount,
     saveScanningCheckpoint,
     processRemainingMedia,
-    syncDiscoveryFilesCacheWithIndexedDB,
+    syncDiscoveryFilesCacheWithLocalStorage,
     updateScanningCheckpointAsCompleted,
     loadAuditLog: state.auditLogManager?.loadAuditLog.bind(state.auditLogManager),
     cleanupOldEntries: state.auditLogManager?.cleanupOldEntries.bind(state.auditLogManager),

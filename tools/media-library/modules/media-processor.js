@@ -1,22 +1,21 @@
 /* eslint-disable no-use-before-define */
 /**
- * Media Processor - Handles media extraction, normalization, and processing
- * Provides comprehensive media processing capabilities for HTML content
+ * Media Processor - Handles media processing and metadata management
+ * Provides media processing capabilities for batch operations and metadata management
  */
 
 import createMetadataManager from '../services/metadata-manager.js';
 import createPersistenceManager from '../services/persistence-manager.js';
+import createEventEmitter from '../shared/event-emitter.js';
 
 import {
-  isValidAltText,
-  isProbablyUrl,
   determineMediaType,
   extractFilenameFromUrl,
   generateHashFromSrc,
-  generateOccurrenceId,
 } from '../services/media-worker-utils.js';
 
 export default function createMediaProcessor() {
+  const eventEmitter = createEventEmitter('Media Processor');
   const state = {
     metadataManager: null,
     persistenceManager: null,
@@ -27,7 +26,6 @@ export default function createMediaProcessor() {
     currentSessionId: null,
     currentUserId: null,
     currentBrowserId: null,
-    onMediaUpdatedCallback: null,
     mediaDataCache: null,
     mediaDataCacheTimestamp: null,
     deduplicationCache: new Map(),
@@ -43,10 +41,12 @@ export default function createMediaProcessor() {
   /**
    * Initialize media processor with dependencies
    */
-  async function init(docAuthoringService) {
+  async function init(docAuthoringService, sessionManager, processingStateManager) {
     state.config = docAuthoringService.getConfig();
     state.metadataManager = createMetadataManager(docAuthoringService, '/.media/media.json');
     state.persistenceManager = createPersistenceManager();
+    state.sessionManager = sessionManager;
+    state.processingStateManager = processingStateManager;
     await state.metadataManager.init(state.config);
     await state.persistenceManager.init();
     await initializeDeduplicationCache();
@@ -55,177 +55,132 @@ export default function createMediaProcessor() {
   }
 
   /**
-   * Process media from HTML content
+   * Queue media items for batch processing
+   * @param {Array} media - Array of media items to queue
+   * @returns {Promise<Object>} Queue status with queued and total counts
    */
-  async function processMediaFromHTML(htmlContent, pageUrl) {
-    if (!state.isInitialized) {
-      throw new Error('Media processor not initialized');
-    }
-
-    try {
-      const startTime = Date.now();
-      const extractedMedia = extractMediaFromHTML(htmlContent);
-
-      const normalizedMedia = await normalizeMediaArray(extractedMedia, pageUrl);
-
-      const processedMedia = await enhanceMediaWithMetadata(normalizedMedia);
-
-      state.stats.totalProcessed += 1;
-      state.stats.totalMedia += processedMedia.length;
-      state.stats.processingTime += Date.now() - startTime;
-
-      if (processedMedia.length > 0) {
-        await state.metadataManager.updateMetadata(processedMedia);
-      }
-
-      emit('mediaProcessed', {
-        pageUrl,
-        mediaCount: processedMedia.length,
-        processingTime: Date.now() - startTime,
-      });
-
-      return processedMedia;
-    } catch (error) {
-      state.stats.totalErrors += 1;
-      console.error('[Media Processor] ❌ Error processing media:', {
-        pageUrl,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
   async function queueMediaForBatchProcessing(media) {
-    if (!state.isInitialized) {
-      console.error('[Media Processor] ❌ Media processor not initialized');
-      throw new Error('Media processor not initialized');
+    if (!media || media.length === 0) {
+      return { queued: 0, totalQueued: 0 };
     }
-
-    if (!state.currentSessionId) {
-      console.error('[Media Processor] ❌ No active session for batch processing');
-      throw new Error('No active session for batch processing');
-    }
-
-    console.log('[Media Processor] 📦 Queueing media for batch processing:', {
-      mediaCount: media.length,
-      sessionId: state.currentSessionId,
-      mediaTypes: media.map((m) => m.type || 'unknown'),
-    });
-
-    await state.persistenceManager.queueMediaForProcessing(media, state.currentSessionId);
+    const mediaWithIds = await Promise.all(
+      media.map(async (item) => {
+        if (item.id) {
+          return item;
+        }
+        const mediaId = await generateHashFromSrc(item.src);
+        return { ...item, id: mediaId };
+      }),
+    );
+    await state.persistenceManager.queueMediaForProcessing(mediaWithIds, state.currentSessionId);
     const queueItems = await state.persistenceManager.getProcessingQueue(state.currentSessionId);
     const totalQueuedItems = queueItems.reduce((sum, item) => sum + (item.media?.length || 0), 0);
-
-    console.log('[Media Processor] 📦 Media queued successfully:', {
-      queued: media.length,
-      totalQueued: totalQueuedItems,
-      sessionId: state.currentSessionId,
-    });
-
-    // Removed media update callback to prevent browser crashes during scanning
-    // Media browser will handle updates through its own polling mechanism
-
     processAndUploadQueuedMedia();
-
-    return { queued: media.length, totalQueued: totalQueuedItems };
+    return { queued: mediaWithIds.length, totalQueued: totalQueuedItems };
   }
 
+  /**
+   * Convert processing queue to upload batches
+   * @returns {Promise<void>}
+   */
   async function convertQueueToUploadBatches() {
     const queueItems = await state.persistenceManager.getProcessingQueue();
     const allRawMedia = queueItems.flatMap((item) => item.media || []);
-
-    console.log('[Media Processor] 📦 Converting queue to batches:', {
-      queueItems: queueItems.length,
-      totalMedia: allRawMedia.length,
-    });
-
     const batches = createBatches(allRawMedia, 20);
-
-    console.log('[Media Processor] 📦 Created batches:', {
-      batchCount: batches.length,
-      batchSizes: batches.map((b) => b.length),
-    });
-
     await Promise.all(
       batches.map(async (batch, i) => {
         const batchData = { batchNumber: i + 1, media: batch };
-        await state.persistenceManager.createUploadBatch(batchData, state.currentSessionId);
+        await state.persistenceManager.createUploadBatch(batchData);
       }),
     );
   }
 
+  /**
+   * Upload all pending batches to media.json sequentially
+   * @returns {Promise<void>}
+   */
   async function uploadAllBatchesToMediaJson() {
-    const persistenceManager = createPersistenceManager();
-    await persistenceManager.init();
-    const pendingBatches = await persistenceManager.getPendingBatches();
-
-    console.log('[Media Processor] 📤 Uploading batches to media.json:', {
-      pendingBatches: pendingBatches.length,
-    });
-
-    if (pendingBatches.length === 0) {
-      console.log('[Media Processor] 📤 No pending batches to upload');
-      return;
+    let existingMedia = await state.metadataManager.getMetadata();
+    const pendingBatches = await state.persistenceManager.getPendingBatches();
+    const batchCount = pendingBatches.length;
+    for (let i = 0; i < batchCount; i += 1) {
+      const batch = pendingBatches[i];
+      // eslint-disable-next-line no-await-in-loop
+      const { media: mergedMedia } = await mergeMediaWithDeduplication(existingMedia, batch.media);
+      // eslint-disable-next-line no-await-in-loop
+      await state.metadataManager.saveMetadata(mergedMedia);
+      existingMedia = mergedMedia;
+      state.stats.totalProcessed += batch.media.length;
+      state.stats.totalMedia = mergedMedia.length;
+      // eslint-disable-next-line no-await-in-loop
+      await state.persistenceManager.removeBatch(batch.id);
     }
-
-    const allBatchMedia = pendingBatches.flatMap((batch) => batch.media);
-
-    console.log('[Media Processor] 📤 Processing batch media:', {
-      totalMedia: allBatchMedia.length,
-      mediaTypes: [...new Set(allBatchMedia.map((m) => m.type || 'unknown'))],
-    });
-
-    await state.metadataManager.init(state.config);
-    const existingData = await state.metadataManager.getMetadata();
-
-    console.log('[Media Processor] 📤 Existing media.json data:', {
-      existingCount: existingData ? existingData.length : 0,
-    });
-
-    const { media: updatedMedia } = await mergeMediaWithDeduplication(
-      existingData || [],
-      allBatchMedia,
-    );
-
-    console.log('[Media Processor] 📤 Merged media data:', {
-      updatedCount: updatedMedia.length,
-      newMediaCount: allBatchMedia.length,
-    });
-
-    await state.metadataManager.saveMetadata(updatedMedia);
-    state.mediaDataCache = null;
-    state.mediaDataCacheTimestamp = null;
-
-    console.log('[Media Processor] 📤 Successfully updated media.json with new data');
-
-    // Removed media update callback to prevent browser crashes during scanning
-    // Media browser will handle updates through its own polling mechanism
-
-    const batchPromises = pendingBatches.map(async (batch) => {
-      await persistenceManager.confirmBatchUpload(batch.id, { count: batch.media.length });
-      const processedIds = batch.media.map((m) => m.id);
-      await persistenceManager.removeMediaFromProcessingQueue(processedIds, batch.sessionId);
-    });
-    await Promise.all(batchPromises);
-
-    console.log('[Media Processor] 📤 Cleaned up processing queue');
   }
 
-  async function processAndUploadQueuedMedia() {
-    console.log('[Media Processor] 🔄 Starting batch processing and upload...');
+  /**
+   * Process and upload queued media with processing lock
+   * @returns {Promise<void>}
+   */
+  function processAndUploadQueuedMedia() {
+    if (state.isProcessing) {
+      return;
+    }
+    state.isProcessing = true;
     setTimeout(async () => {
       try {
-        console.log('[Media Processor] 🔄 Converting queue to upload batches...');
+        let stableCount = 0;
+        const maxStableChecks = 3;
+        let previousLength = 0;
+        while (stableCount < maxStableChecks) {
+          // eslint-disable-next-line no-await-in-loop
+          const queueItems = await state.persistenceManager.getProcessingQueue();
+          const currentLength = queueItems.reduce(
+            (sum, item) => sum + (item.media?.length || 0),
+            0,
+          );
+          if (currentLength === previousLength) {
+            stableCount += 1;
+          } else {
+            stableCount = 0;
+          }
+          previousLength = currentLength;
+          if (stableCount < maxStableChecks) {
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((resolve) => {
+              setTimeout(resolve, 1000);
+            });
+          }
+        }
         await convertQueueToUploadBatches();
-        console.log('[Media Processor] 🔄 Uploading batches to media.json...');
-        await uploadAllBatchesToMediaJson();
-        console.log('[Media Processor] ✅ Batch processing and upload completed');
+        const pendingBatches = await state.persistenceManager.getPendingBatches();
+        if (pendingBatches.length > 0) {
+          await uploadAllBatchesToMediaJson();
+        }
       } catch (error) {
         console.error('[Media Processor] ❌ Error processing and uploading queued media:', error);
+        console.error('[Media Processor] ❌ Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        });
+      } finally {
+        state.isProcessing = false;
+        console.log('[Media Processor] ✅ Media processing and upload completed');
+        eventEmitter.emit('mediaProcessingCompleted', {
+          timestamp: Date.now(),
+          sessionId: state.currentSessionId,
+          stats: { ...state.stats },
+        });
       }
     }, 0);
   }
 
+  /**
+   * Create batches from array with specified batch size
+   * @param {Array} array - Array to split into batches
+   * @param {number} batchSize - Size of each batch
+   * @returns {Array<Array>} Array of batches
+   */
   function createBatches(array, batchSize) {
     const batches = [];
     for (let i = 0; i < array.length; i += batchSize) {
@@ -235,142 +190,10 @@ export default function createMediaProcessor() {
   }
 
   /**
-   * Extract media from HTML content
-   */
-  function extractMediaFromHTML(htmlContent) {
-    const media = [];
-    const extractedSrcs = new Set();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-    const imgMedia = extractImgTags(doc);
-    const pictureMedia = extractPictureImages(doc);
-    const videoMedia = extractVideoSources(doc);
-    const backgroundMedia = extractBackgroundImages(doc);
-    const linkMedia = extractMediaLinks(doc);
-    const cssMedia = extractCSSBackgrounds(doc);
-    const addMediaWithoutDuplicates = (mediaArray) => {
-      mediaArray.forEach((item) => {
-        const src = item.src || item.url;
-        if (!extractedSrcs.has(src)) {
-          extractedSrcs.add(src);
-          media.push(item);
-        }
-      });
-    };
-    addMediaWithoutDuplicates(imgMedia);
-    addMediaWithoutDuplicates(pictureMedia);
-    addMediaWithoutDuplicates(videoMedia);
-    addMediaWithoutDuplicates(backgroundMedia);
-    addMediaWithoutDuplicates(linkMedia);
-    addMediaWithoutDuplicates(cssMedia);
-    return media;
-  }
-
-  /**
-   * Normalize media array with consistent structure
-   */
-  async function normalizeMediaArray(mediaArray, pageUrl) {
-    const normalizedMediaPromises = mediaArray.map(async (media, index) => {
-      const src = media.src || media.url;
-      const isExternal = media.isExternal !== undefined ? media.isExternal : false;
-      let name;
-      if (media.alt && !isProbablyUrl(media.alt) && isValidAltText(media.alt)) {
-        name = media.alt;
-      } else if (media.title && !isProbablyUrl(media.title) && media.title.trim().length > 0) {
-        name = media.title;
-      } else {
-        name = extractFilenameFromUrl(src);
-      }
-      const id = await generateHashFromSrc(src);
-      const occurrenceId = await generateOccurrenceId(pageUrl, src, index + 1);
-      const normalizedMediaItem = {
-        id,
-        src,
-        name,
-        alt: media.alt || '',
-        title: media.title || '',
-        type: determineMediaType(src),
-        context: media.context || '',
-        pageUrl,
-        discoveredAt: new Date().toISOString(),
-        usedIn: [pageUrl],
-        isExternal,
-        occurrences: [
-          {
-            occurrenceId,
-            pagePath: pageUrl,
-            altText: media.alt || '',
-            hasAltText: Boolean(media.alt && media.alt.trim()),
-            occurrenceType: determineMediaType(src),
-            contextualText: media.contextualText || '',
-            context: media.context || '',
-          },
-        ],
-        metadata: {
-          width: media.metadata?.width || media.dimensions?.width || null,
-          height: media.metadata?.height || media.dimensions?.height || null,
-          size: media.metadata?.size || null,
-          format: media.metadata?.format || null,
-        },
-      };
-      return normalizedMediaItem;
-    });
-    return Promise.all(normalizedMediaPromises);
-  }
-
-  /**
-   * Extract image metadata
-   */
-  async function extractImageMetadata(src) {
-    try {
-      const img = new Image();
-      return new Promise((resolve) => {
-        img.onload = () => {
-          resolve({
-            width: img.naturalWidth,
-            height: img.naturalHeight,
-          });
-        };
-        img.onerror = () => {
-          resolve({
-            width: null,
-            height: null,
-          });
-        };
-        img.src = src;
-      });
-    } catch (error) {
-      return {
-        width: null,
-        height: null,
-      };
-    }
-  }
-
-  /**
-   * Enhance media with metadata
-   */
-  async function enhanceMediaWithMetadata(mediaArray) {
-    const enhancedMedia = await Promise.all(
-      mediaArray.map(async (media) => {
-        if (media.type === 'image' && media.src) {
-          const metadata = await extractImageMetadata(media.src);
-          return {
-            ...media,
-            metadata: {
-              ...media.metadata,
-              ...metadata,
-            },
-          };
-        }
-        return media;
-      }),
-    );
-    return enhancedMedia;
-  }
-
-  /**
    * Merge media arrays with deduplication
+   * @param {Array} existingMedia - Existing media array
+   * @param {Array} newMedia - New media array to merge
+   * @returns {Promise<Object>} Merged media array and statistics
    */
   async function mergeMediaWithDeduplication(existingMedia, newMedia) {
     const mediaMap = new Map();
@@ -381,37 +204,19 @@ export default function createMediaProcessor() {
       added: 0,
       duplicates: 0,
     };
-
-    console.log('[Media Processor] 🔍 Deduplication: Starting with', {
-      existingCount: existingMedia.length,
-      newCount: newMedia.length,
-      cacheSize: state.deduplicationCache.size,
-    });
-
     existingMedia.forEach((media) => {
       mediaMap.set(media.id, media);
       state.deduplicationCache.set(media.src, media.id);
     });
-
-    const processedMedia = await Promise.all(
-      newMedia.map(async (media) => {
-        const normalizedSrc = media.src;
-        const mediaId = media.id || await generateHashFromSrc(normalizedSrc);
-        return { media: { ...media, src: normalizedSrc }, mediaId };
-      }),
-    );
-
-    console.log('[Media Processor] 🔍 Deduplication: Processed media objects:', processedMedia.map(({ media, mediaId }) => ({
-      src: media.src,
-      id: mediaId,
-      type: media.type,
-      name: media.name,
-      occurrences: media.occurrences?.length || 0,
-    })));
-
+    const processedMedia = newMedia.map((media) => {
+      const normalizedSrc = media.src;
+      if (!media.id) {
+        console.warn('[Media Processor] ⚠️ Media item missing ID:', media.src);
+      }
+      return { media: { ...media, src: normalizedSrc }, mediaId: media.id };
+    });
     processedMedia.forEach(({ media, mediaId }) => {
       const existingId = state.deduplicationCache.get(media.src);
-
       if (existingId && mediaMap.has(existingId)) {
         stats.merged += 1;
         stats.duplicates += 1;
@@ -461,15 +266,15 @@ export default function createMediaProcessor() {
         state.deduplicationCache.set(media.src, mediaId);
       }
     });
-
     const result = Array.from(mediaMap.values());
     stats.final = result.length;
-
     return { media: result, stats };
   }
 
   /**
    * Validate and clean media data structure
+   * @param {Object} media - Media object to validate and clean
+   * @returns {Object} Cleaned and validated media object
    */
   function validateAndCleanMedia(media) {
     const occurrences = Array.isArray(media.occurrences)
@@ -513,6 +318,8 @@ export default function createMediaProcessor() {
 
   /**
    * Clean occurrence data structure
+   * @param {Object} occurrence - Occurrence object to clean
+   * @returns {Object} Cleaned occurrence object
    */
   function cleanOccurrence(occurrence) {
     return {
@@ -527,163 +334,9 @@ export default function createMediaProcessor() {
   }
 
   /**
-   * Extract img tags from document
-   */
-  function extractImgTags(doc) {
-    const imgElements = doc.querySelectorAll('img');
-    return Array.from(imgElements).map((img) => {
-      const src = img.src || img.getAttribute('src') || '';
-      const alt = img.alt || img.getAttribute('alt') || '';
-      const title = img.title || img.getAttribute('title') || '';
-      const context = getElementContext(img);
-      return {
-        src,
-        alt,
-        title,
-        context,
-        type: 'image',
-      };
-    });
-  }
-
-  /**
-   * Extract picture images from document
-   */
-  function extractPictureImages(doc) {
-    const pictureElements = doc.querySelectorAll('picture');
-    const pictureImages = [];
-    pictureElements.forEach((picture) => {
-      const img = picture.querySelector('img');
-      if (img) {
-        const src = img.src || img.getAttribute('src') || '';
-        const alt = img.alt || img.getAttribute('alt') || '';
-        const title = img.title || img.getAttribute('title') || '';
-        const context = getElementContext(picture);
-        pictureImages.push({
-          src,
-          alt,
-          title,
-          context,
-          type: 'image',
-        });
-      }
-    });
-    return pictureImages;
-  }
-
-  /**
-   * Extract video sources from document
-   */
-  function extractVideoSources(doc) {
-    const videoElements = doc.querySelectorAll('video');
-    const videoSources = [];
-    videoElements.forEach((video) => {
-      const sources = video.querySelectorAll('source');
-      sources.forEach((source) => {
-        const src = source.src || source.getAttribute('src') || '';
-        if (src) {
-          const context = getElementContext(video);
-          videoSources.push({
-            src,
-            alt: video.alt || video.getAttribute('alt') || '',
-            title: video.title || video.getAttribute('title') || '',
-            context,
-            type: 'video',
-          });
-        }
-      });
-      const videoSrc = video.src || video.getAttribute('src') || '';
-      if (videoSrc) {
-        const context = getElementContext(video);
-        videoSources.push({
-          src: videoSrc,
-          alt: video.alt || video.getAttribute('alt') || '',
-          title: video.title || video.getAttribute('title') || '',
-          context,
-          type: 'video',
-        });
-      }
-    });
-    return videoSources;
-  }
-
-  /**
-   * Extract background images from document
-   */
-  function extractBackgroundImages(doc) {
-    const backgroundImages = [];
-    const elementsWithBackground = doc.querySelectorAll('*[style*="background"]');
-    elementsWithBackground.forEach((element) => {
-      const style = element.getAttribute('style') || '';
-      const backgroundMatch = style.match(/background(?:-image)?\s*:\s*url\(['"]?([^'"]+)['"]?\)/i);
-      if (backgroundMatch) {
-        const src = backgroundMatch[1];
-        const context = getElementContext(element);
-        backgroundImages.push({
-          src,
-          alt: element.alt || element.getAttribute('alt') || '',
-          title: element.title || element.getAttribute('title') || '',
-          context,
-          type: 'image',
-        });
-      }
-    });
-    return backgroundImages;
-  }
-
-  /**
-   * Extract media links from document
-   */
-  function extractMediaLinks(doc) {
-    const mediaLinks = [];
-    const linkElements = doc.querySelectorAll('a[href]');
-    linkElements.forEach((link) => {
-      const href = link.href || link.getAttribute('href') || '';
-      if (isMediaFile(href)) {
-        const context = getElementContext(link);
-        mediaLinks.push({
-          src: href,
-          alt: link.alt || link.getAttribute('alt') || '',
-          title: link.title || link.getAttribute('title') || '',
-          context,
-          type: determineMediaType(href),
-        });
-      }
-    });
-    return mediaLinks;
-  }
-
-  /**
-   * Extract CSS backgrounds from document
-   */
-  function extractCSSBackgrounds(doc) {
-    const cssBackgrounds = [];
-    const styleElements = doc.querySelectorAll('style');
-    styleElements.forEach((style) => {
-      const cssText = style.textContent || '';
-      const backgroundMatches = cssText.match(/background(?:-image)?\s*:\s*url\(['"]?([^'"]+)['"]?\)/gi);
-      if (backgroundMatches) {
-        backgroundMatches.forEach((match) => {
-          const urlMatch = match.match(/url\(['"]?([^'"]+)['"]?\)/i);
-          if (urlMatch) {
-            const src = urlMatch[1];
-            const context = getElementContext(style);
-            cssBackgrounds.push({
-              src,
-              alt: '',
-              title: '',
-              context,
-              type: 'image',
-            });
-          }
-        });
-      }
-    });
-    return cssBackgrounds;
-  }
-
-  /**
-   * Check if URL is a media file
+   * Extract file format from URL
+   * @param {string} url - URL to extract format from
+   * @returns {string|null} File format or null if not found
    */
   function extractFormatFromUrl(url) {
     if (!url || typeof url !== 'string') {
@@ -692,76 +345,18 @@ export default function createMediaProcessor() {
     const match = url.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
     return match ? match[1].toLowerCase() : null;
   }
-  function isMediaFile(url) {
-    if (!url) return false;
-    const mediaExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.mp4', '.webm', '.ogg', '.mp3', '.wav'];
-    const lowerUrl = url.toLowerCase();
-    return mediaExtensions.some((ext) => lowerUrl.includes(ext));
-  }
-
-  /**
-   * Get element context
-   */
-  function getElementContext(element) {
-    const context = [];
-    let current = element;
-    while (current && current !== element.ownerDocument.body) {
-      if (current.tagName) {
-        context.unshift(current.tagName.toLowerCase());
-      }
-      current = current.parentElement;
-    }
-    return context.join(' > ');
-  }
-
-  /**
-   * Add event listener
-   */
-  function on(event, callback) {
-    if (!state.listeners.has(event)) {
-      state.listeners.set(event, []);
-    }
-    state.listeners.get(event).push(callback);
-  }
-
-  /**
-   * Remove event listener
-   */
-  function off(event, callback) {
-    const callbacks = state.listeners.get(event);
-    if (callbacks) {
-      const index = callbacks.indexOf(callback);
-      if (index > -1) {
-        callbacks.splice(index, 1);
-      }
-    }
-  }
-
-  /**
-   * Emit event to listeners
-   */
-  function emit(event, data) {
-    const callbacks = state.listeners.get(event);
-    if (callbacks) {
-      callbacks.forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error('Error in event listener:', error);
-        }
-      });
-    }
-  }
 
   /**
    * Get processing statistics
+   * @returns {Object} Processing statistics
    */
   function getStats() {
     return { ...state.stats };
   }
 
   /**
-   * Initialize deduplication cache
+   * Initialize deduplication cache from existing metadata
+   * @returns {Promise<void>}
    */
   async function initializeDeduplicationCache() {
     try {
@@ -777,26 +372,21 @@ export default function createMediaProcessor() {
   }
 
   /**
-   * Cleanup resources
+   * Cleanup resources and reset state
    */
   function cleanup() {
     state.isInitialized = false;
     state.listeners.clear();
-    state.onMediaUpdatedCallback = null;
     state.mediaDataCache = null;
     state.mediaDataCacheTimestamp = null;
     state.deduplicationCache.clear();
   }
 
   /**
-   * Set media updated callback
-   */
-  function setOnMediaUpdated(callback) {
-    state.onMediaUpdatedCallback = callback;
-  }
-
-  /**
-   * Set current session
+   * Set current session information
+   * @param {string} sessionId - Session ID
+   * @param {string} userId - User ID
+   * @param {string} browserId - Browser ID
    */
   function setCurrentSession(sessionId, userId, browserId) {
     state.currentSessionId = sessionId;
@@ -805,24 +395,21 @@ export default function createMediaProcessor() {
   }
 
   /**
-   * Get all media data from metadata manager
+   * Get all media data from metadata manager with caching
+   * @returns {Promise<Array>} Media data array
    */
   async function getMediaData() {
     if (!state.isInitialized) {
       throw new Error('Media processor not initialized');
     }
-
     try {
       const cacheAge = Date.now() - (state.mediaDataCacheTimestamp || 0);
       if (state.mediaDataCache && cacheAge < 5 * 60 * 1000) {
         return state.mediaDataCache;
       }
-
       const mediaData = await state.metadataManager.getMetadata();
-
       state.mediaDataCache = mediaData;
       state.mediaDataCacheTimestamp = Date.now();
-
       return mediaData;
     } catch (error) {
       return [];
@@ -831,6 +418,8 @@ export default function createMediaProcessor() {
 
   /**
    * Synchronize external media data with internal state
+   * @param {Array} mediaData - External media data to sync
+   * @returns {Promise<Array>} Merged media data
    */
   async function syncMediaData(mediaData) {
     if (!state.isInitialized) {
@@ -844,44 +433,7 @@ export default function createMediaProcessor() {
     await state.metadataManager.saveMetadata(mergedMedia);
     state.mediaDataCache = mergedMedia;
     state.mediaDataCacheTimestamp = Date.now();
-    // Removed media update callback to prevent browser crashes during scanning
-    // Media browser will handle updates through its own polling mechanism
     return mergedMedia;
-  }
-
-  /**
-   * Process media immediately
-   * @param {Array} media - Media items to process
-   * @param {string} sessionId - Session ID
-   * @returns {Promise<void>}
-   */
-  async function processMediaImmediately(media, sessionId) {
-    if (!state.isInitialized) {
-      throw new Error('Media processor not initialized');
-    }
-    if (!media || !Array.isArray(media)) {
-      return;
-    }
-    if (sessionId) {
-      setCurrentSession(sessionId, state.currentUserId, state.currentBrowserId);
-    }
-    await syncMediaData(media);
-  }
-
-  /**
-   * Check if media is available
-   * @returns {Promise<boolean>}
-   */
-  async function checkMediaAvailable() {
-    if (!state.isInitialized) {
-      return false;
-    }
-    try {
-      const mediaData = await getMediaData();
-      return Array.isArray(mediaData) && mediaData.length > 0;
-    } catch (error) {
-      return false;
-    }
   }
 
   /**
@@ -896,10 +448,7 @@ export default function createMediaProcessor() {
     if (!deletedDocumentPaths || deletedDocumentPaths.length === 0) {
       return;
     }
-    console.log('[Media Processor] 🔍 [CLEANUP] Starting cleanup for deleted documents:', {
-      deletedCount: deletedDocumentPaths.length,
-      deletedPaths: deletedDocumentPaths,
-    });
+
     const mediaData = await getMediaData();
     if (!Array.isArray(mediaData) || mediaData.length === 0) {
       return;
@@ -916,10 +465,6 @@ export default function createMediaProcessor() {
         return true;
       }
       if (deletedPathsInEntry.length === usedInPaths.length) {
-        console.log('[Media Processor] 🔍 [CLEANUP] Removing entire media entry:', {
-          mediaId: mediaEntry.id,
-          usedIn: usedInPaths,
-        });
         cleanedEntries += 1;
         return false;
       }
@@ -929,11 +474,7 @@ export default function createMediaProcessor() {
       );
       mediaEntry.usedIn = remainingPaths.join(',');
       mediaEntry.occurrences = remainingOccurrences;
-      console.log('[Media Processor] 🔍 [CLEANUP] Updated media entry:', {
-        mediaId: mediaEntry.id,
-        removedPaths: deletedPathsInEntry,
-        remainingPaths,
-      });
+
       removedPaths += deletedPathsInEntry.length;
       return true;
     });
@@ -941,11 +482,6 @@ export default function createMediaProcessor() {
       await state.metadataManager.saveMetadata(updatedMedia);
       state.mediaDataCache = updatedMedia;
       state.mediaDataCacheTimestamp = Date.now();
-      console.log('[Media Processor] 🔍 [CLEANUP] Cleanup completed:', {
-        cleanedEntries,
-        removedPaths,
-        remainingEntries: updatedMedia.length,
-      });
     }
   }
 
@@ -977,10 +513,6 @@ export default function createMediaProcessor() {
         return true;
       }
       if (updatedPathsInEntry.length === usedInPaths.length) {
-        console.log('[Media Processor] 🔍 [UPDATE] Removing entire media entry (only used in updated docs):', {
-          mediaId: mediaEntry.id,
-          usedIn: usedInPaths,
-        });
         cleanedEntries += 1;
         return false;
       }
@@ -990,11 +522,6 @@ export default function createMediaProcessor() {
       );
       mediaEntry.usedIn = remainingPaths.join(',');
       mediaEntry.occurrences = remainingOccurrences;
-      console.log('[Media Processor] 🔍 [UPDATE] Updated media entry:', {
-        mediaId: mediaEntry.id,
-        removedPaths: updatedPathsInEntry,
-        remainingPaths,
-      });
       removedPaths += updatedPathsInEntry.length;
       return true;
     });
@@ -1002,32 +529,25 @@ export default function createMediaProcessor() {
       await state.metadataManager.saveMetadata(updatedMedia);
       state.mediaDataCache = updatedMedia;
       state.mediaDataCacheTimestamp = Date.now();
-      console.log('[Media Processor] 🔍 [UPDATE] Cleanup completed:', {
-        cleanedEntries,
-        removedPaths,
-        remainingEntries: updatedMedia.length,
-      });
     }
   }
 
   return {
     init,
-    processMediaFromHTML,
     queueMediaForBatchProcessing,
     convertQueueToUploadBatches,
     uploadAllBatchesToMediaJson,
     processAndUploadQueuedMedia,
     getMediaData,
     syncMediaData,
-    processMediaImmediately,
-    checkMediaAvailable,
-    setOnMediaUpdated,
+
     setCurrentSession,
     getStats,
     cleanup,
-    on,
-    off,
-    emit,
+    on: eventEmitter.on.bind(eventEmitter),
+    off: eventEmitter.off.bind(eventEmitter),
+    emit: eventEmitter.emit.bind(eventEmitter),
+    getEventEmitter: () => eventEmitter,
     mergeMediaWithDeduplication,
     cleanupMediaForDeletedDocuments,
     cleanupMediaForUpdatedDocuments,
