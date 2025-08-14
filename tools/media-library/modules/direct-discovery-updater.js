@@ -15,37 +15,17 @@ export default function createDirectDiscoveryUpdater() {
   async function updateAllDiscoveryFiles(config, daApi, scanResultsManager, discoveryFiles) {
     try {
       const allScanResults = await scanResultsManager.getAllScanResults();
-      console.log('[Direct Discovery Updater] 🔍 Total scan results:', allScanResults.length);
-      if (allScanResults.length > 0) {
-        console.log('[Direct Discovery Updater] 🔍 Sample scan result:', {
-          pagePath: allScanResults[0].pagePath,
-          sourceFile: allScanResults[0].sourceFile,
-          mediaCount: allScanResults[0].mediaCount,
-          status: allScanResults[0].status,
-        });
-      }
       const updatedFiles = discoveryFiles.map((file) => {
-        console.log('[Direct Discovery Updater] 🔍 Processing discovery file:', file.fileName, 'Documents:', file.documents?.length || 0);
         const fileScanResults = allScanResults.filter(
           (result) => result.sourceFile === file.fileName,
         );
-        console.log('[Direct Discovery Updater] 🔍 File:', file.fileName, 'Scan results:', fileScanResults.length);
         const updatedDocuments = file.documents.map((doc) => {
           const scanResult = fileScanResults.find((result) => {
             const pathMatch = result.pagePath === doc.path;
             const normalizedPathMatch = result.pagePath?.replace(/^\//, '') === doc.path?.replace(/^\//, '');
-            if (pathMatch || normalizedPathMatch) {
-              console.log('[Direct Discovery Updater] 🔍 Path match found:', {
-                docPath: doc.path,
-                scanPath: result.pagePath,
-                pathMatch,
-                normalizedPathMatch,
-              });
-            }
             return pathMatch || normalizedPathMatch;
           });
           if (scanResult) {
-            console.log('[Direct Discovery Updater] ✅ Matched:', doc.path, 'mediaCount:', scanResult.mediaCount);
             return {
               ...doc,
               mediaCount: scanResult.mediaCount || 0,
@@ -57,9 +37,6 @@ export default function createDirectDiscoveryUpdater() {
               lastScannedAt: scanResult.lastScannedAt || new Date().toISOString(),
               scanErrors: scanResult.scanErrors || [],
             };
-          }
-          if (!scanResult) {
-            console.log('[Direct Discovery Updater] ❌ No match for:', doc.path, 'Available scan results:', fileScanResults.map((r) => r.pagePath));
           }
           return doc;
         });
