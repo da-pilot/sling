@@ -1023,10 +1023,15 @@ margin-bottom:10px;
   padding: 0;
 }
 
-.section.dark.center.columns-container span.icon:first-of-type {
+.section.center.columns-container span.icon:first-of-type {
   height: 80px;
   width: 150px;
 }
+
+.section.white.supported-devices span.icon img{
+  filter: invert(0) brightness(0);
+}
+
 
 .main > .columns-2.banner {
     padding: 0;
@@ -1170,7 +1175,7 @@ a.black {
       padding: 64px 32px;
     }
 
-    .section.dark.supported-devices h2 {
+    .section.supported-devices h2 {
       font-size: 2.25rem;
     }
 

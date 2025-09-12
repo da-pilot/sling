@@ -267,6 +267,10 @@
     width: 80px;
   }
 
+  .white .columns.icons span.icon img {
+    filter: invert(0) brightness(0);
+  }
+
   .columns.icons.block > div {
     display: flex ;
     align-items: center;
