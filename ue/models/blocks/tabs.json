@@ -10,11 +10,22 @@
           "columns": 3
         }
       }
+    },
+    {
+      "title": "Tabs Item",
+      "id": "tabs-item",
+      "plugins": {
+        "da": {
+          "name": "tabs-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
     }
   ],
   "models": [
     {
-      "id": "tabs",
+      "id": "tabs-item",
       "fields": [
         {
           "component": "richtext",
@@ -41,5 +52,12 @@
       ]
     }
   ],
-  "filters": []
+  "filters": [
+    {
+      "id": "tabs",
+      "components": [
+        "tabs-item"
+      ]
+    }
+  ]
 }

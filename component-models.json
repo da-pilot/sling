@@ -64,7 +64,7 @@
     ]
   },
   {
-    "id": "accordion",
+    "id": "accordion-item",
     "fields": [
       {
         "component": "richtext",
@@ -84,7 +84,7 @@
     ]
   },
   {
-    "id": "account-form",
+    "id": "account-form-item",
     "fields": [
       {
         "component": "richtext",
@@ -117,7 +117,7 @@
     ]
   },
   {
-    "id": "banner-image-item",
+    "id": "banner-image",
     "fields": [
       {
         "component": "reference",
@@ -274,7 +274,7 @@
     ]
   },
   {
-    "id": "base-cards-item",
+    "id": "base-cards",
     "fields": [
       {
         "component": "text",
@@ -713,7 +713,7 @@
     ]
   },
   {
-    "id": "game-finder-item",
+    "id": "game-finder",
     "fields": [
       {
         "component": "richtext",
@@ -785,7 +785,7 @@
     ]
   },
   {
-    "id": "marquee-item",
+    "id": "marquee",
     "fields": [
       {
         "component": "reference",
@@ -954,7 +954,7 @@
     ]
   },
   {
-    "id": "package-cards-item",
+    "id": "package-cards",
     "fields": [
       {
         "component": "text",
@@ -1133,7 +1133,7 @@
     ]
   },
   {
-    "id": "plan-offer-item",
+    "id": "plan-offer",
     "fields": [
       {
         "component": "boolean",
@@ -1219,7 +1219,7 @@
     ]
   },
   {
-    "id": "tabs",
+    "id": "tabs-item",
     "fields": [
       {
         "component": "richtext",
@@ -1246,7 +1246,7 @@
     ]
   },
   {
-    "id": "view-all-channels",
+    "id": "view-all-channels-item",
     "fields": [
       {
         "component": "richtext",

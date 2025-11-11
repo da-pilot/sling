@@ -10,22 +10,11 @@
           "columns": 2
         }
       }
-    },
-    {
-      "title": "Plan Offer Item",
-      "id": "plan-offer-item",
-      "plugins": {
-        "da": {
-          "name": "plan-offer-item",
-          "rows": 2,
-          "columns": 0
-        }
-      }
     }
   ],
   "models": [
     {
-      "id": "plan-offer-item",
+      "id": "plan-offer",
       "fields": [
         {
           "component": "boolean",
@@ -72,12 +61,5 @@
       ]
     }
   ],
-  "filters": [
-    {
-      "id": "plan-offer",
-      "components": [
-        "plan-offer-item"
-      ]
-    }
-  ]
+  "filters": []
 }

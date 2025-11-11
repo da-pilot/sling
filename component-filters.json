@@ -13,15 +13,15 @@
     ]
   },
   {
-    "id": "banner-image",
+    "id": "accordion",
     "components": [
-      "banner-image-item"
+      "accordion-item"
     ]
   },
   {
-    "id": "base-cards",
+    "id": "account-form",
     "components": [
-      "base-cards-item"
+      "account-form-item"
     ]
   },
   {
@@ -61,12 +61,6 @@
     ]
   },
   {
-    "id": "game-finder",
-    "components": [
-      "game-finder-item"
-    ]
-  },
-  {
     "id": "header",
     "components": [
       "header-item"
@@ -85,27 +79,9 @@
     ]
   },
   {
-    "id": "marquee",
-    "components": [
-      "marquee-item"
-    ]
-  },
-  {
     "id": "offer-cards",
     "components": [
       "offer-cards-item"
-    ]
-  },
-  {
-    "id": "package-cards",
-    "components": [
-      "package-cards-item"
-    ]
-  },
-  {
-    "id": "plan-offer",
-    "components": [
-      "plan-offer-item"
     ]
   },
   {
@@ -124,6 +100,18 @@
     "id": "table",
     "components": [
       "table-item"
+    ]
+  },
+  {
+    "id": "tabs",
+    "components": [
+      "tabs-item"
+    ]
+  },
+  {
+    "id": "view-all-channels",
+    "components": [
+      "view-all-channels-item"
     ]
   },
   {

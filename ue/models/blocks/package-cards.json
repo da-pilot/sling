@@ -10,22 +10,11 @@
           "columns": 2
         }
       }
-    },
-    {
-      "title": "Package Cards Item",
-      "id": "package-cards-item",
-      "plugins": {
-        "da": {
-          "name": "package-cards-item",
-          "rows": 2,
-          "columns": 0
-        }
-      }
     }
   ],
   "models": [
     {
-      "id": "package-cards-item",
+      "id": "package-cards",
       "fields": [
         {
           "component": "text",
@@ -204,12 +193,5 @@
       ]
     }
   ],
-  "filters": [
-    {
-      "id": "package-cards",
-      "components": [
-        "package-cards-item"
-      ]
-    }
-  ]
+  "filters": []
 }

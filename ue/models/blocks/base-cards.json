@@ -10,22 +10,11 @@
           "columns": 2
         }
       }
-    },
-    {
-      "title": "Base Cards Item",
-      "id": "base-cards-item",
-      "plugins": {
-        "da": {
-          "name": "base-cards-item",
-          "rows": 2,
-          "columns": 0
-        }
-      }
     }
   ],
   "models": [
     {
-      "id": "base-cards-item",
+      "id": "base-cards",
       "fields": [
         {
           "component": "text",
@@ -228,12 +217,5 @@
       ]
     }
   ],
-  "filters": [
-    {
-      "id": "base-cards",
-      "components": [
-        "base-cards-item"
-      ]
-    }
-  ]
+  "filters": []
 }

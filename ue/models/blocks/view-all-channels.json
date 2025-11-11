@@ -10,11 +10,22 @@
           "columns": 2
         }
       }
+    },
+    {
+      "title": "View All Channels Item",
+      "id": "view-all-channels-item",
+      "plugins": {
+        "da": {
+          "name": "view-all-channels-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
     }
   ],
   "models": [
     {
-      "id": "view-all-channels",
+      "id": "view-all-channels-item",
       "fields": [
         {
           "component": "richtext",
@@ -34,5 +45,12 @@
       ]
     }
   ],
-  "filters": []
+  "filters": [
+    {
+      "id": "view-all-channels",
+      "components": [
+        "view-all-channels-item"
+      ]
+    }
+  ]
 }

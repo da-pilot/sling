@@ -59,6 +59,17 @@
           }
         },
         {
+          "title": "Accordion Item",
+          "id": "accordion-item",
+          "plugins": {
+            "da": {
+              "name": "accordion-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
           "title": "Account Form",
           "id": "account-form",
           "plugins": {
@@ -66,6 +77,17 @@
               "name": "account-form",
               "rows": 1,
               "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Account Form Item",
+          "id": "account-form-item",
+          "plugins": {
+            "da": {
+              "name": "account-form-item",
+              "rows": 1,
+              "columns": 0
             }
           }
         },
@@ -92,17 +114,6 @@
           }
         },
         {
-          "title": "Banner Image Item",
-          "id": "banner-image-item",
-          "plugins": {
-            "da": {
-              "name": "banner-image-item",
-              "rows": 2,
-              "columns": 0
-            }
-          }
-        },
-        {
           "title": "Base Cards",
           "id": "base-cards",
           "plugins": {
@@ -110,17 +121,6 @@
               "name": "base-cards",
               "rows": 1,
               "columns": 2
-            }
-          }
-        },
-        {
-          "title": "Base Cards Item",
-          "id": "base-cards-item",
-          "plugins": {
-            "da": {
-              "name": "base-cards-item",
-              "rows": 2,
-              "columns": 0
             }
           }
         },
@@ -334,17 +334,6 @@
           }
         },
         {
-          "title": "Game Finder Item",
-          "id": "game-finder-item",
-          "plugins": {
-            "da": {
-              "name": "game-finder-item",
-              "rows": 2,
-              "columns": 0
-            }
-          }
-        },
-        {
           "title": "Global Banner",
           "id": "global-banner",
           "plugins": {
@@ -433,17 +422,6 @@
           }
         },
         {
-          "title": "Marquee Item",
-          "id": "marquee-item",
-          "plugins": {
-            "da": {
-              "name": "marquee-item",
-              "rows": 2,
-              "columns": 0
-            }
-          }
-        },
-        {
           "title": "Modal",
           "id": "modal",
           "plugins": {
@@ -488,17 +466,6 @@
           }
         },
         {
-          "title": "Package Cards Item",
-          "id": "package-cards-item",
-          "plugins": {
-            "da": {
-              "name": "package-cards-item",
-              "rows": 2,
-              "columns": 0
-            }
-          }
-        },
-        {
           "title": "Plan Offer",
           "id": "plan-offer",
           "plugins": {
@@ -506,17 +473,6 @@
               "name": "plan-offer",
               "rows": 1,
               "columns": 2
-            }
-          }
-        },
-        {
-          "title": "Plan Offer Item",
-          "id": "plan-offer-item",
-          "plugins": {
-            "da": {
-              "name": "plan-offer-item",
-              "rows": 2,
-              "columns": 0
             }
           }
         },
@@ -598,6 +554,17 @@
           }
         },
         {
+          "title": "Tabs Item",
+          "id": "tabs-item",
+          "plugins": {
+            "da": {
+              "name": "tabs-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
           "title": "View All Channels",
           "id": "view-all-channels",
           "plugins": {
@@ -605,6 +572,17 @@
               "name": "view-all-channels",
               "rows": 1,
               "columns": 2
+            }
+          }
+        },
+        {
+          "title": "View All Channels Item",
+          "id": "view-all-channels-item",
+          "plugins": {
+            "da": {
+              "name": "view-all-channels-item",
+              "rows": 1,
+              "columns": 0
             }
           }
         },

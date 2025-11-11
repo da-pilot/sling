@@ -10,11 +10,22 @@
           "columns": 2
         }
       }
+    },
+    {
+      "title": "Account Form Item",
+      "id": "account-form-item",
+      "plugins": {
+        "da": {
+          "name": "account-form-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
     }
   ],
   "models": [
     {
-      "id": "account-form",
+      "id": "account-form-item",
       "fields": [
         {
           "component": "richtext",
@@ -34,5 +45,12 @@
       ]
     }
   ],
-  "filters": []
+  "filters": [
+    {
+      "id": "account-form",
+      "components": [
+        "account-form-item"
+      ]
+    }
+  ]
 }

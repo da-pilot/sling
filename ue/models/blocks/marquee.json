@@ -10,22 +10,11 @@
           "columns": 2
         }
       }
-    },
-    {
-      "title": "Marquee Item",
-      "id": "marquee-item",
-      "plugins": {
-        "da": {
-          "name": "marquee-item",
-          "rows": 2,
-          "columns": 0
-        }
-      }
     }
   ],
   "models": [
     {
-      "id": "marquee-item",
+      "id": "marquee",
       "fields": [
         {
           "component": "reference",
@@ -168,12 +157,5 @@
       ]
     }
   ],
-  "filters": [
-    {
-      "id": "marquee",
-      "components": [
-        "marquee-item"
-      ]
-    }
-  ]
+  "filters": []
 }

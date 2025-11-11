@@ -10,22 +10,11 @@
           "columns": 2
         }
       }
-    },
-    {
-      "title": "Banner Image Item",
-      "id": "banner-image-item",
-      "plugins": {
-        "da": {
-          "name": "banner-image-item",
-          "rows": 2,
-          "columns": 0
-        }
-      }
     }
   ],
   "models": [
     {
-      "id": "banner-image-item",
+      "id": "banner-image",
       "fields": [
         {
           "component": "reference",
@@ -182,12 +171,5 @@
       ]
     }
   ],
-  "filters": [
-    {
-      "id": "banner-image",
-      "components": [
-        "banner-image-item"
-      ]
-    }
-  ]
+  "filters": []
 }

@@ -10,11 +10,22 @@
           "columns": 2
         }
       }
+    },
+    {
+      "title": "Accordion Item",
+      "id": "accordion-item",
+      "plugins": {
+        "da": {
+          "name": "accordion-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
     }
   ],
   "models": [
     {
-      "id": "accordion",
+      "id": "accordion-item",
       "fields": [
         {
           "component": "richtext",
@@ -34,5 +45,12 @@
       ]
     }
   ],
-  "filters": []
+  "filters": [
+    {
+      "id": "accordion",
+      "components": [
+        "accordion-item"
+      ]
+    }
+  ]
 }

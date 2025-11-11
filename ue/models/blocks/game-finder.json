@@ -10,22 +10,11 @@
           "columns": 2
         }
       }
-    },
-    {
-      "title": "Game Finder Item",
-      "id": "game-finder-item",
-      "plugins": {
-        "da": {
-          "name": "game-finder-item",
-          "rows": 2,
-          "columns": 0
-        }
-      }
     }
   ],
   "models": [
     {
-      "id": "game-finder-item",
+      "id": "game-finder",
       "fields": [
         {
           "component": "richtext",
@@ -45,12 +34,5 @@
       ]
     }
   ],
-  "filters": [
-    {
-      "id": "game-finder",
-      "components": [
-        "game-finder-item"
-      ]
-    }
-  ]
+  "filters": []
 }
