@@ -1,0 +1,31 @@
+{
+  "definitions": [
+    {
+      "title": "Category",
+      "id": "category",
+      "plugins": {
+        "da": {
+          "name": "category",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "category",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

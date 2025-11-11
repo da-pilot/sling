@@ -1,0 +1,38 @@
+{
+  "definitions": [
+    {
+      "title": "Accordion",
+      "id": "accordion",
+      "plugins": {
+        "da": {
+          "name": "accordion",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "accordion",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        },
+        {
+          "component": "richtext",
+          "name": "div:nth-child(2)",
+          "value": "",
+          "label": "Content",
+          "valueType": "string"
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

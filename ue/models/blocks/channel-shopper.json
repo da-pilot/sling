@@ -1,0 +1,107 @@
+{
+  "definitions": [
+    {
+      "title": "Channel Shopper",
+      "id": "channel-shopper",
+      "plugins": {
+        "da": {
+          "name": "channel-shopper",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "channel-shopper",
+      "fields": [
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "buttonText",
+          "label": "ButtonText"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "checkoutButtonText",
+          "label": "CheckoutButtonText"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "ctaUrl",
+          "label": "CtaUrl"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "errorMsgDuration",
+          "label": "ErrorMsgDuration"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "limitHitErrorText",
+          "label": "LimitHitErrorText"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "localBadgeText",
+          "label": "LocalBadgeText"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "maxChannelsSelected",
+          "label": "MaxChannelsSelected"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "modalHeaderText",
+          "label": "ModalHeaderText"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "noResultFoundText",
+          "label": "NoResultFoundText"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "planIdentifier",
+          "label": "PlanIdentifier"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "planOfferIdentifier",
+          "label": "PlanOfferIdentifier"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "promoTruncateCharLimit",
+          "label": "PromoTruncateCharLimit"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "recommendationText",
+          "label": "RecommendationText"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "searchChannelPlaceholder",
+          "label": "SearchChannelPlaceholder"
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

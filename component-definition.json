@@ -1,0 +1,647 @@
+{
+  "groups": [
+    {
+      "title": "Default Content",
+      "id": "default",
+      "components": [
+        {
+          "title": "Text",
+          "id": "text",
+          "plugins": {
+            "da": {
+              "name": "text",
+              "type": "text"
+            }
+          }
+        },
+        {
+          "title": "Image",
+          "id": "image",
+          "plugins": {
+            "da": {
+              "name": "image",
+              "type": "image"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Sections",
+      "id": "sections",
+      "components": [
+        {
+          "title": "Section",
+          "id": "section",
+          "plugins": {
+            "da": {
+              "unsafeHTML": "<div></div>"
+            }
+          },
+          "filter": "section",
+          "model": "section"
+        }
+      ]
+    },
+    {
+      "title": "Blocks",
+      "id": "blocks",
+      "components": [
+        {
+          "title": "Accordion",
+          "id": "accordion",
+          "plugins": {
+            "da": {
+              "name": "accordion",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Account Form",
+          "id": "account-form",
+          "plugins": {
+            "da": {
+              "name": "account-form",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Author Card",
+          "id": "author-card",
+          "plugins": {
+            "da": {
+              "name": "author-card",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Banner Image",
+          "id": "banner-image",
+          "plugins": {
+            "da": {
+              "name": "banner-image",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Banner Image Item",
+          "id": "banner-image-item",
+          "plugins": {
+            "da": {
+              "name": "banner-image-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Base Cards",
+          "id": "base-cards",
+          "plugins": {
+            "da": {
+              "name": "base-cards",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Base Cards Item",
+          "id": "base-cards-item",
+          "plugins": {
+            "da": {
+              "name": "base-cards-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Blog Breadcrumb",
+          "id": "blog-breadcrumb",
+          "plugins": {
+            "da": {
+              "name": "blog-breadcrumb",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Blog Hero",
+          "id": "blog-hero",
+          "plugins": {
+            "da": {
+              "name": "blog-hero",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Cards",
+          "id": "cards",
+          "plugins": {
+            "da": {
+              "name": "cards",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Cards Item",
+          "id": "cards-item",
+          "plugins": {
+            "da": {
+              "name": "cards-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Carousel",
+          "id": "carousel",
+          "plugins": {
+            "da": {
+              "name": "carousel",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Carousel Item",
+          "id": "carousel-item",
+          "plugins": {
+            "da": {
+              "name": "carousel-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Category",
+          "id": "category",
+          "plugins": {
+            "da": {
+              "name": "category",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Channel Lookup",
+          "id": "channel-lookup",
+          "plugins": {
+            "da": {
+              "name": "channel-lookup",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Channel Lookup Item",
+          "id": "channel-lookup-item",
+          "plugins": {
+            "da": {
+              "name": "channel-lookup-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Channel Shopper",
+          "id": "channel-shopper",
+          "plugins": {
+            "da": {
+              "name": "channel-shopper",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Chat",
+          "id": "chat",
+          "plugins": {
+            "da": {
+              "name": "chat",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Columns",
+          "id": "columns",
+          "plugins": {
+            "da": {
+              "name": "columns",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Columns Item",
+          "id": "columns-item",
+          "plugins": {
+            "da": {
+              "name": "columns-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Embed",
+          "id": "embed",
+          "plugins": {
+            "da": {
+              "name": "embed",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Footer",
+          "id": "footer",
+          "plugins": {
+            "da": {
+              "name": "footer",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Footer Item",
+          "id": "footer-item",
+          "plugins": {
+            "da": {
+              "name": "footer-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Fragment",
+          "id": "fragment",
+          "plugins": {
+            "da": {
+              "name": "fragment",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Fragment Item",
+          "id": "fragment-item",
+          "plugins": {
+            "da": {
+              "name": "fragment-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Game Finder",
+          "id": "game-finder",
+          "plugins": {
+            "da": {
+              "name": "game-finder",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Game Finder Item",
+          "id": "game-finder-item",
+          "plugins": {
+            "da": {
+              "name": "game-finder-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Global Banner",
+          "id": "global-banner",
+          "plugins": {
+            "da": {
+              "name": "global-banner",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Header",
+          "id": "header",
+          "plugins": {
+            "da": {
+              "name": "header",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Header Item",
+          "id": "header-item",
+          "plugins": {
+            "da": {
+              "name": "header-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Hero",
+          "id": "hero",
+          "plugins": {
+            "da": {
+              "name": "hero",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Hero Item",
+          "id": "hero-item",
+          "plugins": {
+            "da": {
+              "name": "hero-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Image Slider",
+          "id": "image-slider",
+          "plugins": {
+            "da": {
+              "name": "image-slider",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Image Slider Item",
+          "id": "image-slider-item",
+          "plugins": {
+            "da": {
+              "name": "image-slider-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Marquee",
+          "id": "marquee",
+          "plugins": {
+            "da": {
+              "name": "marquee",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Marquee Item",
+          "id": "marquee-item",
+          "plugins": {
+            "da": {
+              "name": "marquee-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Modal",
+          "id": "modal",
+          "plugins": {
+            "da": {
+              "name": "modal",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Offer Cards",
+          "id": "offer-cards",
+          "plugins": {
+            "da": {
+              "name": "offer-cards",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Offer Cards Item",
+          "id": "offer-cards-item",
+          "plugins": {
+            "da": {
+              "name": "offer-cards-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Package Cards",
+          "id": "package-cards",
+          "plugins": {
+            "da": {
+              "name": "package-cards",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Package Cards Item",
+          "id": "package-cards-item",
+          "plugins": {
+            "da": {
+              "name": "package-cards-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Plan Offer",
+          "id": "plan-offer",
+          "plugins": {
+            "da": {
+              "name": "plan-offer",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Plan Offer Item",
+          "id": "plan-offer-item",
+          "plugins": {
+            "da": {
+              "name": "plan-offer-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Popular Blogs",
+          "id": "popular-blogs",
+          "plugins": {
+            "da": {
+              "name": "popular-blogs",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Popular Blogs Item",
+          "id": "popular-blogs-item",
+          "plugins": {
+            "da": {
+              "name": "popular-blogs-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Promo Code",
+          "id": "promo-code",
+          "plugins": {
+            "da": {
+              "name": "promo-code",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Promo Code Item",
+          "id": "promo-code-item",
+          "plugins": {
+            "da": {
+              "name": "promo-code-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Table",
+          "id": "table",
+          "plugins": {
+            "da": {
+              "name": "table",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Table Item",
+          "id": "table-item",
+          "plugins": {
+            "da": {
+              "name": "table-item",
+              "rows": 2,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Tabs",
+          "id": "tabs",
+          "plugins": {
+            "da": {
+              "name": "tabs",
+              "rows": 1,
+              "columns": 3
+            }
+          }
+        },
+        {
+          "title": "View All Channels",
+          "id": "view-all-channels",
+          "plugins": {
+            "da": {
+              "name": "view-all-channels",
+              "rows": 1,
+              "columns": 2
+            }
+          }
+        },
+        {
+          "title": "Whatson Header",
+          "id": "whatson-header",
+          "plugins": {
+            "da": {
+              "name": "whatson-header",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        },
+        {
+          "title": "Whatson Header Item",
+          "id": "whatson-header-item",
+          "plugins": {
+            "da": {
+              "name": "whatson-header-item",
+              "rows": 1,
+              "columns": 0
+            }
+          }
+        },
+        {
+          "title": "Zipcode",
+          "id": "zipcode",
+          "plugins": {
+            "da": {
+              "name": "zipcode",
+              "rows": 1,
+              "columns": 1
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

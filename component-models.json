@@ -1,0 +1,1294 @@
+[
+  {
+    "id": "page-metadata",
+    "fields": [
+      {
+        "component": "text",
+        "name": "title",
+        "label": "Title"
+      },
+      {
+        "component": "text",
+        "name": "description",
+        "label": "Description"
+      },
+      {
+        "component": "reference",
+        "name": "image",
+        "label": "Image"
+      },
+      {
+        "component": "text",
+        "name": "robots",
+        "label": "Robots",
+        "description": "Index control via robots"
+      }
+    ]
+  },
+  {
+    "id": "image",
+    "fields": [
+      {
+        "component": "reference",
+        "name": "image",
+        "hidden": true,
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "name": "img:nth-child(3)[src]",
+        "label": "Image",
+        "multi": false
+      },
+      {
+        "component": "text",
+        "name": "img:nth-child(3)[alt]",
+        "label": "Alt Text"
+      }
+    ]
+  },
+  {
+    "id": "section",
+    "fields": [
+      {
+        "component": "multiselect",
+        "name": "style",
+        "label": "Style",
+        "options": [
+          {
+            "name": "Highlight",
+            "value": "highlight"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "accordion",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      },
+      {
+        "component": "richtext",
+        "name": "div:nth-child(2)",
+        "value": "",
+        "label": "Content",
+        "valueType": "string"
+      }
+    ]
+  },
+  {
+    "id": "account-form",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      },
+      {
+        "component": "richtext",
+        "name": "div:nth-child(2)",
+        "value": "",
+        "label": "Content",
+        "valueType": "string"
+      }
+    ]
+  },
+  {
+    "id": "author-card",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "banner-image-item",
+    "fields": [
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background",
+        "label": "Background",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background-color",
+        "label": "Background Color",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background-fit",
+        "label": "Background Fit",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background-gradient",
+        "label": "Background Gradient",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background-position",
+        "label": "Background Position",
+        "multi": false
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "banner-content",
+        "label": "Banner Content"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "buttons-container",
+        "label": "Buttons Container"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "config-property",
+        "label": "Config Property"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "cta",
+        "label": "Cta"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsComponent",
+        "label": "CtaAnalyticsComponent"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsName",
+        "label": "CtaAnalyticsName"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsParent",
+        "label": "CtaAnalyticsParent"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsTarget",
+        "label": "CtaAnalyticsTarget"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "data-align",
+        "label": "Data Align"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "data-analytics-props",
+        "label": "Data Analytics Props"
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "data-background",
+        "label": "Data Background",
+        "multi": false
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "data-valign",
+        "label": "Data Valign"
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "foreground",
+        "label": "Foreground",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "foreground-container",
+        "label": "Foreground Container",
+        "multi": false
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "headline",
+        "label": "Headline"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "id",
+        "label": "Id"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "offer-details",
+        "label": "Offer Details"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "sub-headline",
+        "label": "Sub Headline"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "text-cta-container",
+        "label": "Text Cta Container"
+      }
+    ]
+  },
+  {
+    "id": "base-cards-item",
+    "fields": [
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-CTA-Text",
+        "label": "Blue CTA Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-Service-CTA-Link",
+        "label": "Blue Service CTA Link"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-Service-CTA-Text",
+        "label": "Blue Service CTA Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-Service-DVR-Text",
+        "label": "Blue Service DVR Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-Service-Device-Stream-Text",
+        "label": "Blue Service Device Stream Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-Service-First-Good-For-Text",
+        "label": "Blue Service First Good For Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-Service-Second-Good-For-Text",
+        "label": "Blue Service Second Good For Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Blue-Service-Title-Text",
+        "label": "Blue Service Title Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-CTA-Text",
+        "label": "Combo CTA Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-Service-CTA-Link",
+        "label": "Combo Service CTA Link"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-Service-CTA-Text",
+        "label": "Combo Service CTA Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-Service-DVR-Text",
+        "label": "Combo Service DVR Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-Service-Device-Stream-Text",
+        "label": "Combo Service Device Stream Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-Service-First-Good-For-Text",
+        "label": "Combo Service First Good For Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-Service-Second-Good-For-Text",
+        "label": "Combo Service Second Good For Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Combo-Service-Title-Text",
+        "label": "Combo Service Title Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Footer-CTA-Link",
+        "label": "Footer CTA Link"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Footer-CTA-Text",
+        "label": "Footer CTA Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Gray-Icons-Root-Path",
+        "label": "Gray Icons Root Path"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Icons-Root-Path",
+        "label": "Icons Root Path"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Optional-Section-Subtitle-Text",
+        "label": "Optional Section Subtitle Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Optional-Section-Title-Text",
+        "label": "Optional Section Title Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-CTA-Text",
+        "label": "Orange CTA Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-Service-CTA-Link",
+        "label": "Orange Service CTA Link"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-Service-CTA-Text",
+        "label": "Orange Service CTA Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-Service-DVR-Text",
+        "label": "Orange Service DVR Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-Service-Device-Stream-Text",
+        "label": "Orange Service Device Stream Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-Service-First-Good-For-Text",
+        "label": "Orange Service First Good For Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-Service-Second-Good-For-Text",
+        "label": "Orange Service Second Good For Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Orange-Service-Title-Text",
+        "label": "Orange Service Title Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Plan-Identifier",
+        "label": "Plan Identifier"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Plan-Offer-Identifier",
+        "label": "Plan Offer Identifier"
+      },
+      {
+        "component": "boolean",
+        "valueType": "string",
+        "name": "Show-locals-banner-on-blue-and-combo-card",
+        "label": "Show Locals Banner On Blue And Combo Card"
+      }
+    ]
+  },
+  {
+    "id": "blog-breadcrumb",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "blog-hero",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "cards-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "carousel-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "category",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "channel-lookup-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "channel-shopper",
+    "fields": [
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "buttonText",
+        "label": "ButtonText"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "checkoutButtonText",
+        "label": "CheckoutButtonText"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaUrl",
+        "label": "CtaUrl"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "errorMsgDuration",
+        "label": "ErrorMsgDuration"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "limitHitErrorText",
+        "label": "LimitHitErrorText"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "localBadgeText",
+        "label": "LocalBadgeText"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "maxChannelsSelected",
+        "label": "MaxChannelsSelected"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "modalHeaderText",
+        "label": "ModalHeaderText"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "noResultFoundText",
+        "label": "NoResultFoundText"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "planIdentifier",
+        "label": "PlanIdentifier"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "planOfferIdentifier",
+        "label": "PlanOfferIdentifier"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "promoTruncateCharLimit",
+        "label": "PromoTruncateCharLimit"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "recommendationText",
+        "label": "RecommendationText"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "searchChannelPlaceholder",
+        "label": "SearchChannelPlaceholder"
+      }
+    ]
+  },
+  {
+    "id": "chat",
+    "fields": [
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "appId",
+        "label": "AppId"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "chatId",
+        "label": "ChatId"
+      }
+    ]
+  },
+  {
+    "id": "columns-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "embed",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "footer-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "fragment-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "game-finder-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      },
+      {
+        "component": "richtext",
+        "name": "div:nth-child(2)",
+        "value": "",
+        "label": "Content",
+        "valueType": "string"
+      }
+    ]
+  },
+  {
+    "id": "global-banner",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "header-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "hero-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "image-slider-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "marquee-item",
+    "fields": [
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background",
+        "label": "Background",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background-color",
+        "label": "Background Color",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background-fit",
+        "label": "Background Fit",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "background-position",
+        "label": "Background Position",
+        "multi": false
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "buttons-container",
+        "label": "Buttons Container"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "config-property",
+        "label": "Config Property"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "cta",
+        "label": "Cta"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsComponent",
+        "label": "CtaAnalyticsComponent"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsName",
+        "label": "CtaAnalyticsName"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsParent",
+        "label": "CtaAnalyticsParent"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "ctaAnalyticsTarget",
+        "label": "CtaAnalyticsTarget"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "data-analytics-props",
+        "label": "Data Analytics Props"
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "foreground",
+        "label": "Foreground",
+        "multi": false
+      },
+      {
+        "component": "reference",
+        "valueType": "string",
+        "name": "foreground-container",
+        "label": "Foreground Container",
+        "multi": false
+      },
+      {
+        "component": "boolean",
+        "valueType": "string",
+        "name": "gradient",
+        "label": "Gradient"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "headline",
+        "label": "Headline"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "id",
+        "label": "Id"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "marquee-content",
+        "label": "Marquee Content"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "offer-details",
+        "label": "Offer Details"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "scroll-cta-into-header",
+        "label": "Scroll Cta Into Header"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "sub-headline",
+        "label": "Sub Headline"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "text-cta-container",
+        "label": "Text Cta Container"
+      }
+    ]
+  },
+  {
+    "id": "modal",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "offer-cards-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "package-cards-item",
+    "fields": [
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Analytics-Modal-Name",
+        "label": "Analytics Modal Name"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Channel-Number",
+        "label": "C1 Channel Number"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Link-Text",
+        "label": "C1 Link Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Logos",
+        "label": "C1 Logos"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Multiple-Channel-Text",
+        "label": "C1 Multiple Channel Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Override-Logos",
+        "label": "C1 Override Logos"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Pack-Id",
+        "label": "C1 Pack Id"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Price-Text",
+        "label": "C1 Price Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Promotional-Text",
+        "label": "C1 Promotional Text"
+      },
+      {
+        "component": "boolean",
+        "valueType": "string",
+        "name": "C1-Show-Promotional-Price",
+        "label": "C1 Show Promotional Price"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Single-Channel-Text",
+        "label": "C1 Single Channel Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C1-Title",
+        "label": "C1 Title"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Channel-Number",
+        "label": "C2 Channel Number"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Link-Text",
+        "label": "C2 Link Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Logos",
+        "label": "C2 Logos"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Multiple-Channel-Text",
+        "label": "C2 Multiple Channel Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Override-Logos",
+        "label": "C2 Override Logos"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Pack-Id",
+        "label": "C2 Pack Id"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Price-Text",
+        "label": "C2 Price Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Promotional-Text",
+        "label": "C2 Promotional Text"
+      },
+      {
+        "component": "boolean",
+        "valueType": "string",
+        "name": "C2-Show-Promotional-Price",
+        "label": "C2 Show Promotional Price"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Single-Channel-Text",
+        "label": "C2 Single Channel Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "C2-Title",
+        "label": "C2 Title"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Card-Two-Type",
+        "label": "Card Two Type"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Classification",
+        "label": "Classification"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Classification-A-C",
+        "label": "Classification A C"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Plan-Id",
+        "label": "Plan Id"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Plan-Identifier",
+        "label": "Plan Identifier"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "Plan-Offer-Identifier",
+        "label": "Plan Offer Identifier"
+      }
+    ]
+  },
+  {
+    "id": "plan-offer-item",
+    "fields": [
+      {
+        "component": "boolean",
+        "valueType": "string",
+        "name": "is-channel-required",
+        "label": "Is Channel Required"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "package-type",
+        "label": "Package Type"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "plan-identifier",
+        "label": "Plan Identifier"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "plan-offer-identifier",
+        "label": "Plan Offer Identifier"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "section-subtitle-text",
+        "label": "Section Subtitle Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "section-title-text",
+        "label": "Section Title Text"
+      },
+      {
+        "component": "text",
+        "valueType": "string",
+        "name": "tag-in",
+        "label": "Tag In"
+      }
+    ]
+  },
+  {
+    "id": "popular-blogs-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "promo-code-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "table-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "tabs",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      },
+      {
+        "component": "richtext",
+        "name": "div:nth-child(2)",
+        "value": "",
+        "label": "Content",
+        "valueType": "string"
+      },
+      {
+        "component": "richtext",
+        "name": "div:nth-child(3)",
+        "value": "",
+        "label": "Image",
+        "valueType": "string"
+      }
+    ]
+  },
+  {
+    "id": "view-all-channels",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      },
+      {
+        "component": "richtext",
+        "name": "div:nth-child(2)",
+        "value": "",
+        "label": "Content",
+        "valueType": "string"
+      }
+    ]
+  },
+  {
+    "id": "whatson-header-item",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": "zipcode",
+    "fields": [
+      {
+        "component": "richtext",
+        "name": "div:nth-child(1)",
+        "value": "",
+        "label": "Title",
+        "valueType": "string",
+        "required": true
+      }
+    ]
+  }
+]

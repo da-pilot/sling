@@ -1,0 +1,135 @@
+[
+  {
+    "id": "main",
+    "components": [
+      "section"
+    ]
+  },
+  {
+    "id": "section",
+    "components": [
+      "text",
+      "image"
+    ]
+  },
+  {
+    "id": "banner-image",
+    "components": [
+      "banner-image-item"
+    ]
+  },
+  {
+    "id": "base-cards",
+    "components": [
+      "base-cards-item"
+    ]
+  },
+  {
+    "id": "cards",
+    "components": [
+      "cards-item"
+    ]
+  },
+  {
+    "id": "carousel",
+    "components": [
+      "carousel-item"
+    ]
+  },
+  {
+    "id": "channel-lookup",
+    "components": [
+      "channel-lookup-item"
+    ]
+  },
+  {
+    "id": "columns",
+    "components": [
+      "columns-item"
+    ]
+  },
+  {
+    "id": "footer",
+    "components": [
+      "footer-item"
+    ]
+  },
+  {
+    "id": "fragment",
+    "components": [
+      "fragment-item"
+    ]
+  },
+  {
+    "id": "game-finder",
+    "components": [
+      "game-finder-item"
+    ]
+  },
+  {
+    "id": "header",
+    "components": [
+      "header-item"
+    ]
+  },
+  {
+    "id": "hero",
+    "components": [
+      "hero-item"
+    ]
+  },
+  {
+    "id": "image-slider",
+    "components": [
+      "image-slider-item"
+    ]
+  },
+  {
+    "id": "marquee",
+    "components": [
+      "marquee-item"
+    ]
+  },
+  {
+    "id": "offer-cards",
+    "components": [
+      "offer-cards-item"
+    ]
+  },
+  {
+    "id": "package-cards",
+    "components": [
+      "package-cards-item"
+    ]
+  },
+  {
+    "id": "plan-offer",
+    "components": [
+      "plan-offer-item"
+    ]
+  },
+  {
+    "id": "popular-blogs",
+    "components": [
+      "popular-blogs-item"
+    ]
+  },
+  {
+    "id": "promo-code",
+    "components": [
+      "promo-code-item"
+    ]
+  },
+  {
+    "id": "table",
+    "components": [
+      "table-item"
+    ]
+  },
+  {
+    "id": "whatson-header",
+    "components": [
+      "whatson-header-item"
+    ]
+  }
+]

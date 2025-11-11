@@ -1,0 +1,31 @@
+{
+  "definitions": [
+    {
+      "title": "Author Card",
+      "id": "author-card",
+      "plugins": {
+        "da": {
+          "name": "author-card",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "author-card",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

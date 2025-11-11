@@ -1,0 +1,215 @@
+{
+  "definitions": [
+    {
+      "title": "Package Cards",
+      "id": "package-cards",
+      "plugins": {
+        "da": {
+          "name": "package-cards",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    },
+    {
+      "title": "Package Cards Item",
+      "id": "package-cards-item",
+      "plugins": {
+        "da": {
+          "name": "package-cards-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "package-cards-item",
+      "fields": [
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Analytics-Modal-Name",
+          "label": "Analytics Modal Name"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Channel-Number",
+          "label": "C1 Channel Number"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Link-Text",
+          "label": "C1 Link Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Logos",
+          "label": "C1 Logos"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Multiple-Channel-Text",
+          "label": "C1 Multiple Channel Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Override-Logos",
+          "label": "C1 Override Logos"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Pack-Id",
+          "label": "C1 Pack Id"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Price-Text",
+          "label": "C1 Price Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Promotional-Text",
+          "label": "C1 Promotional Text"
+        },
+        {
+          "component": "boolean",
+          "valueType": "string",
+          "name": "C1-Show-Promotional-Price",
+          "label": "C1 Show Promotional Price"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Single-Channel-Text",
+          "label": "C1 Single Channel Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C1-Title",
+          "label": "C1 Title"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Channel-Number",
+          "label": "C2 Channel Number"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Link-Text",
+          "label": "C2 Link Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Logos",
+          "label": "C2 Logos"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Multiple-Channel-Text",
+          "label": "C2 Multiple Channel Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Override-Logos",
+          "label": "C2 Override Logos"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Pack-Id",
+          "label": "C2 Pack Id"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Price-Text",
+          "label": "C2 Price Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Promotional-Text",
+          "label": "C2 Promotional Text"
+        },
+        {
+          "component": "boolean",
+          "valueType": "string",
+          "name": "C2-Show-Promotional-Price",
+          "label": "C2 Show Promotional Price"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Single-Channel-Text",
+          "label": "C2 Single Channel Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "C2-Title",
+          "label": "C2 Title"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Card-Two-Type",
+          "label": "Card Two Type"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Classification",
+          "label": "Classification"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Classification-A-C",
+          "label": "Classification A C"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Plan-Id",
+          "label": "Plan Id"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Plan-Identifier",
+          "label": "Plan Identifier"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Plan-Offer-Identifier",
+          "label": "Plan Offer Identifier"
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "package-cards",
+      "components": [
+        "package-cards-item"
+      ]
+    }
+  ]
+}

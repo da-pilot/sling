@@ -1,0 +1,56 @@
+{
+  "definitions": [
+    {
+      "title": "Game Finder",
+      "id": "game-finder",
+      "plugins": {
+        "da": {
+          "name": "game-finder",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    },
+    {
+      "title": "Game Finder Item",
+      "id": "game-finder-item",
+      "plugins": {
+        "da": {
+          "name": "game-finder-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "game-finder-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        },
+        {
+          "component": "richtext",
+          "name": "div:nth-child(2)",
+          "value": "",
+          "label": "Content",
+          "valueType": "string"
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "game-finder",
+      "components": [
+        "game-finder-item"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Hero",
+      "id": "hero",
+      "plugins": {
+        "da": {
+          "name": "hero",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Hero Item",
+      "id": "hero-item",
+      "plugins": {
+        "da": {
+          "name": "hero-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "hero-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "hero",
+      "components": [
+        "hero-item"
+      ]
+    }
+  ]
+}

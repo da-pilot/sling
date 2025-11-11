@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Channel Lookup",
+      "id": "channel-lookup",
+      "plugins": {
+        "da": {
+          "name": "channel-lookup",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Channel Lookup Item",
+      "id": "channel-lookup-item",
+      "plugins": {
+        "da": {
+          "name": "channel-lookup-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "channel-lookup-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "channel-lookup",
+      "components": [
+        "channel-lookup-item"
+      ]
+    }
+  ]
+}

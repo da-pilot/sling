@@ -1,0 +1,45 @@
+{
+  "definitions": [
+    {
+      "title": "Tabs",
+      "id": "tabs",
+      "plugins": {
+        "da": {
+          "name": "tabs",
+          "rows": 1,
+          "columns": 3
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "tabs",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        },
+        {
+          "component": "richtext",
+          "name": "div:nth-child(2)",
+          "value": "",
+          "label": "Content",
+          "valueType": "string"
+        },
+        {
+          "component": "richtext",
+          "name": "div:nth-child(3)",
+          "value": "",
+          "label": "Image",
+          "valueType": "string"
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

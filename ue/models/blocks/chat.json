@@ -1,0 +1,35 @@
+{
+  "definitions": [
+    {
+      "title": "Chat",
+      "id": "chat",
+      "plugins": {
+        "da": {
+          "name": "chat",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "chat",
+      "fields": [
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "appId",
+          "label": "AppId"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "chatId",
+          "label": "ChatId"
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

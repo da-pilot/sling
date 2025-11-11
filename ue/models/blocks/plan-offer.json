@@ -1,0 +1,83 @@
+{
+  "definitions": [
+    {
+      "title": "Plan Offer",
+      "id": "plan-offer",
+      "plugins": {
+        "da": {
+          "name": "plan-offer",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    },
+    {
+      "title": "Plan Offer Item",
+      "id": "plan-offer-item",
+      "plugins": {
+        "da": {
+          "name": "plan-offer-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "plan-offer-item",
+      "fields": [
+        {
+          "component": "boolean",
+          "valueType": "string",
+          "name": "is-channel-required",
+          "label": "Is Channel Required"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "package-type",
+          "label": "Package Type"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "plan-identifier",
+          "label": "Plan Identifier"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "plan-offer-identifier",
+          "label": "Plan Offer Identifier"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "section-subtitle-text",
+          "label": "Section Subtitle Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "section-title-text",
+          "label": "Section Title Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "tag-in",
+          "label": "Tag In"
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "plan-offer",
+      "components": [
+        "plan-offer-item"
+      ]
+    }
+  ]
+}

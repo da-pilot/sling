@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Offer Cards",
+      "id": "offer-cards",
+      "plugins": {
+        "da": {
+          "name": "offer-cards",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Offer Cards Item",
+      "id": "offer-cards-item",
+      "plugins": {
+        "da": {
+          "name": "offer-cards-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "offer-cards-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "offer-cards",
+      "components": [
+        "offer-cards-item"
+      ]
+    }
+  ]
+}

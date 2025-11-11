@@ -1,0 +1,179 @@
+{
+  "definitions": [
+    {
+      "title": "Marquee",
+      "id": "marquee",
+      "plugins": {
+        "da": {
+          "name": "marquee",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    },
+    {
+      "title": "Marquee Item",
+      "id": "marquee-item",
+      "plugins": {
+        "da": {
+          "name": "marquee-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "marquee-item",
+      "fields": [
+        {
+          "component": "reference",
+          "valueType": "string",
+          "name": "background",
+          "label": "Background",
+          "multi": false
+        },
+        {
+          "component": "reference",
+          "valueType": "string",
+          "name": "background-color",
+          "label": "Background Color",
+          "multi": false
+        },
+        {
+          "component": "reference",
+          "valueType": "string",
+          "name": "background-fit",
+          "label": "Background Fit",
+          "multi": false
+        },
+        {
+          "component": "reference",
+          "valueType": "string",
+          "name": "background-position",
+          "label": "Background Position",
+          "multi": false
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "buttons-container",
+          "label": "Buttons Container"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "config-property",
+          "label": "Config Property"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "cta",
+          "label": "Cta"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "ctaAnalyticsComponent",
+          "label": "CtaAnalyticsComponent"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "ctaAnalyticsName",
+          "label": "CtaAnalyticsName"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "ctaAnalyticsParent",
+          "label": "CtaAnalyticsParent"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "ctaAnalyticsTarget",
+          "label": "CtaAnalyticsTarget"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "data-analytics-props",
+          "label": "Data Analytics Props"
+        },
+        {
+          "component": "reference",
+          "valueType": "string",
+          "name": "foreground",
+          "label": "Foreground",
+          "multi": false
+        },
+        {
+          "component": "reference",
+          "valueType": "string",
+          "name": "foreground-container",
+          "label": "Foreground Container",
+          "multi": false
+        },
+        {
+          "component": "boolean",
+          "valueType": "string",
+          "name": "gradient",
+          "label": "Gradient"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "headline",
+          "label": "Headline"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "id",
+          "label": "Id"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "marquee-content",
+          "label": "Marquee Content"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "offer-details",
+          "label": "Offer Details"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "scroll-cta-into-header",
+          "label": "Scroll Cta Into Header"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "sub-headline",
+          "label": "Sub Headline"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "text-cta-container",
+          "label": "Text Cta Container"
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "marquee",
+      "components": [
+        "marquee-item"
+      ]
+    }
+  ]
+}

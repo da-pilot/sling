@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Fragment",
+      "id": "fragment",
+      "plugins": {
+        "da": {
+          "name": "fragment",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Fragment Item",
+      "id": "fragment-item",
+      "plugins": {
+        "da": {
+          "name": "fragment-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "fragment-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "fragment",
+      "components": [
+        "fragment-item"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Image Slider",
+      "id": "image-slider",
+      "plugins": {
+        "da": {
+          "name": "image-slider",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Image Slider Item",
+      "id": "image-slider-item",
+      "plugins": {
+        "da": {
+          "name": "image-slider-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "image-slider-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "image-slider",
+      "components": [
+        "image-slider-item"
+      ]
+    }
+  ]
+}

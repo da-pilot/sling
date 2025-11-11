@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Header",
+      "id": "header",
+      "plugins": {
+        "da": {
+          "name": "header",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Header Item",
+      "id": "header-item",
+      "plugins": {
+        "da": {
+          "name": "header-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "header-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "header",
+      "components": [
+        "header-item"
+      ]
+    }
+  ]
+}

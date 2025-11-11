@@ -1,0 +1,38 @@
+{
+  "definitions": [
+    {
+      "title": "Account Form",
+      "id": "account-form",
+      "plugins": {
+        "da": {
+          "name": "account-form",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "account-form",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        },
+        {
+          "component": "richtext",
+          "name": "div:nth-child(2)",
+          "value": "",
+          "label": "Content",
+          "valueType": "string"
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

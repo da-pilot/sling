@@ -1,0 +1,31 @@
+{
+  "definitions": [
+    {
+      "title": "Embed",
+      "id": "embed",
+      "plugins": {
+        "da": {
+          "name": "embed",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "embed",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

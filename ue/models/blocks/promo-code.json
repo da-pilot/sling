@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Promo Code",
+      "id": "promo-code",
+      "plugins": {
+        "da": {
+          "name": "promo-code",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Promo Code Item",
+      "id": "promo-code-item",
+      "plugins": {
+        "da": {
+          "name": "promo-code-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "promo-code-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "promo-code",
+      "components": [
+        "promo-code-item"
+      ]
+    }
+  ]
+}

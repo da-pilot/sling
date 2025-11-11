@@ -1,0 +1,31 @@
+{
+  "definitions": [
+    {
+      "title": "Blog Hero",
+      "id": "blog-hero",
+      "plugins": {
+        "da": {
+          "name": "blog-hero",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "blog-hero",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Whatson Header",
+      "id": "whatson-header",
+      "plugins": {
+        "da": {
+          "name": "whatson-header",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Whatson Header Item",
+      "id": "whatson-header-item",
+      "plugins": {
+        "da": {
+          "name": "whatson-header-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "whatson-header-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "whatson-header",
+      "components": [
+        "whatson-header-item"
+      ]
+    }
+  ]
+}

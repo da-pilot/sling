@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Cards",
+      "id": "cards",
+      "plugins": {
+        "da": {
+          "name": "cards",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Cards Item",
+      "id": "cards-item",
+      "plugins": {
+        "da": {
+          "name": "cards-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "cards-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "cards",
+      "components": [
+        "cards-item"
+      ]
+    }
+  ]
+}

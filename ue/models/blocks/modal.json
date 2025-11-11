@@ -1,0 +1,31 @@
+{
+  "definitions": [
+    {
+      "title": "Modal",
+      "id": "modal",
+      "plugins": {
+        "da": {
+          "name": "modal",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "modal",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

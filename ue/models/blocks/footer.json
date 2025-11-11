@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Footer",
+      "id": "footer",
+      "plugins": {
+        "da": {
+          "name": "footer",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Footer Item",
+      "id": "footer-item",
+      "plugins": {
+        "da": {
+          "name": "footer-item",
+          "rows": 1,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "footer-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "footer",
+      "components": [
+        "footer-item"
+      ]
+    }
+  ]
+}

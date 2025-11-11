@@ -1,0 +1,239 @@
+{
+  "definitions": [
+    {
+      "title": "Base Cards",
+      "id": "base-cards",
+      "plugins": {
+        "da": {
+          "name": "base-cards",
+          "rows": 1,
+          "columns": 2
+        }
+      }
+    },
+    {
+      "title": "Base Cards Item",
+      "id": "base-cards-item",
+      "plugins": {
+        "da": {
+          "name": "base-cards-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "base-cards-item",
+      "fields": [
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-CTA-Text",
+          "label": "Blue CTA Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-Service-CTA-Link",
+          "label": "Blue Service CTA Link"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-Service-CTA-Text",
+          "label": "Blue Service CTA Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-Service-DVR-Text",
+          "label": "Blue Service DVR Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-Service-Device-Stream-Text",
+          "label": "Blue Service Device Stream Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-Service-First-Good-For-Text",
+          "label": "Blue Service First Good For Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-Service-Second-Good-For-Text",
+          "label": "Blue Service Second Good For Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Blue-Service-Title-Text",
+          "label": "Blue Service Title Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-CTA-Text",
+          "label": "Combo CTA Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-Service-CTA-Link",
+          "label": "Combo Service CTA Link"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-Service-CTA-Text",
+          "label": "Combo Service CTA Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-Service-DVR-Text",
+          "label": "Combo Service DVR Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-Service-Device-Stream-Text",
+          "label": "Combo Service Device Stream Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-Service-First-Good-For-Text",
+          "label": "Combo Service First Good For Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-Service-Second-Good-For-Text",
+          "label": "Combo Service Second Good For Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Combo-Service-Title-Text",
+          "label": "Combo Service Title Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Footer-CTA-Link",
+          "label": "Footer CTA Link"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Footer-CTA-Text",
+          "label": "Footer CTA Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Gray-Icons-Root-Path",
+          "label": "Gray Icons Root Path"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Icons-Root-Path",
+          "label": "Icons Root Path"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Optional-Section-Subtitle-Text",
+          "label": "Optional Section Subtitle Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Optional-Section-Title-Text",
+          "label": "Optional Section Title Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-CTA-Text",
+          "label": "Orange CTA Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-Service-CTA-Link",
+          "label": "Orange Service CTA Link"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-Service-CTA-Text",
+          "label": "Orange Service CTA Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-Service-DVR-Text",
+          "label": "Orange Service DVR Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-Service-Device-Stream-Text",
+          "label": "Orange Service Device Stream Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-Service-First-Good-For-Text",
+          "label": "Orange Service First Good For Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-Service-Second-Good-For-Text",
+          "label": "Orange Service Second Good For Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Orange-Service-Title-Text",
+          "label": "Orange Service Title Text"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Plan-Identifier",
+          "label": "Plan Identifier"
+        },
+        {
+          "component": "text",
+          "valueType": "string",
+          "name": "Plan-Offer-Identifier",
+          "label": "Plan Offer Identifier"
+        },
+        {
+          "component": "boolean",
+          "valueType": "string",
+          "name": "Show-locals-banner-on-blue-and-combo-card",
+          "label": "Show Locals Banner On Blue And Combo Card"
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "base-cards",
+      "components": [
+        "base-cards-item"
+      ]
+    }
+  ]
+}

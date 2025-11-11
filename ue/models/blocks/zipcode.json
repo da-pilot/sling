@@ -1,0 +1,31 @@
+{
+  "definitions": [
+    {
+      "title": "Zipcode",
+      "id": "zipcode",
+      "plugins": {
+        "da": {
+          "name": "zipcode",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "zipcode",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": []
+}

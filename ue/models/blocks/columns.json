@@ -1,0 +1,49 @@
+{
+  "definitions": [
+    {
+      "title": "Columns",
+      "id": "columns",
+      "plugins": {
+        "da": {
+          "name": "columns",
+          "rows": 1,
+          "columns": 1
+        }
+      }
+    },
+    {
+      "title": "Columns Item",
+      "id": "columns-item",
+      "plugins": {
+        "da": {
+          "name": "columns-item",
+          "rows": 2,
+          "columns": 0
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "columns-item",
+      "fields": [
+        {
+          "component": "richtext",
+          "name": "div:nth-child(1)",
+          "value": "",
+          "label": "Title",
+          "valueType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "id": "columns",
+      "components": [
+        "columns-item"
+      ]
+    }
+  ]
+}
